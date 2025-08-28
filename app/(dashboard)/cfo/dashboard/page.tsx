@@ -360,14 +360,12 @@ export default function CFODashboard() {
           <div className="bg-white rounded-lg shadow p-6">
             <h3 className="text-lg font-semibold mb-4">Прибыль по месяцам</h3>
             <SimpleChart
+              title="Профит"
               type="line"
-              data={stats.monthlyData}
-              xKey="month"
-              yKeys={[
-                { key: 'profit', label: 'Профит', color: '#10b981' },
-                { key: 'expenses', label: 'Расходы', color: '#ef4444' },
-                { key: 'net', label: 'Чистая прибыль', color: '#3b82f6' }
-              ]}
+              data={stats.monthlyData.map(item => ({
+                label: item.month,
+                value: item.profit
+              }))}
               height={300}
             />
           </div>
@@ -376,10 +374,12 @@ export default function CFODashboard() {
           <div className="bg-white rounded-lg shadow p-6">
             <h3 className="text-lg font-semibold mb-4">Структура расходов</h3>
             <SimpleChart
+              title="Расходы"
               type="pie"
-              data={stats.expensesByCategory}
-              valueKey="amount"
-              labelKey="category"
+              data={stats.expensesByCategory.map(item => ({
+                label: item.category,
+                value: item.amount
+              }))}
               height={300}
             />
           </div>
