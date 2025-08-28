@@ -72,7 +72,7 @@ export default function EditUserPage() {
       })
     } catch (error) {
       console.error('Ошибка загрузки пользователя:', error)
-      addToast('Пользователь не найден', 'error')
+      addToast({ type: 'error', title: 'Пользователь не найден' })
       router.push('/hr/users')
     } finally {
       setLoading(false)
@@ -93,24 +93,24 @@ export default function EditUserPage() {
     
     // Валидация
     if (!validateEmail(formData.email)) {
-      addToast('Некорректный email адрес', 'error')
+      addToast({ type: 'error', title: 'Некорректный email адрес' })
       return
     }
     
     if (formData.usdt_wallet && !validateUSDTWallet(formData.usdt_wallet)) {
-      addToast('Некорректный USDT кошелек (должен быть TRC20)', 'error')
+      addToast({ type: 'error', title: 'Некорректный USDT кошелек (должен быть TRC20)' })
       return
     }
     
     const percentage = parseFloat(formData.salary_percentage)
     if (percentage < 0 || percentage > 100) {
-      addToast('Процент зарплаты должен быть от 0 до 100', 'error')
+      addToast({ type: 'error', title: 'Процент зарплаты должен быть от 0 до 100' })
       return
     }
 
     const bonus = parseFloat(formData.salary_bonus)
     if (bonus < 0) {
-      addToast('Бонус не может быть отрицательным', 'error')
+      addToast({ type: 'error', title: 'Бонус не может быть отрицательным' })
       return
     }
 
@@ -139,14 +139,14 @@ export default function EditUserPage() {
 
       if (error) throw error
 
-      addToast('Пользователь успешно обновлен', 'success')
+      addToast({ type: 'success', title: 'Пользователь успешно обновлен' })
       router.push('/hr/users')
     } catch (error: any) {
       console.error('Ошибка обновления пользователя:', error)
       if (error.code === '23505') {
-        addToast('Пользователь с таким email уже существует', 'error')
+        addToast({ type: 'error', title: 'Пользователь с таким email уже существует' })
       } else {
-        addToast('Ошибка обновления пользователя', 'error')
+        addToast({ type: 'error', title: 'Ошибка обновления пользователя' })
       }
     } finally {
       setSaving(false)
@@ -170,10 +170,10 @@ export default function EditUserPage() {
 
       if (error) throw error
 
-      addToast(`Новый пароль: ${newPassword}`, 'success')
+      addToast({ type: 'success', title: 'Пароль сброшен', description: `Новый пароль: ${newPassword}` })
     } catch (error) {
       console.error('Ошибка сброса пароля:', error)
-      addToast('Ошибка сброса пароля', 'error')
+      addToast({ type: 'error', title: 'Ошибка сброса пароля' })
     }
   }
 

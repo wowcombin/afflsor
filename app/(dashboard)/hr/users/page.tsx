@@ -67,7 +67,7 @@ export default function UsersPage() {
       calculateStats(data || [])
     } catch (error) {
       console.error('Ошибка загрузки пользователей:', error)
-      addToast('Ошибка загрузки пользователей', 'error')
+      addToast({ type: 'error', title: 'Ошибка загрузки пользователей' })
     } finally {
       setLoading(false)
     }
@@ -104,17 +104,17 @@ export default function UsersPage() {
 
       if (error) throw error
 
-      addToast(`Статус пользователя изменен на ${newStatus}`, 'success')
+      addToast({ type: 'success', title: `Статус пользователя изменен на ${newStatus}` })
       await loadUsers()
     } catch (error) {
       console.error('Ошибка изменения статуса:', error)
-      addToast('Ошибка изменения статуса', 'error')
+      addToast({ type: 'error', title: 'Ошибка изменения статуса' })
     }
   }
 
   async function handleBulkStatusChange(status: 'active' | 'inactive' | 'terminated') {
     if (selectedUsers.length === 0) {
-      addToast('Выберите пользователей для изменения статуса', 'warning')
+      addToast({ type: 'warning', title: 'Выберите пользователей для изменения статуса' })
       return
     }
 
@@ -130,12 +130,12 @@ export default function UsersPage() {
 
       if (error) throw error
 
-      addToast(`Статус ${selectedUsers.length} пользователей изменен`, 'success')
+      addToast({ type: 'success', title: `Статус ${selectedUsers.length} пользователей изменен` })
       setSelectedUsers([])
       await loadUsers()
     } catch (error) {
       console.error('Ошибка массового изменения статуса:', error)
-      addToast('Ошибка изменения статуса', 'error')
+      addToast({ type: 'error', title: 'Ошибка изменения статуса' })
     }
   }
 
