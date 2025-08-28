@@ -331,10 +331,13 @@ export default function ManagerCardsPage() {
         data={cards}
         actions={actions}
         filters={filters}
-        defaultSort={{ key: 'created_at', direction: 'desc' }}
-        pageSize={20}
-        exportable={true}
-        exportFilename="manager-cards"
+        sorting={{ key: 'created_at', direction: 'desc' }}
+        pagination={{
+          pageSize: 20,
+          showTotal: true
+        }}
+        export={true}
+        loading={loading}
       />
 
       {/* Модальное окно назначения карты */}
