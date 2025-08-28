@@ -118,7 +118,7 @@ export default function CFOSalariesPage() {
 
     try {
       // Обновить статус на paid
-      for (const id of selected) {
+      for (const id of Array.from(selected)) {
         const calculation = calculations.find(c => c.id === id)
         if (calculation) {
           await supabase
