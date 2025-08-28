@@ -8,6 +8,7 @@ import DataTable, { Column } from '@/components/ui/DataTable'
 import StatusBadge from '@/components/ui/StatusBadge'
 import Alert from '@/components/ui/Alert'
 import { useToast } from '@/components/ui/Toast'
+import { CurrencyDollarIcon, TrophyIcon, CalendarIcon, ChartBarIcon } from '@heroicons/react/24/outline'
 
 interface Work {
   id: string
@@ -134,7 +135,13 @@ export default function JuniorDashboard() {
       
       setStats({
         monthProfit,
+        profitChange: 0, // TODO: Рассчитать изменение к вчера
+        rankPosition: 0, // TODO: Рассчитать позицию в рейтинге
+        totalJuniors: 0, // TODO: Получить общее количество Junior
+        daysToSalary: 0, // TODO: Рассчитать дни до зарплаты
+        nextSalaryDate: '', // TODO: Дата следующей зарплаты
         successRate: Math.round(successRate),
+        successRateChange: 0, // TODO: Изменение успешности за неделю
         activeWorks: activeWorksCount || 0,
         availableCards: availableCards || 0,
         totalDeposits,
@@ -285,7 +292,11 @@ export default function JuniorDashboard() {
           format="currency"
           color="green"
           icon={<span className="text-2xl">💰</span>}
-          trend={stats.monthProfit > 0 ? { value: 15.2, direction: 'up', label: 'vs прошлый месяц' } : undefined}
+          trend={stats.profitChange !== 0 ? { 
+            value: Math.abs(stats.profitChange), 
+            direction: stats.profitChange >= 0 ? 'up' : 'down', 
+            label: 'к вчера' 
+          } : undefined}
         />
         
         <KPICard
