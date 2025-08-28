@@ -108,13 +108,16 @@ export default function CFODashboard() {
       let totalSalariesOwed = 0
 
       withdrawals?.forEach(w => {
-        const profit = w.withdrawal_amount - w.works.deposit_amount
+        const work = Array.isArray(w.works) ? w.works[0] : w.works
+        const user = Array.isArray(work?.users) ? work.users[0] : work?.users
+        
+        const profit = w.withdrawal_amount - (work?.deposit_amount || 0)
         totalProfit += profit
         
-        const juniorId = w.works.junior_id
-        const juniorName = `${w.works.users.first_name || ''} ${w.works.users.last_name || ''}`.trim()
-        const salaryPercentage = w.works.users.salary_percentage
-        const salaryBonus = w.works.users.salary_bonus
+        const juniorId = work?.junior_id
+        const juniorName = `${user?.first_name || ''} ${user?.last_name || ''}`.trim()
+        const salaryPercentage = user?.salary_percentage || 0
+        const salaryBonus = user?.salary_bonus || 0
         
         if (juniorStats.has(juniorId)) {
           const existing = juniorStats.get(juniorId)
@@ -159,8 +162,10 @@ export default function CFODashboard() {
           .gte('works.work_date', monthStart.toISOString())
           .lte('works.work_date', monthEnd.toISOString())
 
-        const monthProfit = monthWithdrawals?.reduce((sum, w) => 
-          sum + (w.withdrawal_amount - w.works.deposit_amount), 0) || 0
+        const monthProfit = monthWithdrawals?.reduce((sum, w) => {
+          const work = Array.isArray(w.works) ? w.works[0] : w.works
+          return sum + (w.withdrawal_amount - (work?.deposit_amount || 0))
+        }, 0) || 0
 
         monthlyData.push({
           month: monthStart.toLocaleDateString('ru-RU', { month: 'short', year: 'numeric' }),
