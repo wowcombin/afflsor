@@ -49,7 +49,7 @@ export async function GET() {
       .eq('works.users.role', 'junior')
       .gte('created_at', lastMonth.toISOString())
     
-    const totalProfit = profits?.reduce((sum, w) => 
+    const totalProfit = profits?.reduce((sum, w: any) => 
       sum + (w.withdrawal_amount - w.works.deposit_amount), 0) || 0
     const average_profit = juniors_count ? totalProfit / juniors_count : 0
     
