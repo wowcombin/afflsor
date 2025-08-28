@@ -72,9 +72,11 @@ export async function POST(request: Request) {
     const juniorCalculations = new Map()
 
     withdrawals?.forEach(withdrawal => {
-      const profit = withdrawal.withdrawal_amount - withdrawal.works.deposit_amount
-      const juniorId = withdrawal.works.junior_id
-      const junior = withdrawal.works.users
+      const work = Array.isArray(withdrawal.works) ? withdrawal.works[0] : withdrawal.works
+      const junior = Array.isArray(work?.users) ? work.users[0] : work?.users
+      
+      const profit = withdrawal.withdrawal_amount - (work?.deposit_amount || 0)
+      const juniorId = work?.junior_id
       
       if (juniorCalculations.has(juniorId)) {
         const existing = juniorCalculations.get(juniorId)
@@ -83,10 +85,10 @@ export async function POST(request: Request) {
       } else {
         juniorCalculations.set(juniorId, {
           juniorId,
-          firstName: junior.first_name || '',
-          lastName: junior.last_name || '',
-          salaryPercentage: junior.salary_percentage,
-          salaryBonus: junior.salary_bonus,
+          firstName: junior?.first_name || '',
+          lastName: junior?.last_name || '',
+          salaryPercentage: junior?.salary_percentage || 0,
+          salaryBonus: junior?.salary_bonus || 0,
           totalProfit: profit,
           worksCount: 1
         })
