@@ -105,7 +105,7 @@ export default function JuniorDashboard() {
         .eq('works.junior_id', user.id)
         .gte('created_at', startOfMonth.toISOString())
       
-      const successRate = allWithdrawals?.length > 0 
+      const successRate = allWithdrawals && allWithdrawals.length > 0 
         ? (allWithdrawals.filter(w => w.status === 'received').length / allWithdrawals.length) * 100
         : 0
       
