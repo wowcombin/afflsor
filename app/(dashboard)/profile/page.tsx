@@ -3,8 +3,8 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
-import { FormCard } from '@/components/ui/FormCard'
-import { Alert } from '@/components/ui/Alert'
+import FormCard from '@/components/ui/FormCard'
+import Alert from '@/components/ui/Alert'
 import { UserCircleIcon, KeyIcon, CreditCardIcon } from '@heroicons/react/24/outline'
 
 interface User {
