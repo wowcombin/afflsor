@@ -266,7 +266,7 @@ export default function ManagerDashboard() {
       </div>
 
       {/* Быстрые действия */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <button 
           onClick={() => window.location.reload()}
           className="bg-blue-50 hover:bg-blue-100 p-4 rounded-lg text-blue-800 font-medium text-center transition-colors"
@@ -301,6 +301,12 @@ export default function ManagerDashboard() {
           className="bg-green-50 hover:bg-green-100 p-4 rounded-lg text-green-800 font-medium text-center transition-colors"
         >
           📊 Экспорт отчета
+        </button>
+        <button 
+          onClick={() => window.location.href = '/manager/cards'}
+          className="bg-purple-50 hover:bg-purple-100 p-4 rounded-lg text-purple-800 font-medium text-center transition-colors"
+        >
+          💳 Управление картами
         </button>
       </div>
 
