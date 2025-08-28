@@ -157,7 +157,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ 
       success: true,
-      message: `Карта ${assignment.cards.card_number_mask} назначена Junior'у ${assignment.users.first_name} ${assignment.users.last_name} для казино ${assignment.casinos.name}`,
+      message: `Карта ${assignment.cards[0]?.card_number_mask} назначена Junior'у ${assignment.users[0]?.first_name} ${assignment.users[0]?.last_name} для казино ${assignment.casinos[0]?.name}`,
       assignment
     })
 
@@ -228,7 +228,7 @@ export async function DELETE(request: Request) {
 
     return NextResponse.json({ 
       success: true,
-      message: `Назначение карты ${assignment.cards.card_number_mask} отменено`
+      message: `Назначение карты ${assignment.cards[0]?.card_number_mask} отменено`
     })
 
   } catch (error) {
