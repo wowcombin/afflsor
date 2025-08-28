@@ -5,7 +5,7 @@ export interface RoleBadgeProps {
   size?: 'sm' | 'md' | 'lg'
 }
 
-const roleConfigs = {
+const roleConfigs: Record<string, { bg: string; text: string; label: string }> = {
   junior: { bg: 'bg-green-100', text: 'text-green-800', label: 'Junior' },
   tester: { bg: 'bg-purple-100', text: 'text-purple-800', label: 'Tester' },
   manager: { bg: 'bg-blue-100', text: 'text-blue-800', label: 'Manager' },
@@ -15,7 +15,7 @@ const roleConfigs = {
   ceo: { bg: 'bg-red-100', text: 'text-red-800', label: 'CEO' }
 }
 
-const sizeClasses = {
+const sizeClasses: Record<string, string> = {
   sm: 'px-2 py-1 text-xs',
   md: 'px-3 py-1 text-sm',
   lg: 'px-4 py-2 text-base'

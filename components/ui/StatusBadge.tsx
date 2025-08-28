@@ -6,7 +6,7 @@ export interface StatusBadgeProps {
   size?: 'sm' | 'md' | 'lg'
 }
 
-const statusConfigs = {
+const statusConfigs: Record<string, Record<string, { bg: string; text: string; label: string }>> = {
   withdrawal: {
     new: { bg: 'bg-gray-100', text: 'text-gray-800', label: 'Новый' },
     waiting: { bg: 'bg-yellow-100', text: 'text-yellow-800', label: 'Ожидает' },
@@ -45,7 +45,7 @@ const statusConfigs = {
   }
 }
 
-const sizeClasses = {
+const sizeClasses: Record<string, string> = {
   sm: 'px-2 py-1 text-xs',
   md: 'px-3 py-1 text-sm',
   lg: 'px-4 py-2 text-base'
