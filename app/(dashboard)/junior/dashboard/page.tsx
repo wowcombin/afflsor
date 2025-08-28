@@ -30,13 +30,23 @@ export default function JuniorDashboard() {
   const { addToast } = useToast()
   const [stats, setStats] = useState({
     monthProfit: 0,
+    profitChange: 0,
+    rankPosition: 0,
+    totalJuniors: 0,
+    daysToSalary: 0,
+    nextSalaryDate: '',
     successRate: 0,
+    successRateChange: 0,
     activeWorks: 0,
     availableCards: 0,
     totalDeposits: 0,
     pendingWithdrawals: 0
   })
   const [recentWorks, setRecentWorks] = useState<Work[]>([])
+  const [assignedCards, setAssignedCards] = useState<any[]>([])
+  const [profitChart, setProfitChart] = useState<any[]>([])
+  const [topPerformers, setTopPerformers] = useState<any[]>([])
+  const [recentTransactions, setRecentTransactions] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   
   useEffect(() => {

@@ -3,16 +3,43 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import KPICard from '@/components/ui/KPICard'
+import DataTable, { Column } from '@/components/ui/DataTable'
+import SimpleChart from '@/components/ui/SimpleChart'
+import { useToast } from '@/components/ui/Toast'
+import { 
+  CurrencyDollarIcon, 
+  ChartBarIcon, 
+  UsersIcon,
+  CalendarIcon,
+  ArrowTrendingUpIcon,
+  ArrowTrendingDownIcon
+} from '@heroicons/react/24/outline'
 
 interface Stats {
   totalProfit: number
   totalExpenses: number
   netIncome: number
+  monthlyProfit: number
+  profitChange: number
+  totalSalariesOwed: number
   topJuniors: Array<{
     id: string
     name: string
     profit: number
     works_count: number
+    salary_owed: number
+  }>
+  monthlyData: Array<{
+    month: string
+    profit: number
+    expenses: number
+    net: number
+  }>
+  expensesByCategory: Array<{
+    category: string
+    amount: number
+    percentage: number
   }>
 }
 
@@ -20,210 +47,387 @@ export default function CFODashboard() {
   const [stats, setStats] = useState<Stats | null>(null)
   const [loading, setLoading] = useState(true)
   const [calculating, setCalculating] = useState(false)
+  const [selectedPeriod, setSelectedPeriod] = useState('current_month')
   const router = useRouter()
+  const { addToast } = useToast()
 
   useEffect(() => {
-    fetchStats()
-  }, [])
+    if (typeof window !== 'undefined') {
+      fetchStats()
+    } else {
+      setLoading(false)
+    }
+  }, [selectedPeriod])
 
   const fetchStats = async () => {
     try {
       const supabase = createClient()
-      // Получить профит за текущий месяц
-      const startOfMonth = new Date()
-      startOfMonth.setDate(1)
-      startOfMonth.setHours(0, 0, 0, 0)
+      
+      // Определяем период
+      const now = new Date()
+      let startDate = new Date()
+      let endDate = new Date()
+      
+      switch (selectedPeriod) {
+        case 'current_month':
+          startDate.setDate(1)
+          startDate.setHours(0, 0, 0, 0)
+          break
+        case 'last_month':
+          startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+          endDate = new Date(now.getFullYear(), now.getMonth(), 0)
+          break
+        case 'last_3_months':
+          startDate = new Date(now.getFullYear(), now.getMonth() - 2, 1)
+          break
+        case 'current_year':
+          startDate = new Date(now.getFullYear(), 0, 1)
+          break
+      }
 
+      // Получить все выводы за период
       const { data: withdrawals } = await supabase
         .from('work_withdrawals')
         .select(`
           withdrawal_amount,
+          created_at,
           works!inner(
             deposit_amount,
             junior_id,
             work_date,
-            users!inner(first_name, last_name)
+            users!inner(first_name, last_name, salary_percentage, salary_bonus)
           )
         `)
         .eq('status', 'received')
-        .gte('works.work_date', startOfMonth.toISOString())
+        .gte('works.work_date', startDate.toISOString())
+        .lte('works.work_date', endDate.toISOString())
 
-      // Рассчитать общий профит
-      const totalProfit = withdrawals?.reduce((sum, w: any) => {
-        return sum + (w.withdrawal_amount - w.works.deposit_amount)
-      }, 0) || 0
+      // Расчет статистики
+      const juniorStats = new Map()
+      let totalProfit = 0
+      let totalSalariesOwed = 0
 
-      // Рассчитать топ Junior'ов
-      const juniorProfits = new Map<string, { name: string, profit: number, works_count: number }>()
-      
-      withdrawals?.forEach((w: any) => {
-        const juniorId = w.works.junior_id
+      withdrawals?.forEach(w => {
         const profit = w.withdrawal_amount - w.works.deposit_amount
-        const name = `${w.works.users.first_name} ${w.works.users.last_name}`
+        totalProfit += profit
         
-        if (juniorProfits.has(juniorId)) {
-          const existing = juniorProfits.get(juniorId)!
-          juniorProfits.set(juniorId, {
-            name,
-            profit: existing.profit + profit,
-            works_count: existing.works_count + 1
-          })
+        const juniorId = w.works.junior_id
+        const juniorName = `${w.works.users.first_name || ''} ${w.works.users.last_name || ''}`.trim()
+        const salaryPercentage = w.works.users.salary_percentage
+        const salaryBonus = w.works.users.salary_bonus
+        
+        if (juniorStats.has(juniorId)) {
+          const existing = juniorStats.get(juniorId)
+          existing.profit += profit
+          existing.works_count += 1
         } else {
-          juniorProfits.set(juniorId, { name, profit, works_count: 1 })
+          juniorStats.set(juniorId, {
+            id: juniorId,
+            name: juniorName || 'Неизвестно',
+            profit: profit,
+            works_count: 1,
+            salary_percentage: salaryPercentage,
+            salary_bonus: salaryBonus,
+            salary_owed: 0
+          })
         }
       })
 
-      const topJuniors = Array.from(juniorProfits.entries())
-        .map(([id, data]) => ({ id, ...data }))
-        .sort((a, b) => b.profit - a.profit)
-        .slice(0, 5)
+      // Расчет зарплат
+      const topJuniors = Array.from(juniorStats.values()).map(junior => {
+        const salaryOwed = (junior.profit * junior.salary_percentage / 100) + junior.salary_bonus
+        totalSalariesOwed += salaryOwed
+        return {
+          ...junior,
+          salary_owed: salaryOwed
+        }
+      }).sort((a, b) => b.profit - a.profit).slice(0, 10)
 
-      // Заглушка для расходов (можно добавить таблицу expenses)
-      const totalExpenses = totalProfit * 0.3 // Примерно 30% от профита
+      // Получить данные по месяцам для графика
+      const monthlyData = []
+      for (let i = 5; i >= 0; i--) {
+        const monthStart = new Date(now.getFullYear(), now.getMonth() - i, 1)
+        const monthEnd = new Date(now.getFullYear(), now.getMonth() - i + 1, 0)
+        
+        const { data: monthWithdrawals } = await supabase
+          .from('work_withdrawals')
+          .select(`
+            withdrawal_amount,
+            works!inner(deposit_amount, work_date)
+          `)
+          .eq('status', 'received')
+          .gte('works.work_date', monthStart.toISOString())
+          .lte('works.work_date', monthEnd.toISOString())
+
+        const monthProfit = monthWithdrawals?.reduce((sum, w) => 
+          sum + (w.withdrawal_amount - w.works.deposit_amount), 0) || 0
+
+        monthlyData.push({
+          month: monthStart.toLocaleDateString('ru-RU', { month: 'short', year: 'numeric' }),
+          profit: monthProfit,
+          expenses: monthProfit * 0.15, // Примерный расчет расходов
+          net: monthProfit * 0.85
+        })
+      }
+
+      // Расчет изменения прибыли
+      const currentMonthProfit = monthlyData[monthlyData.length - 1]?.profit || 0
+      const previousMonthProfit = monthlyData[monthlyData.length - 2]?.profit || 0
+      const profitChange = previousMonthProfit > 0 
+        ? ((currentMonthProfit - previousMonthProfit) / previousMonthProfit) * 100 
+        : 0
 
       setStats({
         totalProfit,
-        totalExpenses,
-        netIncome: totalProfit - totalExpenses,
-        topJuniors
+        totalExpenses: totalProfit * 0.15, // Примерный расчет
+        netIncome: totalProfit * 0.85,
+        monthlyProfit: currentMonthProfit,
+        profitChange,
+        totalSalariesOwed,
+        topJuniors,
+        monthlyData,
+        expensesByCategory: [
+          { category: 'Зарплаты', amount: totalSalariesOwed, percentage: 70 },
+          { category: 'Комиссии банков', amount: totalProfit * 0.05, percentage: 15 },
+          { category: 'Операционные расходы', amount: totalProfit * 0.03, percentage: 10 },
+          { category: 'Прочее', amount: totalProfit * 0.02, percentage: 5 }
+        ]
       })
-      
     } catch (error) {
       console.error('Ошибка загрузки статистики:', error)
+      addToast({ type: 'error', title: 'Ошибка загрузки финансовых данных' })
     } finally {
       setLoading(false)
     }
   }
 
-  const calculateSalaries = async () => {
+  async function calculateSalaries() {
     setCalculating(true)
-    
     try {
-      const response = await fetch('/api/finance/salaries/calculate', {
+      const response = await fetch('/api/cfo/calculate-salaries', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ period: selectedPeriod })
       })
 
-      if (response.ok) {
-        router.push('/cfo/salaries')
-      } else {
-        const data = await response.json()
-        alert(`Ошибка: ${data.error}`)
-      }
+      const data = await response.json()
+      
+      if (!response.ok) throw new Error(data.error)
+
+      addToast({ 
+        type: 'success', 
+        title: 'Зарплаты рассчитаны', 
+        description: `Обработано ${data.processed} сотрудников` 
+      })
+      
+      await fetchStats()
     } catch (error) {
-      alert('Ошибка сети')
+      console.error('Ошибка расчета зарплат:', error)
+      addToast({ type: 'error', title: 'Ошибка расчета зарплат' })
     } finally {
       setCalculating(false)
     }
   }
 
-  if (loading) return <div className="p-8">Загрузка...</div>
+  const columns: Column[] = [
+    {
+      key: 'name',
+      label: 'Сотрудник',
+      sortable: true,
+      render: (junior: any) => (
+        <div className="flex items-center">
+          <UsersIcon className="h-5 w-5 text-gray-400 mr-2" />
+          <div>
+            <div className="font-medium text-gray-900">{junior.name}</div>
+            <div className="text-sm text-gray-500">{junior.works_count} работ</div>
+          </div>
+        </div>
+      )
+    },
+    {
+      key: 'profit',
+      label: 'Профит',
+      sortable: true,
+      format: 'currency',
+      render: (junior: any) => (
+        <div className="text-green-600 font-semibold">
+          ${junior.profit.toFixed(2)}
+        </div>
+      )
+    },
+    {
+      key: 'salary_owed',
+      label: 'К выплате',
+      sortable: true,
+      format: 'currency',
+      render: (junior: any) => (
+        <div className="text-blue-600 font-semibold">
+          ${junior.salary_owed.toFixed(2)}
+        </div>
+      )
+    }
+  ]
+
+  if (loading) {
+    return (
+      <div className="p-8">
+        <div className="animate-pulse space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="bg-white rounded-lg p-6">
+                <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                <div className="h-8 bg-gray-200 rounded w-1/2"></div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="p-8">
-      <h1 className="text-2xl font-bold mb-6">CFO Dashboard</h1>
-      
-      {/* P&L карточки */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h3 className="text-gray-600 text-sm">Валовый профит</h3>
-          <p className="text-3xl font-bold text-green-600">
-            ${stats?.totalProfit.toFixed(2)}
-          </p>
-          <p className="text-sm text-gray-500 mt-1">За текущий месяц</p>
-        </div>
-        
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h3 className="text-gray-600 text-sm">Расходы</h3>
-          <p className="text-3xl font-bold text-red-600">
-            ${stats?.totalExpenses.toFixed(2)}
-          </p>
-          <p className="text-sm text-gray-500 mt-1">Зарплаты + операционные</p>
-        </div>
-        
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h3 className="text-gray-600 text-sm">Чистая прибыль</h3>
-          <p className={`text-3xl font-bold ${
-            (stats?.netIncome || 0) >= 0 ? 'text-green-600' : 'text-red-600'
-          }`}>
-            ${stats?.netIncome.toFixed(2)}
-          </p>
-          <p className="text-sm text-gray-500 mt-1">
-            Маржа: {stats ? ((stats.netIncome / stats.totalProfit) * 100).toFixed(1) : 0}%
-          </p>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-        {/* График расходов (заглушка) */}
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h3 className="text-lg font-semibold mb-4">Структура расходов</h3>
-          <div className="h-64 bg-gray-100 rounded flex items-center justify-center">
-            <div className="text-center text-gray-500">
-              <div className="text-4xl mb-2">📊</div>
-              <div>Donut Chart</div>
-              <div className="text-sm">Зарплаты, Операционные, Маркетинг</div>
-            </div>
-          </div>
-        </div>
-
-        {/* Топ Junior'ов */}
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h3 className="text-lg font-semibold mb-4">Топ-5 Junior по профиту</h3>
-          {stats?.topJuniors.length === 0 ? (
-            <div className="text-gray-500">Нет данных за текущий месяц</div>
-          ) : (
-            <div className="space-y-3">
-              {stats?.topJuniors.map((junior, index) => (
-                <div key={junior.id} className="flex justify-between items-center p-3 bg-gray-50 rounded">
-                  <div className="flex items-center">
-                    <span className={`w-6 h-6 rounded-full flex items-center justify-center text-sm font-bold mr-3 ${
-                      index === 0 ? 'bg-yellow-400 text-white' :
-                      index === 1 ? 'bg-gray-400 text-white' :
-                      index === 2 ? 'bg-orange-400 text-white' :
-                      'bg-blue-100 text-blue-800'
-                    }`}>
-                      {index + 1}
-                    </span>
-                    <div>
-                      <div className="font-medium">{junior.name}</div>
-                      <div className="text-sm text-gray-500">{junior.works_count} работ</div>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="font-bold text-green-600">${junior.profit.toFixed(2)}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Действия */}
-      <div className="bg-white p-6 rounded-lg shadow">
-        <h3 className="text-lg font-semibold mb-4">Финансовые операции</h3>
-        <div className="flex gap-4">
-          <button
-            onClick={calculateSalaries}
-            disabled={calculating}
-            className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">CFO Dashboard</h1>
+        <div className="flex space-x-3">
+          <select
+            value={selectedPeriod}
+            onChange={(e) => setSelectedPeriod(e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
           >
-            {calculating ? 'Расчет...' : 'Рассчитать зарплаты за месяц'}
-          </button>
+            <option value="current_month">Текущий месяц</option>
+            <option value="last_month">Прошлый месяц</option>
+            <option value="last_3_months">Последние 3 месяца</option>
+            <option value="current_year">Текущий год</option>
+          </select>
           
           <button
             onClick={() => router.push('/cfo/salaries')}
-            className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700"
+            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
           >
             Управление зарплатами
           </button>
           
           <button
-            onClick={() => window.open('/api/finance/export', '_blank')}
-            className="bg-gray-600 text-white px-6 py-3 rounded-lg hover:bg-gray-700"
+            onClick={calculateSalaries}
+            disabled={calculating}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
           >
-            Экспорт P&L отчета
+            {calculating ? 'Расчет...' : 'Рассчитать зарплаты'}
+          </button>
+        </div>
+      </div>
+
+      {/* KPI Cards */}
+      {stats && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <KPICard
+            title="Общий профит"
+            value={`$${stats.totalProfit.toFixed(2)}`}
+            color="green"
+            icon={<CurrencyDollarIcon className="h-6 w-6" />}
+          />
+          <KPICard
+            title="Расходы"
+            value={`$${stats.totalExpenses.toFixed(2)}`}
+            color="red"
+            icon={<ChartBarIcon className="h-6 w-6" />}
+          />
+          <KPICard
+            title="Чистая прибыль"
+            value={`$${stats.netIncome.toFixed(2)}`}
+            color="blue"
+            icon={<ArrowTrendingUpIcon className="h-6 w-6" />}
+          />
+          <KPICard
+            title="К выплате зарплат"
+            value={`$${stats.totalSalariesOwed.toFixed(2)}`}
+            color="purple"
+            icon={<UsersIcon className="h-6 w-6" />}
+          />
+        </div>
+      )}
+
+      {/* Charts */}
+      {stats && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          {/* Monthly Profit Chart */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <h3 className="text-lg font-semibold mb-4">Прибыль по месяцам</h3>
+            <SimpleChart
+              type="line"
+              data={stats.monthlyData}
+              xKey="month"
+              yKeys={[
+                { key: 'profit', label: 'Профит', color: '#10b981' },
+                { key: 'expenses', label: 'Расходы', color: '#ef4444' },
+                { key: 'net', label: 'Чистая прибыль', color: '#3b82f6' }
+              ]}
+              height={300}
+            />
+          </div>
+
+          {/* Expenses Breakdown */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <h3 className="text-lg font-semibold mb-4">Структура расходов</h3>
+            <SimpleChart
+              type="pie"
+              data={stats.expensesByCategory}
+              valueKey="amount"
+              labelKey="category"
+              height={300}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Top Performers */}
+      {stats && (
+        <div className="bg-white rounded-lg shadow">
+          <div className="p-6 border-b border-gray-200">
+            <h3 className="text-lg font-semibold">Топ сотрудников по прибыли</h3>
+          </div>
+          <DataTable
+            data={stats.topJuniors}
+            columns={columns}
+            pagination={{ pageSize: 10 }}
+            sorting={{ key: 'profit', direction: 'desc' }}
+          />
+        </div>
+      )}
+
+      {/* Quick Actions */}
+      <div className="mt-6 bg-white rounded-lg shadow p-6">
+        <h3 className="text-lg font-semibold mb-4">Быстрые действия</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <button
+            onClick={() => router.push('/cfo/salaries')}
+            className="p-4 border-2 border-dashed border-green-300 rounded-lg text-green-600 hover:bg-green-50"
+          >
+            <div className="text-center">
+              <div className="text-2xl mb-2">💰</div>
+              <div className="font-medium">Управление зарплатами</div>
+            </div>
+          </button>
+          
+          <button
+            onClick={() => router.push('/cfo/expenses')}
+            className="p-4 border-2 border-dashed border-red-300 rounded-lg text-red-600 hover:bg-red-50"
+          >
+            <div className="text-center">
+              <div className="text-2xl mb-2">📊</div>
+              <div className="font-medium">Учет расходов</div>
+            </div>
+          </button>
+          
+          <button
+            onClick={() => router.push('/cfo/transfers')}
+            className="p-4 border-2 border-dashed border-blue-300 rounded-lg text-blue-600 hover:bg-blue-50"
+          >
+            <div className="text-center">
+              <div className="text-2xl mb-2">💸</div>
+              <div className="font-medium">USDT переводы</div>
+            </div>
           </button>
         </div>
       </div>
