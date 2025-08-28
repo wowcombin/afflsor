@@ -28,7 +28,7 @@ interface Card {
 interface CasinoTest {
   id?: string
   casino_id: string
-  card_id?: string
+  card_id: string | null
   test_type: string
   status: 'pending' | 'in_progress' | 'completed' | 'failed'
   rating: number | null
@@ -88,7 +88,7 @@ export default function CasinoTestModal({
       } else if (mode === 'complete' && test) {
         setFormData({
           casino_id: test.casino_id,
-          card_id: test.card_id ?? '',
+          card_id: test.card_id || '',
           test_type: test.test_type,
           rating: test.rating ?? 5,
           deposit_test_amount: test.deposit_test_amount ?? 100,
