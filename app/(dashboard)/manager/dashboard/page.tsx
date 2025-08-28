@@ -213,7 +213,7 @@ export default function ManagerDashboard() {
               showTotal: true
             }}
             filters={[
-              { type: 'search', placeholder: 'Поиск по Junior, казино...' },
+              { type: 'search', key: 'search', placeholder: 'Поиск по Junior, казино...' },
               {
                 type: 'select',
                 key: 'status',
