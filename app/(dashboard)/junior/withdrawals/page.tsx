@@ -255,7 +255,7 @@ export default function JuniorWithdrawalsPage() {
         <KPICard
           title="Общий профит"
           value={`$${stats.totalProfit.toFixed(2)}`}
-          color="emerald"
+          color="green"
           icon={<span className="text-2xl">💰</span>}
         />
       </div>
