@@ -95,17 +95,17 @@ export async function GET(request: Request) {
     // Обрабатываем данные для удобства фронтенда
     const processedCards = cards?.map(card => ({
       ...card,
-      bank: card.bank_accounts.banks,
+      bank: card.bank_accounts[0]?.banks[0],
       bank_account: {
-        id: card.bank_accounts.id,
-        holder_name: card.bank_accounts.holder_name,
-        balance: card.bank_accounts.balance,
-        status: card.bank_accounts.status
+        id: card.bank_accounts[0]?.id,
+        holder_name: card.bank_accounts[0]?.holder_name,
+        balance: card.bank_accounts[0]?.balance,
+        status: card.bank_accounts[0]?.status
       },
       assignments: card.card_assignments || [],
       is_available: card.status === 'active' && 
-                   card.bank_accounts.status === 'active' && 
-                   card.bank_accounts.balance >= 10,
+                   card.bank_accounts[0]?.status === 'active' && 
+                   card.bank_accounts[0]?.balance >= 10,
       active_assignments: card.card_assignments?.filter(a => a.status === 'assigned') || []
     })) || []
 
