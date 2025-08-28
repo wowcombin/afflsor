@@ -308,27 +308,26 @@ export default function UsersPage() {
           <KPICard
             title="Всего пользователей"
             value={stats.total.toString()}
-            trend="neutral"
             icon="👥"
           />
           <KPICard
             title="Активные"
             value={stats.active.toString()}
-            trend="positive"
             icon="✅"
-            subtitle={`${Math.round((stats.active / stats.total) * 100)}% от общего`}
+            color="green"
+            footer={`${Math.round((stats.active / stats.total) * 100)}% от общего`}
           />
           <KPICard
             title="Неактивные"
             value={stats.inactive.toString()}
-            trend="neutral"
             icon="⏸️"
+            color="yellow"
           />
           <KPICard
             title="Уволенные"
             value={stats.terminated.toString()}
-            trend="negative"
             icon="❌"
+            color="red"
           />
         </div>
       )}
