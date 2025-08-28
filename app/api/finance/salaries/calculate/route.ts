@@ -49,7 +49,7 @@ export async function POST(request: Request) {
         .lte('works.work_date', endDate.toISOString())
 
       // Рассчитать профит
-      const profit = withdrawals?.reduce((sum, w) => {
+      const profit = withdrawals?.reduce((sum, w: any) => {
         return sum + (w.withdrawal_amount - w.works.deposit_amount)
       }, 0) || 0
 
