@@ -33,7 +33,7 @@ export default function JuniorDashboard() {
         .eq('status', 'received')
         .gte('created_at', startOfMonth.toISOString())
       
-      const monthProfit = withdrawals?.reduce((sum, w) => 
+      const monthProfit = withdrawals?.reduce((sum, w: any) => 
         sum + (w.withdrawal_amount - w.works.deposit_amount), 0) || 0
       
       // Доступные карты (с балансом >= $10)
