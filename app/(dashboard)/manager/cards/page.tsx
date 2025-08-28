@@ -173,7 +173,7 @@ export default function ManagerCardsPage() {
   const columns: Column[] = [
     {
       key: 'card_number_mask',
-      title: 'Номер карты',
+      label: 'Номер карты',
       sortable: true,
       render: (value: string, row: Card) => (
         <div>
@@ -184,7 +184,7 @@ export default function ManagerCardsPage() {
     },
     {
       key: 'bank.name',
-      title: 'Банк',
+      label: 'Банк',
       sortable: true,
       render: (value: string, row: Card) => (
         <div>
@@ -195,7 +195,7 @@ export default function ManagerCardsPage() {
     },
     {
       key: 'bank_account.balance',
-      title: 'Баланс',
+      label: 'Баланс',
       sortable: true,
       render: (value: number, row: Card) => (
         <div className={`font-medium ${value >= 10 ? 'text-green-600' : 'text-red-600'}`}>
@@ -205,12 +205,12 @@ export default function ManagerCardsPage() {
     },
     {
       key: 'bank_account.holder_name',
-      title: 'Держатель',
+      label: 'Держатель',
       sortable: true
     },
     {
       key: 'active_assignments',
-      title: 'Назначения',
+      label: 'Назначения',
       render: (assignments: any[], row: Card) => (
         <div>
           {assignments.length === 0 ? (
@@ -241,7 +241,7 @@ export default function ManagerCardsPage() {
     },
     {
       key: 'status',
-      title: 'Статус',
+      label: 'Статус',
       render: (value: string, row: Card) => (
         <div className="space-y-1">
           <StatusBadge status={value} type="card" />
