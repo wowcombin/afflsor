@@ -8,7 +8,7 @@ export async function GET(request: Request) {
   try {
     const supabase = await createClient()
     const { searchParams } = new URL(request.url)
-    const status = searchParams.get('status')
+    const filter = searchParams.get('filter') || 'all'
     const casino_id = searchParams.get('casino_id')
     
     // Проверка авторизации
@@ -32,8 +32,8 @@ export async function GET(request: Request) {
       .from('casino_tests')
       .select(`
         *,
-        casinos!inner(name, url, status),
-        users!inner(first_name, last_name)
+        casinos (name, url, status),
+        users (first_name, last_name)
       `)
       .order('created_at', { ascending: false })
 
@@ -42,8 +42,9 @@ export async function GET(request: Request) {
       query = query.eq('tester_id', userData.id)
     }
 
-    if (status) {
-      query = query.eq('status', status)
+    // Применяем фильтры
+    if (filter !== 'all') {
+      query = query.eq('status', filter)
     }
 
     if (casino_id) {
@@ -86,7 +87,13 @@ export async function POST(request: Request) {
     }
 
     // Валидация данных
-    const { casino_id } = body
+    const { 
+      casino_id, 
+      test_type = 'full',
+      deposit_test_amount = 100,
+      withdrawal_test_amount = 50,
+      test_notes 
+    } = body
 
     if (!casino_id) {
       return NextResponse.json({ error: 'Casino ID is required' }, { status: 400 })
@@ -122,10 +129,17 @@ export async function POST(request: Request) {
       .insert({
         casino_id,
         tester_id: userData.id,
+        test_type,
         status: 'pending',
-        deposit_success: false
+        deposit_test_amount,
+        withdrawal_test_amount,
+        test_notes
       })
-      .select()
+      .select(`
+        *,
+        casinos (name, url),
+        users (first_name, last_name)
+      `)
       .single()
 
     if (error) {
@@ -138,7 +152,11 @@ export async function POST(request: Request) {
       .update({ status: 'testing' })
       .eq('id', casino_id)
 
-    return NextResponse.json({ test }, { status: 201 })
+    return NextResponse.json({ 
+      success: true,
+      message: 'Тест создан успешно',
+      test 
+    }, { status: 201 })
 
   } catch (error) {
     console.error('Create casino test API error:', error)

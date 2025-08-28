@@ -102,12 +102,43 @@ export async function PATCH(
     if (body.status !== undefined) {
       updateData.status = body.status
       
+      // Если тест начинается, устанавливаем время начала
+      if (body.status === 'in_progress' && existingTest.status === 'pending') {
+        updateData.started_at = body.started_at || new Date().toISOString()
+      }
+      
       // Если тест завершается, устанавливаем время завершения
       if (body.status === 'completed' || body.status === 'failed') {
-        updateData.completed_at = new Date().toISOString()
+        updateData.completed_at = body.completed_at || new Date().toISOString()
       }
     }
 
+    // Новые поля для завершения теста
+    if (body.rating !== undefined) {
+      updateData.rating = body.rating
+    }
+
+    if (body.test_notes !== undefined) {
+      updateData.test_notes = body.test_notes
+    }
+
+    if (body.issues_found !== undefined) {
+      updateData.issues_found = body.issues_found
+    }
+
+    if (body.recommendations !== undefined) {
+      updateData.recommendations = body.recommendations
+    }
+
+    if (body.deposit_test_amount !== undefined) {
+      updateData.deposit_test_amount = body.deposit_test_amount
+    }
+
+    if (body.withdrawal_test_amount !== undefined) {
+      updateData.withdrawal_test_amount = body.withdrawal_test_amount
+    }
+
+    // Старые поля для совместимости
     if (body.registration_time !== undefined) {
       updateData.registration_time = body.registration_time
     }
@@ -118,10 +149,6 @@ export async function PATCH(
 
     if (body.withdrawal_time !== undefined) {
       updateData.withdrawal_time = body.withdrawal_time
-    }
-
-    if (body.issues_found !== undefined) {
-      updateData.issues_found = body.issues_found
     }
 
     if (body.recommended_bins !== undefined) {
@@ -141,14 +168,22 @@ export async function PATCH(
       .from('casino_tests')
       .update(updateData)
       .eq('id', params.id)
-      .select()
+      .select(`
+        *,
+        casinos (name, url),
+        users (first_name, last_name)
+      `)
       .single()
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    return NextResponse.json({ test: updatedTest })
+    return NextResponse.json({ 
+      success: true,
+      message: 'Тест обновлен успешно',
+      test: updatedTest 
+    })
 
   } catch (error) {
     console.error('Update casino test API error:', error)
