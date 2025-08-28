@@ -25,14 +25,19 @@ export default function Header({ title, showBackButton = true, backUrl }: Header
   const [user, setUser] = useState<User | null>(null)
   const [showProfileMenu, setShowProfileMenu] = useState(false)
   const [loading, setLoading] = useState(true)
-  const supabase = createClient()
 
   useEffect(() => {
-    loadUser()
+    // Проверяем, что мы в браузере
+    if (typeof window !== 'undefined') {
+      loadUser()
+    } else {
+      setLoading(false)
+    }
   }, [])
 
   async function loadUser() {
     try {
+      const supabase = createClient()
       const { data: { user: authUser } } = await supabase.auth.getUser()
       
       if (authUser) {
@@ -55,6 +60,7 @@ export default function Header({ title, showBackButton = true, backUrl }: Header
 
   async function handleLogout() {
     try {
+      const supabase = createClient()
       await supabase.auth.signOut()
       router.push('/login')
     } catch (error) {
