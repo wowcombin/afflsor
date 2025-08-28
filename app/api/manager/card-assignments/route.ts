@@ -39,7 +39,8 @@ export async function POST(request: Request) {
         id,
         status,
         card_bin,
-        bank_accounts!inner (
+        bank_account_id,
+        bank_accounts (
           balance,
           status
         )
@@ -57,7 +58,7 @@ export async function POST(request: Request) {
       }, { status: 400 })
     }
 
-    if (card.bank_accounts.balance < 10) {
+    if (!card.bank_accounts || card.bank_accounts.balance < 10) {
       return NextResponse.json({ 
         error: 'Недостаточный баланс банка (минимум $10)' 
       }, { status: 400 })
