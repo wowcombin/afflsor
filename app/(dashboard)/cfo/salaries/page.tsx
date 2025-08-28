@@ -24,13 +24,13 @@ export default function CFOSalariesPage() {
   const [loading, setLoading] = useState(true)
   const [processing, setProcessing] = useState(false)
   const [month, setMonth] = useState('')
-  const supabase = createClient()
 
   useEffect(() => {
     fetchCalculations()
   }, [])
 
   const fetchCalculations = async () => {
+    const supabase = createClient()
     // Получить текущий месяц для расчета
     const now = new Date()
     const currentMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
@@ -117,6 +117,7 @@ export default function CFOSalariesPage() {
     setProcessing(true)
 
     try {
+      const supabase = createClient()
       // Обновить статус на paid
       for (const id of Array.from(selected)) {
         const calculation = calculations.find(c => c.id === id)

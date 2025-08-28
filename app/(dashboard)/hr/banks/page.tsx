@@ -21,13 +21,13 @@ export default function HRBanksPage() {
   const [newBalance, setNewBalance] = useState<number>(0)
   const [comment, setComment] = useState('')
   const [updating, setUpdating] = useState(false)
-  const supabase = createClient()
 
   useEffect(() => {
     fetchAccounts()
   }, [])
 
   const fetchAccounts = async () => {
+    const supabase = createClient()
     const { data, error } = await supabase
       .from('bank_accounts')
       .select(`

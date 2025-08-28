@@ -11,7 +11,6 @@ export default function JuniorDashboard() {
     availableCards: 0
   })
   const [loading, setLoading] = useState(true)
-  const supabase = createClient()
   
   useEffect(() => {
     loadStats()
@@ -19,6 +18,7 @@ export default function JuniorDashboard() {
   
   async function loadStats() {
     try {
+      const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
       
       // Профит за месяц

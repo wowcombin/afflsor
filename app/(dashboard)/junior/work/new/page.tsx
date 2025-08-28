@@ -17,7 +17,6 @@ interface Card {
 
 export default function NewWorkPage() {
   const router = useRouter();
-  const supabase = createClient();
   const [casinos, setCasinos] = useState<Casino[]>([]);
   const [cards, setCards] = useState<Card[]>([]);
   const [selectedCasino, setSelectedCasino] = useState('');
@@ -39,6 +38,7 @@ export default function NewWorkPage() {
   }, [selectedCasino]);
   
   async function loadCasinos() {
+    const supabase = createClient();
     const { data } = await supabase
       .from('casinos')
       .select('id, name')

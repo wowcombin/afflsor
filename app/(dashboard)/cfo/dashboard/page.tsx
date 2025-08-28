@@ -21,7 +21,6 @@ export default function CFODashboard() {
   const [loading, setLoading] = useState(true)
   const [calculating, setCalculating] = useState(false)
   const router = useRouter()
-  const supabase = createClient()
 
   useEffect(() => {
     fetchStats()
@@ -29,6 +28,7 @@ export default function CFODashboard() {
 
   const fetchStats = async () => {
     try {
+      const supabase = createClient()
       // Получить профит за текущий месяц
       const startOfMonth = new Date()
       startOfMonth.setDate(1)
