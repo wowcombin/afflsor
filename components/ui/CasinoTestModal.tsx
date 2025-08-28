@@ -7,11 +7,28 @@ interface Casino {
   id: string
   name: string
   url: string
+  allowed_bins?: string[]
+}
+
+interface Card {
+  id: string
+  card_number_mask: string
+  card_bin: string
+  bank_account: {
+    balance: number
+    holder_name: string
+  }
+  bank: {
+    name: string
+    currency: string
+  }
+  is_available: boolean
 }
 
 interface CasinoTest {
   id?: string
   casino_id: string
+  card_id?: string
   test_type: string
   status: 'pending' | 'in_progress' | 'completed' | 'failed'
   rating: number | null
@@ -22,6 +39,10 @@ interface CasinoTest {
   recommendations: string | null
   casinos?: {
     name: string
+  }
+  cards?: {
+    card_number_mask: string
+    card_bin: string
   }
 }
 
@@ -41,12 +62,15 @@ export default function CasinoTestModal({
   mode 
 }: CasinoTestModalProps) {
   const [casinos, setCasinos] = useState<Casino[]>([])
+  const [cards, setCards] = useState<Card[]>([])
   const [loading, setLoading] = useState(false)
+  const [loadingCards, setLoadingCards] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   
   // Форма данных
   const [formData, setFormData] = useState({
     casino_id: '',
+    card_id: '',
     test_type: 'full',
     rating: 5,
     deposit_test_amount: 100,
@@ -64,6 +88,7 @@ export default function CasinoTestModal({
       } else if (mode === 'complete' && test) {
         setFormData({
           casino_id: test.casino_id,
+          card_id: test.card_id ?? '',
           test_type: test.test_type,
           rating: test.rating ?? 5,
           deposit_test_amount: test.deposit_test_amount ?? 100,
@@ -89,9 +114,30 @@ export default function CasinoTestModal({
     }
   }
 
+  async function loadCards(casinoId: string) {
+    if (!casinoId) {
+      setCards([])
+      return
+    }
+
+    setLoadingCards(true)
+    try {
+      // Загружаем доступные карты для тестирования
+      const response = await fetch(`/api/cards/available?casino_id=${casinoId}&for_testing=true`)
+      const data = await response.json()
+      setCards(data.cards || [])
+    } catch (error) {
+      console.error('Error loading cards:', error)
+      setCards([])
+    } finally {
+      setLoadingCards(false)
+    }
+  }
+
   function resetForm() {
     setFormData({
       casino_id: '',
+      card_id: '',
       test_type: 'full',
       rating: 5,
       deposit_test_amount: 100,
@@ -100,6 +146,7 @@ export default function CasinoTestModal({
       issues_found: '',
       recommendations: ''
     })
+    setCards([])
   }
 
   async function handleSubmit() {
@@ -109,6 +156,7 @@ export default function CasinoTestModal({
       const submitData = mode === 'create' 
         ? {
             casino_id: formData.casino_id,
+            card_id: formData.card_id,
             test_type: formData.test_type,
             deposit_test_amount: formData.deposit_test_amount,
             withdrawal_test_amount: formData.withdrawal_test_amount,
@@ -183,7 +231,11 @@ export default function CasinoTestModal({
                 ) : (
                   <select
                     value={formData.casino_id}
-                    onChange={(e) => setFormData({...formData, casino_id: e.target.value})}
+                    onChange={(e) => {
+                      const casinoId = e.target.value
+                      setFormData({...formData, casino_id: casinoId, card_id: ''})
+                      loadCards(casinoId)
+                    }}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     required
                   >
@@ -191,11 +243,51 @@ export default function CasinoTestModal({
                     {casinos.map((casino) => (
                       <option key={casino.id} value={casino.id}>
                         {casino.name} ({casino.url})
+                        {casino.allowed_bins && casino.allowed_bins.length > 0 && 
+                          ` (BIN: ${casino.allowed_bins.join(', ')})`
+                        }
                       </option>
                     ))}
                   </select>
                 )}
               </div>
+
+              {/* Выбор карты */}
+              {formData.casino_id && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Карта для тестирования
+                  </label>
+                  {loadingCards ? (
+                    <div className="text-gray-500">Загрузка карт...</div>
+                  ) : cards.length === 0 ? (
+                    <div className="text-red-500">
+                      Нет доступных карт для этого казино. Проверьте BIN-совместимость и баланс карт.
+                    </div>
+                  ) : (
+                    <select
+                      value={formData.card_id}
+                      onChange={(e) => setFormData({...formData, card_id: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                    >
+                      <option value="">-- Выберите карту --</option>
+                      {cards.map((card) => (
+                        <option key={card.id} value={card.id}>
+                          {card.card_number_mask} (BIN: {card.card_bin}) - 
+                          ${card.bank_account.balance.toFixed(2)} {card.bank.currency} - 
+                          {card.bank.name}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                  {cards.length > 0 && (
+                    <div className="mt-2 text-xs text-gray-600">
+                      💡 Показаны только карты с балансом ≥ $10 и совместимым BIN
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Тип теста */}
               <div>
@@ -334,7 +426,7 @@ export default function CasinoTestModal({
           </button>
           <button
             onClick={handleSubmit}
-            disabled={submitting || (mode === 'create' && !formData.casino_id)}
+            disabled={submitting || (mode === 'create' && (!formData.casino_id || !formData.card_id))}
             className="px-4 py-2 text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {submitting ? 'Сохранение...' : 

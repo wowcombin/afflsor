@@ -10,6 +10,7 @@ import { useToast } from '@/components/ui/Toast'
 interface CasinoTest {
   id: string
   casino_id: string
+  card_id: string | null
   tester_id: string
   test_type: string
   status: 'pending' | 'in_progress' | 'completed' | 'failed'
@@ -26,6 +27,11 @@ interface CasinoTest {
     id: string
     name: string
     url: string
+  }
+  cards?: {
+    id: string
+    card_number_mask: string
+    card_bin: string
   }
   users: {
     id: string
@@ -223,6 +229,22 @@ export default function TesterTestsPage() {
            value === 'deposit' ? 'Тест депозита' : 
            value === 'withdrawal' ? 'Тест вывода' : value}
         </span>
+      )
+    },
+    {
+      key: 'cards',
+      label: 'Карта',
+      render: (value: any, row: CasinoTest) => (
+        <div>
+          {row.cards ? (
+            <div>
+              <div className="font-mono text-sm">{row.cards.card_number_mask}</div>
+              <div className="text-xs text-gray-500">BIN: {row.cards.card_bin}</div>
+            </div>
+          ) : (
+            <span className="text-gray-500 text-sm">Не назначена</span>
+          )}
+        </div>
       )
     },
     {

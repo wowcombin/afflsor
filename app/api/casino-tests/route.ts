@@ -33,6 +33,7 @@ export async function GET(request: Request) {
       .select(`
         *,
         casinos (name, url, status),
+        cards (id, card_number_mask, card_bin),
         users (first_name, last_name)
       `)
       .order('created_at', { ascending: false })
@@ -88,7 +89,8 @@ export async function POST(request: Request) {
 
     // Валидация данных
     const { 
-      casino_id, 
+      casino_id,
+      card_id,
       test_type = 'full',
       deposit_test_amount = 100,
       withdrawal_test_amount = 50,
@@ -97,6 +99,10 @@ export async function POST(request: Request) {
 
     if (!casino_id) {
       return NextResponse.json({ error: 'Casino ID is required' }, { status: 400 })
+    }
+
+    if (!card_id) {
+      return NextResponse.json({ error: 'Card ID is required' }, { status: 400 })
     }
 
     // Проверяем, что казино существует
@@ -108,6 +114,33 @@ export async function POST(request: Request) {
 
     if (casinoError || !casino) {
       return NextResponse.json({ error: 'Casino not found' }, { status: 404 })
+    }
+
+    // Проверяем, что карта существует и доступна
+    const { data: card, error: cardError } = await supabase
+      .from('cards')
+      .select(`
+        id,
+        status,
+        card_bin,
+        bank_accounts (
+          balance,
+          status
+        )
+      `)
+      .eq('id', card_id)
+      .single()
+
+    if (cardError || !card) {
+      return NextResponse.json({ error: 'Card not found' }, { status: 404 })
+    }
+
+    if (card.status !== 'active') {
+      return NextResponse.json({ error: 'Card is not active' }, { status: 400 })
+    }
+
+    if (!card.bank_accounts || card.bank_accounts.length === 0 || card.bank_accounts[0].balance < 10) {
+      return NextResponse.json({ error: 'Card has insufficient balance (minimum $10)' }, { status: 400 })
     }
 
     // Проверяем, что нет активного теста для этого казино от этого тестера
@@ -128,6 +161,7 @@ export async function POST(request: Request) {
       .from('casino_tests')
       .insert({
         casino_id,
+        card_id,
         tester_id: userData.id,
         test_type,
         status: 'pending',
@@ -138,6 +172,7 @@ export async function POST(request: Request) {
       .select(`
         *,
         casinos (name, url),
+        cards (id, card_number_mask, card_bin),
         users (first_name, last_name)
       `)
       .single()
