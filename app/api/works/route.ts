@@ -12,7 +12,7 @@ export async function POST(request: Request) {
     .eq('id', card_id)
     .single()
   
-  if (!card || card.bank_accounts.balance < 10) {
+  if (!card || (card as any).bank_accounts.balance < 10) {
     return NextResponse.json({ 
       error: 'Карта недоступна. Баланс банка ниже минимума $10' 
     }, { status: 400 })
