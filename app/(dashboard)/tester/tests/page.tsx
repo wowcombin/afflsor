@@ -1,30 +1,50 @@
 'use client'
+
 import { useEffect, useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
-import Link from 'next/link'
+import DataTable, { Column, ActionConfig } from '@/components/ui/DataTable'
+import StatusBadge from '@/components/ui/StatusBadge'
+import KPICard from '@/components/ui/KPICard'
+import { useToast } from '@/components/ui/Toast'
 
 interface CasinoTest {
   id: string
   casino_id: string
-  status: string
-  registration_time?: number
-  deposit_success: boolean
-  withdrawal_time?: number
-  test_result?: string
-  notes?: string
+  tester_id: string
+  test_type: string
+  status: 'pending' | 'in_progress' | 'completed' | 'failed'
+  rating: number | null
+  deposit_test_amount: number | null
+  withdrawal_test_amount: number | null
+  test_notes: string | null
+  issues_found: string | null
+  recommendations: string | null
+  started_at: string | null
+  completed_at: string | null
   created_at: string
-  completed_at?: string
   casinos: {
+    id: string
     name: string
     url: string
-    status: string
+  }
+  users: {
+    id: string
+    first_name: string
+    last_name: string
   }
 }
 
 export default function TesterTestsPage() {
+  const { addToast } = useToast()
   const [tests, setTests] = useState<CasinoTest[]>([])
   const [loading, setLoading] = useState(true)
-  const [filter, setFilter] = useState<string>('all')
+  const [filter, setFilter] = useState('all')
+  const [stats, setStats] = useState({
+    totalTests: 0,
+    pendingTests: 0,
+    inProgressTests: 0,
+    completedTests: 0,
+    averageRating: 0
+  })
 
   useEffect(() => {
     loadTests()
@@ -32,223 +52,260 @@ export default function TesterTestsPage() {
 
   async function loadTests() {
     try {
-      const url = filter === 'all' ? '/api/casino-tests' : `/api/casino-tests?status=${filter}`
-      const response = await fetch(url)
+      setLoading(true)
+      const response = await fetch(`/api/casino-tests?filter=${filter}`)
       const data = await response.json()
-      
-      if (response.ok) {
-        setTests(data.tests || [])
-      } else {
-        console.error('Error loading tests:', data.error)
+
+      if (!response.ok) {
+        throw new Error(data.error)
       }
-    } catch (error) {
-      console.error('Error loading tests:', error)
+
+      const testsData = data.tests || []
+      setTests(testsData)
+
+      // Вычисляем статистику
+      const totalTests = testsData.length
+      const pendingTests = testsData.filter((t: CasinoTest) => t.status === 'pending').length
+      const inProgressTests = testsData.filter((t: CasinoTest) => t.status === 'in_progress').length
+      const completedTests = testsData.filter((t: CasinoTest) => t.status === 'completed').length
+      
+      const completedWithRating = testsData.filter((t: CasinoTest) => t.status === 'completed' && t.rating !== null)
+      const averageRating = completedWithRating.length > 0 
+        ? completedWithRating.reduce((sum: number, t: CasinoTest) => sum + (t.rating || 0), 0) / completedWithRating.length
+        : 0
+
+      setStats({
+        totalTests,
+        pendingTests,
+        inProgressTests,
+        completedTests,
+        averageRating: Math.round(averageRating * 10) / 10
+      })
+
+    } catch (error: any) {
+      addToast({ 
+        type: 'error', 
+        title: error.message || 'Ошибка загрузки тестов' 
+      })
     } finally {
       setLoading(false)
     }
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'pending': return 'bg-yellow-100 text-yellow-800'
-      case 'in_progress': return 'bg-blue-100 text-blue-800'
-      case 'completed': return 'bg-green-100 text-green-800'
-      case 'failed': return 'bg-red-100 text-red-800'
-      default: return 'bg-gray-100 text-gray-800'
+  async function startTest(testId: string) {
+    try {
+      const response = await fetch(`/api/casino-tests/${testId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          status: 'in_progress',
+          started_at: new Date().toISOString()
+        })
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error)
+      }
+
+      addToast({ 
+        type: 'success', 
+        title: 'Тест запущен' 
+      })
+
+      loadTests()
+
+    } catch (error: any) {
+      addToast({ 
+        type: 'error', 
+        title: error.message || 'Ошибка запуска теста' 
+      })
     }
   }
 
-  const getStatusLabel = (status: string) => {
-    switch (status) {
-      case 'pending': return 'Ожидает'
-      case 'in_progress': return 'В процессе'
-      case 'completed': return 'Завершен'
-      case 'failed': return 'Провален'
-      default: return status
-    }
+  async function completeTest(testId: string) {
+    // TODO: Открыть модальное окно для завершения теста с оценкой
+    console.log('Complete test:', testId)
   }
 
-  const getTestResultColor = (result?: string) => {
-    switch (result) {
-      case 'approved': return 'bg-green-100 text-green-800'
-      case 'rejected': return 'bg-red-100 text-red-800'
-      default: return 'bg-gray-100 text-gray-800'
+  // Конфигурация колонок для DataTable
+  const columns: Column[] = [
+    {
+      key: 'casinos.name',
+      label: 'Казино',
+      sortable: true,
+      render: (value: string, row: CasinoTest) => (
+        <div>
+          <div className="font-medium">{value}</div>
+          <div className="text-xs text-gray-500">{row.casinos.url}</div>
+        </div>
+      )
+    },
+    {
+      key: 'test_type',
+      label: 'Тип теста',
+      sortable: true,
+      render: (value: string) => (
+        <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">
+          {value === 'full' ? 'Полный тест' : 
+           value === 'deposit' ? 'Тест депозита' : 
+           value === 'withdrawal' ? 'Тест вывода' : value}
+        </span>
+      )
+    },
+    {
+      key: 'status',
+      label: 'Статус',
+      render: (value: string) => <StatusBadge status={value} type="test" />
+    },
+    {
+      key: 'rating',
+      label: 'Оценка',
+      sortable: true,
+      render: (value: number | null) => (
+        <div>
+          {value !== null ? (
+            <div className="flex items-center">
+              <span className="font-medium">{value}/10</span>
+              <div className="ml-2 flex">
+                {[...Array(10)].map((_, i) => (
+                  <span
+                    key={i}
+                    className={`text-xs ${i < value ? 'text-yellow-400' : 'text-gray-300'}`}
+                  >
+                    ★
+                  </span>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <span className="text-gray-500">Не оценено</span>
+          )}
+        </div>
+      )
+    },
+    {
+      key: 'created_at',
+      label: 'Создан',
+      sortable: true,
+      render: (value: string) => new Date(value).toLocaleDateString('ru-RU')
+    },
+    {
+      key: 'completed_at',
+      label: 'Завершен',
+      sortable: true,
+      render: (value: string | null) => 
+        value ? new Date(value).toLocaleDateString('ru-RU') : '-'
     }
-  }
+  ]
 
-  const getTestResultLabel = (result?: string) => {
-    switch (result) {
-      case 'approved': return 'Одобрено'
-      case 'rejected': return 'Отклонено'
-      default: return 'Не определено'
+  // Конфигурация действий
+  const actions: ActionConfig[] = [
+    {
+      label: 'Начать',
+      action: (row: CasinoTest) => startTest(row.id),
+      variant: 'primary',
+      condition: (row: CasinoTest) => row.status === 'pending'
+    },
+    {
+      label: 'Завершить',
+      action: (row: CasinoTest) => completeTest(row.id),
+      variant: 'secondary',
+      condition: (row: CasinoTest) => row.status === 'in_progress'
     }
-  }
+  ]
 
-  const formatTime = (seconds?: number) => {
-    if (!seconds) return 'N/A'
-    const minutes = Math.floor(seconds / 60)
-    const remainingSeconds = seconds % 60
-    return `${minutes}м ${remainingSeconds}с`
-  }
+  // Конфигурация фильтров
+  const filters = [
+    { key: 'search', type: 'search' as const, placeholder: 'Поиск по казино...' },
+    {
+      key: 'filter',
+      type: 'select' as const,
+      options: [
+        { value: 'all', label: 'Все тесты' },
+        { value: 'pending', label: 'Ожидают' },
+        { value: 'in_progress', label: 'В процессе' },
+        { value: 'completed', label: 'Завершенные' },
+        { value: 'failed', label: 'Неудачные' }
+      ],
+      value: filter,
+      onChange: (value: string) => setFilter(value)
+    }
+  ]
 
   if (loading) return <div className="p-8">Загрузка...</div>
 
   return (
     <div className="p-8">
       <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold">Мои тесты</h1>
-        <Link
-          href="/tester/casinos"
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-        >
-          Выбрать казино для теста
-        </Link>
-      </div>
-
-      {/* Фильтры */}
-      <div className="mb-6">
-        <div className="flex gap-2">
-          {['all', 'pending', 'in_progress', 'completed', 'failed'].map(status => (
-            <button
-              key={status}
-              onClick={() => setFilter(status)}
-              className={`px-4 py-2 rounded ${
-                filter === status
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-              }`}
-            >
-              {status === 'all' ? 'Все' : getStatusLabel(status)}
-            </button>
-          ))}
+        <h1 className="text-3xl font-bold">Тестирование казино</h1>
+        <div className="flex gap-3">
+          <button
+            onClick={loadTests}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
+          >
+            🔄 Обновить
+          </button>
+          <button
+            onClick={() => {/* TODO: Открыть модальное окно создания теста */}}
+            className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
+          >
+            ➕ Новый тест
+          </button>
         </div>
       </div>
 
-      {/* Список тестов */}
-      <div className="bg-white rounded-lg shadow-md">
-        {tests.length === 0 ? (
-          <div className="p-8 text-center text-gray-500">
-            <p>Тесты не найдены</p>
-            {filter !== 'all' && (
-              <button
-                onClick={() => setFilter('all')}
-                className="text-blue-600 hover:underline mt-2"
-              >
-                Показать все
-              </button>
-            )}
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Казино
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Статус
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Результат
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Время регистрации
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Время вывода
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Депозит
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Создан
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Действия
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {tests.map(test => (
-                  <tr key={test.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div>
-                        <div className="text-sm font-medium text-gray-900">{test.casinos.name}</div>
-                        <div className="text-sm text-gray-500">
-                          <a href={test.casinos.url} target="_blank" rel="noopener noreferrer" className="hover:underline">
-                            {test.casinos.url}
-                          </a>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(test.status)}`}>
-                        {getStatusLabel(test.status)}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getTestResultColor(test.test_result)}`}>
-                        {getTestResultLabel(test.test_result)}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {formatTime(test.registration_time)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {formatTime(test.withdrawal_time)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                        test.deposit_success ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                      }`}>
-                        {test.deposit_success ? 'Успешно' : 'Неудачно'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {new Date(test.created_at).toLocaleDateString('ru-RU')}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <Link
-                        href={`/tester/tests/${test.id}`}
-                        className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700"
-                      >
-                        {test.status === 'pending' || test.status === 'in_progress' ? 'Продолжить' : 'Просмотр'}
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+      {/* KPI карточки */}
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
+        <KPICard
+          title="Всего тестов"
+          value={stats.totalTests.toString()}
+          color="blue"
+          icon="🧪"
+        />
+        <KPICard
+          title="Ожидают"
+          value={stats.pendingTests.toString()}
+          color="yellow"
+          icon="⏳"
+        />
+        <KPICard
+          title="В процессе"
+          value={stats.inProgressTests.toString()}
+          color="purple"
+          icon="🔄"
+        />
+        <KPICard
+          title="Завершенные"
+          value={stats.completedTests.toString()}
+          color="green"
+          icon="✅"
+        />
+        <KPICard
+          title="Средняя оценка"
+          value={stats.averageRating.toString()}
+          color="red"
+          icon="⭐"
+        />
       </div>
 
-      {/* Статистика */}
-      <div className="mt-8 grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <div className="text-sm text-gray-500">Всего тестов</div>
-          <div className="text-2xl font-bold text-blue-600">{tests.length}</div>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <div className="text-sm text-gray-500">Завершено</div>
-          <div className="text-2xl font-bold text-green-600">
-            {tests.filter(t => t.status === 'completed').length}
-          </div>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <div className="text-sm text-gray-500">Одобрено</div>
-          <div className="text-2xl font-bold text-emerald-600">
-            {tests.filter(t => t.test_result === 'approved').length}
-          </div>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <div className="text-sm text-gray-500">Отклонено</div>
-          <div className="text-2xl font-bold text-red-600">
-            {tests.filter(t => t.test_result === 'rejected').length}
-          </div>
-        </div>
-      </div>
+      {/* Таблица тестов */}
+      <DataTable
+        columns={columns}
+        data={tests}
+        actions={actions}
+        filters={filters}
+        sorting={{ key: 'created_at', direction: 'desc' }}
+        pagination={{
+          pageSize: 20,
+          showTotal: true
+        }}
+        export={true}
+        loading={loading}
+      />
     </div>
   )
 }
