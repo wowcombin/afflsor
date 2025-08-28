@@ -176,7 +176,7 @@ export default function ProfilePage() {
   if (!user) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-8">
-        <Alert type="error" message="Пользователь не найден" />
+        <Alert variant="error">Пользователь не найден</Alert>
       </div>
     )
   }
@@ -185,7 +185,9 @@ export default function ProfilePage() {
     <div className="max-w-4xl mx-auto px-4 py-8">
         {message && (
           <div className="mb-6">
-            <Alert type={message.type} message={message.text} />
+            <Alert variant={message.type as 'success' | 'error'}>
+              {message.text}
+            </Alert>
           </div>
         )}
 
