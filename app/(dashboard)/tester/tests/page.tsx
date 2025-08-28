@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import DataTable, { Column, ActionConfig } from '@/components/ui/DataTable'
 import StatusBadge from '@/components/ui/StatusBadge'
 import KPICard from '@/components/ui/KPICard'
+import CasinoTestModal from '@/components/ui/CasinoTestModal'
 import { useToast } from '@/components/ui/Toast'
 
 interface CasinoTest {
@@ -38,6 +39,9 @@ export default function TesterTestsPage() {
   const [tests, setTests] = useState<CasinoTest[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('all')
+  const [selectedTest, setSelectedTest] = useState<CasinoTest | null>(null)
+  const [modalOpen, setModalOpen] = useState(false)
+  const [modalMode, setModalMode] = useState<'create' | 'complete'>('create')
   const [stats, setStats] = useState({
     totalTests: 0,
     pendingTests: 0,
@@ -126,9 +130,74 @@ export default function TesterTestsPage() {
     }
   }
 
-  async function completeTest(testId: string) {
-    // TODO: Открыть модальное окно для завершения теста с оценкой
-    console.log('Complete test:', testId)
+  function openCreateModal() {
+    setSelectedTest(null)
+    setModalMode('create')
+    setModalOpen(true)
+  }
+
+  function openCompleteModal(test: CasinoTest) {
+    setSelectedTest(test)
+    setModalMode('complete')
+    setModalOpen(true)
+  }
+
+  function closeModal() {
+    setSelectedTest(null)
+    setModalOpen(false)
+  }
+
+  async function handleTestSubmit(testData: any) {
+    try {
+      if (modalMode === 'create') {
+        const response = await fetch('/api/casino-tests', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(testData)
+        })
+
+        const data = await response.json()
+
+        if (!response.ok) {
+          throw new Error(data.error)
+        }
+
+        addToast({ 
+          type: 'success', 
+          title: 'Тест создан успешно' 
+        })
+      } else if (modalMode === 'complete' && selectedTest) {
+        const response = await fetch(`/api/casino-tests/${selectedTest.id}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(testData)
+        })
+
+        const data = await response.json()
+
+        if (!response.ok) {
+          throw new Error(data.error)
+        }
+
+        addToast({ 
+          type: 'success', 
+          title: 'Тест завершен успешно' 
+        })
+      }
+
+      loadTests()
+
+    } catch (error: any) {
+      addToast({ 
+        type: 'error', 
+        title: error.message || 'Ошибка сохранения теста' 
+      })
+      throw error
+    }
   }
 
   // Конфигурация колонок для DataTable
@@ -212,7 +281,7 @@ export default function TesterTestsPage() {
     },
     {
       label: 'Завершить',
-      action: (row: CasinoTest) => completeTest(row.id),
+      action: (row: CasinoTest) => openCompleteModal(row),
       variant: 'secondary',
       condition: (row: CasinoTest) => row.status === 'in_progress'
     }
@@ -250,7 +319,7 @@ export default function TesterTestsPage() {
             🔄 Обновить
           </button>
           <button
-            onClick={() => {/* TODO: Открыть модальное окно создания теста */}}
+            onClick={openCreateModal}
             className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
           >
             ➕ Новый тест
@@ -305,6 +374,15 @@ export default function TesterTestsPage() {
         }}
         export={true}
         loading={loading}
+      />
+
+      {/* Модальное окно создания/завершения теста */}
+      <CasinoTestModal
+        test={selectedTest}
+        isOpen={modalOpen}
+        onClose={closeModal}
+        onSubmit={handleTestSubmit}
+        mode={modalMode}
       />
     </div>
   )
