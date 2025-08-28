@@ -35,8 +35,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'User not found or inactive' }, { status: 403 })
     }
     
-    // Редирект по роли
-    const redirectUrl = `/${user.role}/dashboard`
+    // Редирект по роли (admin идет на cfo dashboard)
+    let redirectUrl = `/${user.role}/dashboard`
+    if (user.role === 'admin') {
+      redirectUrl = '/cfo/dashboard' // Админ получает доступ к CFO dashboard
+    }
     
     return NextResponse.json({ 
       success: true, 
