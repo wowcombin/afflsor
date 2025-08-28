@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
+import LogoutButton from '@/components/ui/LogoutButton'
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState({
@@ -54,7 +55,10 @@ export default function AdminDashboard() {
 
   return (
     <div className="p-8">
-      <h1 className="text-3xl font-bold mb-8">Admin Dashboard</h1>
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+        <LogoutButton />
+      </div>
       
       {/* Статистика */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">

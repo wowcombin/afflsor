@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -9,6 +10,49 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [checkingAuth, setCheckingAuth] = useState(true)
+  const supabase = createClient()
+
+  useEffect(() => {
+    checkExistingAuth()
+  }, [])
+
+  async function checkExistingAuth() {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      
+      if (user) {
+        // Пользователь уже авторизован, получаем его роль
+        const { data: userData } = await supabase
+          .from('users')
+          .select('role, status')
+          .eq('auth_id', user.id)
+          .single()
+
+        if (userData && userData.status === 'active') {
+          // Редирект на соответствующий дашборд
+          const roleRedirects = {
+            junior: '/junior/dashboard',
+            manager: '/manager/dashboard',
+            hr: '/hr/dashboard',
+            cfo: '/cfo/dashboard',
+            admin: '/admin/dashboard',
+            tester: '/tester/dashboard'
+          }
+          
+          const redirectUrl = roleRedirects[userData.role as keyof typeof roleRedirects]
+          if (redirectUrl) {
+            router.push(redirectUrl)
+            return
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Auth check error:', error)
+    } finally {
+      setCheckingAuth(false)
+    }
+  }
   
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -36,6 +80,17 @@ export default function LoginPage() {
     }
   }
   
+  if (checkingAuth) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <h1 className="text-2xl font-semibold text-gray-700">Проверяем авторизацию...</h1>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center">
       <form onSubmit={handleSubmit} className="w-full max-w-md space-y-4 p-8">
