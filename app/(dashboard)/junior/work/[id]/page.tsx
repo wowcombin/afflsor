@@ -82,7 +82,7 @@ export default function WorkDetailPage() {
         .single()
 
       if (error || !workData) {
-        addToast('Работа не найдена', 'error')
+        addToast({ type: 'error', title: 'Работа не найдена' })
         router.push('/junior/dashboard')
         return
       }
@@ -91,7 +91,7 @@ export default function WorkDetailPage() {
 
     } catch (error) {
       console.error('Error loading work detail:', error)
-      addToast('Ошибка загрузки данных', 'error')
+      addToast({ type: 'error', title: 'Ошибка загрузки данных' })
     } finally {
       setLoading(false)
     }
@@ -120,12 +120,12 @@ export default function WorkDetailPage() {
         throw new Error(data.error)
       }
 
-      addToast('Вывод успешно создан', 'success')
+      addToast({ type: 'success', title: 'Вывод успешно создан' })
       setWithdrawalAmount('')
       loadWorkDetail(work.id) // Перезагружаем данные
 
     } catch (error: any) {
-      addToast(error.message || 'Ошибка создания вывода', 'error')
+      addToast({ type: 'error', title: error.message || 'Ошибка создания вывода' })
     } finally {
       setSubmitting(false)
     }
@@ -149,11 +149,11 @@ export default function WorkDetailPage() {
         throw new Error(data.error)
       }
 
-      addToast(data.message, 'success')
+      addToast({ type: 'success', title: data.message })
       loadWorkDetail(work!.id) // Перезагружаем данные
 
     } catch (error: any) {
-      addToast(error.message || 'Ошибка изменения статуса', 'error')
+      addToast({ type: 'error', title: error.message || 'Ошибка изменения статуса' })
     }
   }
 

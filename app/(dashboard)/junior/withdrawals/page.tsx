@@ -70,7 +70,7 @@ export default function JuniorWithdrawalsPage() {
         .order('created_at', { ascending: false })
 
       if (error) {
-        addToast('Ошибка загрузки выводов', 'error')
+        addToast({ type: 'error', title: 'Ошибка загрузки выводов' })
         return
       }
 
@@ -94,7 +94,7 @@ export default function JuniorWithdrawalsPage() {
 
     } catch (error) {
       console.error('Error loading withdrawals:', error)
-      addToast('Ошибка загрузки данных', 'error')
+      addToast({ type: 'error', title: 'Ошибка загрузки данных' })
     } finally {
       setLoading(false)
     }
@@ -106,7 +106,7 @@ export default function JuniorWithdrawalsPage() {
       
       // Junior может переключать только между new и waiting
       if (!['new', 'waiting'].includes(currentStatus)) {
-        addToast('Нельзя изменить статус этого вывода', 'error')
+        addToast({ type: 'error', title: 'Нельзя изменить статус этого вывода' })
         return
       }
 
@@ -118,16 +118,19 @@ export default function JuniorWithdrawalsPage() {
         .eq('id', withdrawalId)
 
       if (error) {
-        addToast('Ошибка изменения статуса', 'error')
+        addToast({ type: 'error', title: 'Ошибка изменения статуса' })
         return
       }
 
-      addToast(`Статус изменен на ${newStatus === 'new' ? 'Новый' : 'Ожидает'}`, 'success')
+      addToast({ 
+        type: 'success', 
+        title: `Статус изменен на ${newStatus === 'new' ? 'Новый' : 'Ожидает'}` 
+      })
       loadWithdrawals() // Перезагружаем данные
 
     } catch (error) {
       console.error('Error toggling withdrawal status:', error)
-      addToast('Ошибка изменения статуса', 'error')
+      addToast({ type: 'error', title: 'Ошибка изменения статуса' })
     }
   }
 
