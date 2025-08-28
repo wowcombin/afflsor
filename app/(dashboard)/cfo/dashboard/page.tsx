@@ -49,14 +49,14 @@ export default function CFODashboard() {
         .gte('works.work_date', startOfMonth.toISOString())
 
       // Рассчитать общий профит
-      const totalProfit = withdrawals?.reduce((sum, w) => {
+      const totalProfit = withdrawals?.reduce((sum, w: any) => {
         return sum + (w.withdrawal_amount - w.works.deposit_amount)
       }, 0) || 0
 
       // Рассчитать топ Junior'ов
       const juniorProfits = new Map<string, { name: string, profit: number, works_count: number }>()
       
-      withdrawals?.forEach(w => {
+      withdrawals?.forEach((w: any) => {
         const juniorId = w.works.junior_id
         const profit = w.withdrawal_amount - w.works.deposit_amount
         const name = `${w.works.users.first_name} ${w.works.users.last_name}`
