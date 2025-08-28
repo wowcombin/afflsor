@@ -1,0 +1,346 @@
+9: Взаимодействие между ролями
+9.1 Основные потоки взаимодействия
+9.1.1 Цепочка создания и проверки выводов
+Участники: Junior → Manager → Junior → CFO
+Поток данных:
+Junior создает вывод:
+Создание записи в work_withdrawals со статусом new
+Автоматическое уведомление Manager через notifications
+Manager получает в очереди:
+ sql
+SELECT * FROM active_withdrawals 
+WHERE status IN ('new', 'waiting')
+ORDER BY created_at ASC
+
+
+Manager проверяет и принимает решение:
+Approve → статус received, расчет профита
+Problem → статус problem, требуется действие Junior
+Block → статус block, эскалация к HR
+Junior получает результат:
+Push-уведомление о решении
+При problem - возможность исправить и переотправить
+При received - профит учитывается в статистике
+CFO видит в месячном расчете:
+Все received выводы попадают в salary_calculations
+9.1.2 Процесс назначения карт
+Участники: CFO → Manager → Junior
+Workflow:
+CFO создает карты и управляет балансом:
+ typescript
+// CFO добавляет карты
+POST /api/cards/bulk
+
+// CFO обновляет баланс банка
+POST /api/banks/{id}/balance
+
+
+Manager назначает карты (если баланс >= $10):
+ sql
+-- Проверка доступности
+SELECT * FROM cards c
+JOIN bank_accounts ba ON ba.id = c.bank_account_id
+WHERE ba.balance >= 10
+
+
+Junior получает назначенные карты:
+Уведомление о новом назначении
+Карты появляются в списке доступных для депозита
+При балансе < $10 карты автоматически скрываются
+9.1.3 HR процессы с сотрудниками
+Участники: HR → Junior/Tester → Manager → HR
+Онбординг нового сотрудника:
+HR создает пользователя:
+ typescript
+POST /api/users
+{
+  email, role: 'junior',
+  salary_percentage: 10,
+  salary_bonus: 200
+}
+
+
+Автоматическая генерация NDA:
+Создание ссылки на актуальную версию NDA
+Отправка Junior для подписания
+Трекинг подписания через user_nda_signatures
+Manager получает в команду:
+Новый junior появляется в /manager/team
+Может назначать карты после подписания NDA
+HR мониторит эффективность:
+Добавление HR-комментариев
+Корректировка процентов при необходимости
+9.2 Критические взаимодействия
+9.2.1 Эскалация проблем
+Уровни эскалации:
+Level 1: Junior → Manager
+Проблема с выводом
+Невозможность выполнить депозит
+Вопросы по казино
+Level 2: Manager → HR/CFO
+Систематические проблемы с Junior
+Блокировка банковского аккаунта
+Массовые отклонения выводов
+Level 3: HR/CFO → CEO
+Критические финансовые проблемы
+Увольнение ключевых сотрудников
+Системные сбои
+Механизм эскалации:
+sql
+-- Автоматическая эскалация через alerts
+CREATE OR REPLACE FUNCTION escalate_alert()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.severity = 'critical' AND OLD.status = 'open' THEN
+    -- Эскалация к следующему уровню
+    INSERT INTO notifications(user_id, type, priority, title)
+    SELECT id, 'alert', 'critical', 'Требуется немедленное внимание'
+    FROM users WHERE role IN (
+      CASE 
+        WHEN OLD.assigned_to IN (SELECT id FROM users WHERE role = 'junior')
+        THEN ARRAY['manager']
+        WHEN OLD.assigned_to IN (SELECT id FROM users WHERE role = 'manager')
+        THEN ARRAY['hr', 'cfo']
+        ELSE ARRAY['ceo', 'admin']
+      END
+    );
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+9.2.2 Блокировка банка - каскадный эффект
+Участники: CFO/Manager/HR → System → Junior
+Процесс:
+CFO/Manager/HR обнуляет баланс банка:
+ typescript
+PATCH /api/banks/{accountId}/balance
+{ balance: 0, comment: "Аккаунт заблокирован банком" }
+
+
+Система автоматически:
+Скрывает все карты этого банка
+Меняет статус назначений на temporarily_unavailable
+Блокирует активные выводы
+Junior получает:
+Push-уведомление о недоступности карт
+Невозможность создать новые депозиты
+Список альтернативных карт (если есть)
+Manager видит:
+Алерт о блокировке банка
+Список затронутых junior'ов
+Необходимость переназначения карт
+9.3 Информационные потоки
+9.3.1 Отчетность снизу вверх
+mermaid
+graph BT
+    Junior -->|Выводы, депозиты| Manager
+    Tester -->|Отчеты тестов| Manager
+    Manager -->|Статистика команды| HR
+    Manager -->|Финансовые результаты| CFO
+    HR -->|Кадровые метрики| CEO
+    CFO -->|P&L, Cash Flow| CEO
+9.3.2 Управленческие решения сверху вниз
+mermaid
+graph TD
+    CEO -->|Стратегические цели| CFO
+    CEO -->|Политики| HR
+    CFO -->|Бюджеты, лимиты| Manager
+    HR -->|Проценты, бонусы| Manager
+    Manager -->|Назначения, задачи| Junior
+    Manager -->|Требования к тестам| Tester
+9.4 Уведомления между ролями
+9.4.1 Матрица уведомлений
+Событие
+Junior
+Manager
+HR
+CFO
+CEO
+Новый вывод
+Создатель
+✓
+-
+-
+-
+Проверка вывода
+✓
+Проверяющий
+-
+-
+-
+Блокировка карты
+✓
+✓
+-
+✓
+-
+Низкий баланс банка
+✓
+✓
+✓
+✓
+-
+Расчет зарплат
+✓
+-
+✓
+✓
+-
+Критический алерт
+-
+✓
+✓
+✓
+✓
+Новый сотрудник
+-
+✓
+Создатель
+-
+-
+Превышение лимитов
+✓
+✓
+-
+✓
+✓
+
+9.4.2 Realtime каналы
+javascript
+// Персональные каналы
+channel: `user:${userId}`
+
+// Ролевые каналы
+channel: 'managers'     // все менеджеры
+channel: 'hr-team'      // HR отдел
+channel: 'finance'      // CFO и финансовая команда
+channel: 'executives'   // CEO и топ-менеджмент
+
+// Тематические каналы
+channel: 'withdrawals'  // обновления выводов
+channel: 'alerts'       // критические алерты
+channel: 'cards'        // изменения карт
+9.5 Права доступа к данным других ролей
+9.5.1 Матрица доступа к данным
+Роль
+Свои данные
+Данные Junior
+Данные Manager
+Финансы
+Системные
+Junior
+Полный
+-
+-
+-
+-
+Tester
+Полный
+-
+-
+-
+Казино
+Manager
+Полный
+Команда
+-
+Частично
+-
+HR
+Полный
+Все
+Все
+Зарплаты
+-
+CFO
+Полный
+Финансовые
+Финансовые
+Полный
+-
+CEO
+Полный
+Все
+Все
+Все
+Все
+
+9.5.2 RLS политики взаимодействия
+sql
+-- Manager видит данные своей команды
+CREATE POLICY manager_see_team_data ON works
+FOR SELECT USING (
+  junior_id IN (
+    SELECT ca.junior_id FROM card_assignments ca
+    WHERE ca.assigned_by = current_user_id()
+  )
+);
+
+-- HR видит все данные сотрудников
+CREATE POLICY hr_see_all_users ON users
+FOR SELECT USING (
+  current_user_role() = 'hr'
+);
+
+-- CFO видит все финансовые операции
+CREATE POLICY cfo_see_finances ON salary_calculations
+FOR ALL USING (
+  current_user_role() IN ('cfo', 'ceo')
+);
+9.6 Совместная работа
+9.6.1 Задачи между ролями
+Типовые межролевые задачи:
+Manager → Junior: "Проверить проблемный вывод"
+HR → Manager: "Провести оценку сотрудника"
+CFO → Manager: "Объяснить превышение бюджета"
+Tester → Manager: "Утвердить новое казино"
+CEO → CFO: "Подготовить квартальный отчет"
+Механизм назначения:
+sql
+-- Создание межролевой задачи
+INSERT INTO tasks(title, description, priority, created_by)
+VALUES ('Проверить аномальную активность', 'Детали...', 'high', manager_id);
+
+INSERT INTO task_assignees(task_id, user_id)
+VALUES (task_id, junior_id);
+
+-- Автоматическое уведомление
+INSERT INTO notifications(user_id, type, title)
+VALUES (junior_id, 'task', 'Новая задача от менеджера');
+9.6.2 Комментарии и обсуждения
+Уровни видимости комментариев:
+Приватные (HR only): Видны только HR
+Управленческие: HR + Manager + CEO
+Командные: Доступны всей команде
+Публичные: Видны всем в системе
+sql
+-- HR комментарий с ограниченной видимостью
+INSERT INTO hr_comments(employee_id, hr_id, comment_type, comment, is_private)
+VALUES (junior_id, hr_id, 'negative', 'Требуется обучение', TRUE);
+
+-- Видимость определяется политикой
+CREATE POLICY hr_comments_visibility ON hr_comments
+FOR SELECT USING (
+  (is_private = FALSE) OR
+  (current_user_role() IN ('hr', 'ceo')) OR
+  (is_private = FALSE AND current_user_role() = 'manager')
+);
+9.7 Конфликты и их разрешение
+9.7.1 Dispute механизм
+Процесс оспаривания решения:
+Junior создает dispute:
+ sql
+INSERT INTO disputes(withdrawal_id, raised_by, reason)
+VALUES (withdrawal_id, junior_id, 'Вывод был подтвержден казино');
+
+
+Manager получает уведомление и рассматривает
+При необходимости эскалация к HR/CFO
+Финальное решение с обоснованием
+9.7.2 Арбитраж CEO
+Когда требуется вмешательство CEO:
+Конфликт между Manager и CFO
+Массовые жалобы от Junior'ов
+Системные проблемы требующие изменения процессов
+Все взаимодействия между ролями логируются в audit_log для обеспечения прозрачности и возможности анализа эффективности коммуникаций.
+

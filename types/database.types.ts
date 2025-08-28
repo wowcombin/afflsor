@@ -1,8 +1,10 @@
 // Enums для статусов
-export type UserRole = 'junior' | 'manager' | 'hr' | 'cfo' | 'admin'
+export type UserRole = 'junior' | 'tester' | 'manager' | 'hr' | 'cfo' | 'admin'
 export type UserStatus = 'active' | 'inactive' | 'terminated'
 export type CardStatus = 'active' | 'blocked' | 'expired' | 'temporarily_unavailable'
 export type WithdrawalStatus = 'new' | 'waiting' | 'received' | 'problem' | 'block'
+export type CasinoStatus = 'pending' | 'testing' | 'approved' | 'rejected' | 'maintenance'
+export type TestStatus = 'pending' | 'in_progress' | 'completed' | 'failed'
 
 // Интерфейсы для таблиц
 export interface User {
@@ -45,6 +47,44 @@ export interface WorkWithdrawal {
   created_at: string
 }
 
+export interface Casino {
+  id: string
+  name: string
+  url: string
+  status: CasinoStatus
+  allowed_bins?: string[]
+  manual?: string
+  auto_approve_limit: number
+  created_at: string
+  updated_at: string
+}
+
+export interface CasinoTest {
+  id: string
+  casino_id: string
+  tester_id: string
+  status: TestStatus
+  registration_time?: number
+  deposit_success: boolean
+  withdrawal_time?: number
+  issues_found?: string[]
+  recommended_bins?: string[]
+  test_result?: 'approved' | 'rejected'
+  notes?: string
+  created_at: string
+  completed_at?: string
+}
+
+export interface CasinoManual {
+  id: string
+  casino_id: string
+  version: number
+  content: string
+  created_by: string
+  is_published: boolean
+  created_at: string
+}
+
 // Database type для Supabase
 export interface Database {
   public: {
@@ -68,6 +108,21 @@ export interface Database {
         Row: WorkWithdrawal
         Insert: Omit<WorkWithdrawal, 'id' | 'created_at'>
         Update: Partial<Omit<WorkWithdrawal, 'id' | 'created_at'>>
+      }
+      casinos: {
+        Row: Casino
+        Insert: Omit<Casino, 'id' | 'created_at' | 'updated_at'>
+        Update: Partial<Omit<Casino, 'id' | 'created_at' | 'updated_at'>>
+      }
+      casino_tests: {
+        Row: CasinoTest
+        Insert: Omit<CasinoTest, 'id' | 'created_at'>
+        Update: Partial<Omit<CasinoTest, 'id' | 'created_at'>>
+      }
+      casino_manuals: {
+        Row: CasinoManual
+        Insert: Omit<CasinoManual, 'id' | 'created_at'>
+        Update: Partial<Omit<CasinoManual, 'id' | 'created_at'>>
       }
     }
   }

@@ -1,0 +1,417 @@
+1: Общая архитектура системы и компоненты
+1.1 Модульная структура системы
+1.1.1 Модуль аутентификации и авторизации
+Компоненты модуля:
+Двухфакторная аутентификация (email + TOTP)
+Управление сессиями с контролем параллельных подключений
+Восстановление паролей через токены
+Контроль времени жизни сессий (15 минут, продление при активности)
+База данных:
+sql
+- users (auth_id, email, role, status)
+- user_sessions (token, last_activity, expires_at, is_active)
+- password_resets (token, expires_at, used)
+Процесс входа:
+Страница /login - форма с полями email/password
+POST /auth/login - проверка credentials
+При включенном 2FA - модальное окно для TOTP кода
+POST /auth/2fa/verify - проверка TOTP
+Создание сессии через create_user_session() с проверкой лимита (макс. 3 параллельные)
+Редирект по роли:
+Junior → /junior/dashboard
+Manager → /manager/dashboard
+HR → /hr/dashboard
+CFO → /cfo/dashboard
+CEO/Admin → /admin/dashboard
+Контроль сессий:
+Heartbeat каждые 30 секунд через update_session_heartbeat()
+Автоматическое завершение неактивных сессий
+Принудительное завершение при превышении лимита
+1.1.2 Модуль управления пользователями
+Компоненты:
+CRUD операции с пользователями
+Управление ролями и правами доступа
+NDA подписание с версионированием
+HR-комментарии с уровнями приватности
+Процентные ставки и бонусы
+База данных:
+sql
+- users (полная информация, salary_percentage, salary_bonus)
+- hr_comments (comment_type, is_private, requires_action)
+- nda_templates (version, content, effective_from)
+- user_nda_signatures (template_id, signed_at, ip_address)
+Функционал по ролям:
+HR: создание пользователей, установка процентов, добавление комментариев
+Manager: просмотр команды, базовые комментарии
+Admin: полный доступ к управлению
+1.1.3 Модуль банковской инфраструктуры
+Компоненты:
+Управление банками и аккаунтами
+Карты (серые/розовые) с раздельным хранением секретов
+Назначение карт с BIN-валидацией
+Контроль баланса банковских аккаунтов
+Лимиты розовых карт (дневные)
+База данных:
+sql
+- banks (name, country, currency)
+- bank_accounts (balance, balance_updated_at, balance_updated_by)
+- cards (card_number_mask, card_bin, exp_month, exp_year, status)
+- card_secrets (pan_enc, cvv_enc) - зашифрованное хранилище
+- card_assignments (card_id, casino_id, junior_id, status)
+- pink_cards_daily (total_limit, used_today)
+Особенности баланса:
+Минимальный баланс для показа карт: $10
+Право редактирования: CFO, Manager, HR
+Автоматическое скрытие/показ карт при изменении баланса
+Уведомления junior'ов о доступности карт
+Контролируемый показ PAN/CVV:
+sql
+-- RPC функция с аудитом
+reveal_card_pan_cvv(card_id, context, reason, totp_ok)
+-- Возвращает данные с TTL 60 секунд
+1.1.4 Модуль рабочих процессов
+Компоненты:
+Управление казино (мануалы, BIN'ы, статусы)
+Создание работ (депозитов)
+Обработка выводов
+История изменений статусов
+База данных:
+sql
+- casinos (name, allowed_bins[], manual, auto_approve_limit)
+- works (junior_id, casino_id, card_id, deposit_amount, status)
+- work_withdrawals (withdrawal_amount, status, checked_by)
+- works_history (old_status, new_status, changed_by)
+Workflow вывода:
+Junior создает вывод (status: new)
+Junior подтверждает готовность (status: waiting)
+Manager проверяет в очереди
+Manager принимает решение:
+Approve → received
+Problem → problem
+Block → block
+Автоматический расчет профита
+Уведомление junior о результате
+1.1.5 Модуль финансовых расчетов
+Компоненты:
+Ежемесячный расчет зарплат
+Учет расходов по категориям
+USDT переводы
+Мультивалютность
+База данных:
+sql
+- salary_calculations (gross_profit, base_salary, bonus, penalties)
+- expenses (expense_type, amount, currency)
+- usdt_transfers (amount, status, transaction_hash)
+- exchange_rates (from_currency, to_currency, rate)
+Процесс расчета зарплаты:
+Сбор всех received выводов за месяц
+Расчет профита: SUM(withdrawal_amount - deposit_amount)
+Применение процента: profit * salary_percentage / 100
+Добавление бонуса: + salary_bonus
+Вычет штрафов (при наличии)
+Обнуление баланса после выплаты
+1.1.6 Модуль аналитики и отчетности
+Компоненты:
+Ролевые дашборды с KPI
+Графики и визуализации (Recharts, D3)
+Матрица Casino×Junior
+Экспорт отчетов (CSV, Excel)
+Представления БД:
+sql
+- active_withdrawals (текущая очередь)
+- junior_monthly_stats (статистика по junior'ам)
+- employee_statistics (включая уволенных)
+- available_cards_for_junior (с учетом баланса банков)
+1.1.7 Модуль задач и коммуникаций
+Компоненты:
+Задачи с назначением и дедлайнами
+Алерты с уровнями критичности
+Push-уведомления через WebSocket
+Комментарии к задачам
+База данных:
+sql
+- tasks (title, priority, status, deadline)
+- task_assignees (task_id, user_id)
+- alerts (type, severity, status, assigned_to)
+- notifications (type, channel, read_status, push_sent)
+Realtime уведомления:
+javascript
+// Персональный канал
+supabase.channel(`user:${userId}`)
+  .on('postgres_changes', { event: 'INSERT', table: 'notifications' })
+  .subscribe()
+1.1.8 Модуль аудита и безопасности
+Компоненты:
+Полное логирование действий
+Контроль попыток доступа
+История изменений сущностей
+Point-in-time recovery
+База данных:
+sql
+- audit_log (action, table_name, old_values, new_values)
+- access_attempts (granted, reason, ip_address)
+- entity_history (entity_type, data_snapshot, version)
+- operation_limits (user_id, operation_type, count)
+1.2 Архитектура frontend (Next.js)
+1.2.1 Структура маршрутизации
+/app
+  /(auth)
+    /login - страница входа
+    /2fa - ввод TOTP
+    /reset-password - восстановление пароля
+  
+  /(dashboard)
+    /junior
+      /dashboard - KPI карточки, графики профита
+      /work
+        /new - форма создания депозита
+        /[id] - детали работы с выводами
+      /withdrawals - список моих выводов
+      /profile - настройки профиля
+    
+    /manager
+      /dashboard - очередь выводов, статистика команды
+      /withdrawals/queue - таблица для проверки
+      /cards - управление назначениями
+      /casinos - список и настройки
+      /team - управление junior'ами
+      /banks - **просмотр и редактирование балансов**
+    
+    /hr
+      /dashboard - статистика сотрудников
+      /users - создание/редактирование
+      /nda - управление шаблонами
+      /reports - отчеты по эффективности
+      /banks - **редактирование балансов**
+    
+    /cfo
+      /dashboard - P&L, графики расходов
+      /finance/salaries - расчет зарплат
+      /expenses - учет расходов
+      /transfers - USDT переводы
+      /banks - **полное управление балансами**
+    
+    /admin
+      /dashboard - полная аналитика
+      /settings - системные настройки
+      /audit - просмотр логов
+      /backup - управление резервными копиями
+1.2.2 Ключевые UI компоненты
+DataTable с фильтрацией:
+tsx
+<DataTable
+  columns={[
+    { key: 'created_at', label: 'Время', sortable: true },
+    { key: 'junior_name', label: 'Junior', filterable: true },
+    { key: 'amount', label: 'Сумма', format: 'currency' },
+    { key: 'status', label: 'Статус', render: StatusBadge }
+  ]}
+  data={withdrawals}
+  filters={['status', 'date_range']}
+  pagination={20}
+  onRowClick={openDrawer}
+/>
+WithdrawalReviewDrawer:
+tsx
+<Drawer open={selected} onClose={closeDrawer}>
+  <DrawerContent>
+    <WithdrawalDetails withdrawal={selected} />
+    <JuniorHistory junior={selected.junior} />
+    <CardInfo card={selected.card} />
+    <ActionButtons>
+      <Button onClick={() => approve()}>Подтвердить</Button>
+      <Button variant="warning" onClick={() => problem()}>Проблема</Button>
+      <Button variant="danger" onClick={() => block()}>Блокировать</Button>
+    </ActionButtons>
+  </DrawerContent>
+</Drawer>
+CardDetailsReveal с TTL:
+tsx
+function CardDetailsReveal({ cardId, context }) {
+  const [revealed, setRevealed] = useState(false)
+  const [data, setData] = useState(null)
+  const [ttl, setTtl] = useState(60)
+  
+  const reveal = async () => {
+    const { data } = await supabase.rpc('reveal_card_pan_cvv', {
+      p_card_id: cardId,
+      p_context: context,
+      p_totp_ok: true
+    })
+    setData(data)
+    setRevealed(true)
+    
+    // Countdown timer
+    const interval = setInterval(() => {
+      setTtl(prev => {
+        if (prev <= 1) {
+          clearInterval(interval)
+          setRevealed(false)
+          setData(null)
+          return 60
+        }
+        return prev - 1
+      })
+    }, 1000)
+  }
+  
+  return revealed ? (
+    <Modal>
+      <div className="text-2xl font-mono">{data.pan}</div>
+      <div className="flex gap-4">
+        <span>EXP: {data.exp_month}/{data.exp_year}</span>
+        <span>CVV: {data.cvv}</span>
+      </div>
+      <ProgressBar value={ttl} max={60} />
+      <span className="text-sm">Доступ закроется через {ttl} сек</span>
+    </Modal>
+  ) : (
+    <Button onClick={reveal}>Показать реквизиты</Button>
+  )
+}
+BankBalanceEditor (новый компонент):
+tsx
+function BankBalanceEditor({ account, userRole }) {
+  const [balance, setBalance] = useState(account.balance)
+  const [comment, setComment] = useState('')
+  
+  // Проверка прав доступа
+  if (!['cfo', 'manager', 'hr'].includes(userRole)) {
+    return <div>Баланс: ${account.balance}</div>
+  }
+  
+  const updateBalance = async () => {
+    await supabase.rpc('update_bank_balance', {
+      p_account_id: account.id,
+      p_new_balance: balance,
+      p_user_id: userId,
+      p_comment: comment
+    })
+    
+    toast.success('Баланс обновлен')
+  }
+  
+  return (
+    <Card>
+      <CardHeader>
+        <h3>{account.bank_name} - {account.holder_name}</h3>
+      </CardHeader>
+      <CardContent>
+        <div className="flex items-center gap-4">
+          <Input
+            type="number"
+            value={balance}
+            onChange={(e) => setBalance(parseFloat(e.target.value))}
+            min="0"
+            step="0.01"
+            className="w-32"
+          />
+          <Badge variant={balance < 10 ? 'destructive' : 'success'}>
+            {balance < 10 ? 'Карты скрыты' : 'Карты доступны'}
+          </Badge>
+        </div>
+        <Textarea
+          placeholder="Комментарий к изменению"
+          value={comment}
+          onChange={(e) => setComment(e.target.value)}
+        />
+        <Button onClick={updateBalance}>Сохранить</Button>
+      </CardContent>
+    </Card>
+  )
+}
+1.3 Архитектура backend
+1.3.1 Supabase Edge Functions
+Критичные операции через Edge Functions:
+typescript
+// /functions/check-withdrawal
+export async function handler(req: Request) {
+  const { withdrawalId, action, comment } = await req.json()
+  
+  // Advisory lock для предотвращения race conditions
+  const result = await supabase.rpc('check_withdrawal_safe_v2', {
+    p_withdrawal_id: withdrawalId,
+    p_checker_id: userId,
+    p_new_status: action,
+    p_comment: comment
+  })
+  
+  return new Response(JSON.stringify({ success: result }))
+}
+1.3.2 Next.js API Routes
+Управление балансами (новый endpoint):
+typescript
+// /api/banks/[accountId]/balance
+export async function PATCH(request: Request, { params }) {
+  const session = await getServerSession()
+  
+  // Проверка роли
+  if (!['cfo', 'manager', 'hr'].includes(session.user.role)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+  
+  const { balance, comment } = await request.json()
+  
+  // Валидация
+  if (balance < 0) {
+    return NextResponse.json({ error: 'Invalid balance' }, { status: 400 })
+  }
+  
+  // Обновление через RPC
+  const { data, error } = await supabase.rpc('update_bank_balance', {
+    p_account_id: params.accountId,
+    p_new_balance: balance,
+    p_user_id: session.user.id,
+    p_comment: comment
+  })
+  
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+  
+  // Realtime уведомление
+  await supabase.channel('bank-updates').send({
+    type: 'broadcast',
+    event: 'balance_updated',
+    payload: { accountId: params.accountId, balance }
+  })
+  
+  return NextResponse.json({ success: true })
+}
+1.4 Интеграция модулей и потоки данных
+1.4.1 Поток создания депозита с учетом баланса
+Junior открывает форму нового депозита
+GET /api/cards/available - получение доступных карт
+Фильтрация по балансу банка >= $10
+Проверка доступности карты
+ sql
+SELECT * FROM available_cards_for_junior
+WHERE junior_id = ? 
+  AND casino_id = ?
+  AND is_available = true  -- balance >= 10
+
+
+Если нет доступных карт
+Показ уведомления: "Нет доступных карт. Баланс банков ниже минимума"
+Junior не может создать депозит
+При восстановлении баланса
+Триггер handle_balance_change() восстанавливает доступность
+Push-уведомление junior'ам о доступности карт
+1.4.2 Взаимодействие ролей при управлении балансом
+CFO/Manager/HR обновляет баланс:
+Открывает страницу /banks или /manager/banks
+Видит список банковских аккаунтов с текущими балансами
+Кликает на редактирование баланса
+Вводит новую сумму и комментарий
+Система:
+Логирует изменение в audit_log
+Обновляет bank_accounts.balance
+Проверяет порог $10
+При необходимости скрывает/показывает карты
+Отправляет уведомления затронутым junior'ам
+Junior при низком балансе:
+Не видит карты банка с балансом < $10 в списке доступных
+Получает уведомление при изменении доступности
+Может создавать депозиты только с картами банков с балансом >= $10
+Это обеспечивает полный контроль над финансовыми потоками и предотвращает использование карт при недостаточном балансе банковского аккаунта.
+

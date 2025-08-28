@@ -1,0 +1,775 @@
+11: API спецификация
+11.1 Базовая конфигурация
+11.1.1 Основные параметры
+yaml
+base_url: https://api.example.com/v1
+authentication: Bearer JWT
+rate_limiting: 100 req/min per user
+idempotency: X-Idempotency-Key header
+11.1.2 Стандартные заголовки
+http
+Authorization: Bearer <jwt_token>
+Content-Type: application/json
+X-Idempotency-Key: <unique_key>
+X-Request-ID: <uuid>
+Accept-Language: ru-RU
+11.1.3 Стандартный формат ответа
+json
+{
+  "success": true,
+  "data": {},
+  "meta": {
+    "timestamp": "2025-01-15T10:00:00Z",
+    "request_id": "uuid",
+    "version": "1.0"
+  },
+  "error": null
+}
+11.2 Аутентификация и авторизация
+11.2.1 POST /auth/login
+Запрос:
+json
+{
+  "email": "john@example.com",
+  "password": "SecurePassword123!"
+}
+Ответ (200 OK):
+json
+{
+  "success": true,
+  "data": {
+    "user": {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "email": "john@example.com",
+      "role": "junior",
+      "first_name": "John",
+      "last_name": "Doe",
+      "requires_2fa": true
+    },
+    "session": {
+      "token": "eyJhbGciOiJIUzI1NiIs...",
+      "expires_at": "2025-01-15T10:15:00Z",
+      "refresh_token": "refresh_token_value"
+    },
+    "next_step": "2fa_verification"
+  }
+}
+Ошибка (401 Unauthorized):
+json
+{
+  "success": false,
+  "error": {
+    "code": "INVALID_CREDENTIALS",
+    "message": "Неверный email или пароль",
+    "details": null
+  }
+}
+11.2.2 POST /auth/2fa/verify
+Запрос:
+json
+{
+  "session_token": "eyJhbGciOiJIUzI1NiIs...",
+  "totp_code": "123456"
+}
+Ответ (200 OK):
+json
+{
+  "success": true,
+  "data": {
+    "authenticated": true,
+    "redirect_url": "/junior/dashboard",
+    "session": {
+      "token": "eyJhbGciOiJIUzI1NiIs...",
+      "expires_at": "2025-01-15T10:15:00Z"
+    }
+  }
+}
+11.2.3 POST /auth/refresh
+Запрос:
+json
+{
+  "refresh_token": "refresh_token_value"
+}
+Ответ (200 OK):
+json
+{
+  "success": true,
+  "data": {
+    "token": "new_jwt_token",
+    "expires_at": "2025-01-15T10:30:00Z"
+  }
+}
+11.3 Управление пользователями
+11.3.1 GET /users
+Параметры запроса:
+?role=junior&status=active&page=1&limit=20&sort=created_at:desc
+Ответ (200 OK):
+json
+{
+  "success": true,
+  "data": {
+    "users": [
+      {
+        "id": "550e8400-e29b-41d4-a716-446655440000",
+        "email": "john@example.com",
+        "role": "junior",
+        "status": "active",
+        "first_name": "John",
+        "last_name": "Doe",
+        "created_at": "2025-01-01T10:00:00Z",
+        "salary_percentage": 10,
+        "salary_bonus": 200,
+        "nda_signed": true,
+        "telegram_username": "@johndoe",
+        "usdt_wallet": "TRC20_wallet_address"
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 20,
+      "total": 45,
+      "pages": 3
+    }
+  }
+}
+11.3.2 POST /users
+Запрос (HR создает Junior):
+json
+{
+  "email": "newuser@example.com",
+  "role": "junior",
+  "first_name": "Jane",
+  "last_name": "Smith",
+  "telegram_username": "@janesmith",
+  "usdt_wallet": "TRC20_wallet_address",
+  "salary_percentage": 12,
+  "salary_bonus": 250,
+  "send_nda": true
+}
+Ответ (201 Created):
+json
+{
+  "success": true,
+  "data": {
+    "user": {
+      "id": "new_user_uuid",
+      "email": "newuser@example.com",
+      "temporary_password": "Temp123!Pass",
+      "nda_link": "https://app.example.com/nda/sign/token123"
+    },
+    "notifications_sent": [
+      {
+        "type": "email",
+        "to": "newuser@example.com",
+        "subject": "Добро пожаловать в систему"
+      },
+      {
+        "type": "telegram",
+        "to": "@janesmith",
+        "message": "NDA для подписания"
+      }
+    ]
+  }
+}
+11.3.3 PATCH /users/{id}
+Запрос:
+json
+{
+  "salary_percentage": 15,
+  "salary_bonus": 300,
+  "status": "active"
+}
+Ответ (200 OK):
+json
+{
+  "success": true,
+  "data": {
+    "user": {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "salary_percentage": 15,
+      "salary_bonus": 300,
+      "updated_at": "2025-01-15T10:00:00Z",
+      "updated_by": "hr_user_id"
+    }
+  }
+}
+11.4 Работа с картами
+11.4.1 GET /cards
+Параметры запроса:
+?status=active&bank_id=uuid&type=grey&available=true
+Ответ (200 OK):
+json
+{
+  "success": true,
+  "data": {
+    "cards": [
+      {
+        "id": "card_uuid",
+        "card_number_mask": "4532 **** **** 1234",
+        "card_bin": "453211",
+        "card_last4": "1234",
+        "exp_month": 12,
+        "exp_year": 2026,
+        "status": "active",
+        "type": "grey",
+        "bank_account": {
+          "id": "account_uuid",
+          "bank_name": "Bank of Test",
+          "balance": 5000.00,
+          "holder_name": "John Doe"
+        },
+        "assignments": [
+          {
+            "casino_id": "casino_uuid",
+            "junior_id": "junior_uuid",
+            "status": "assigned"
+          }
+        ]
+      }
+    ]
+  }
+}
+11.4.2 POST /cards/bulk
+Запрос (CFO добавляет карты):
+json
+{
+  "bank_account_id": "account_uuid",
+  "cards": [
+    {
+      "card_number": "4532111111111234",
+      "exp_month": 12,
+      "exp_year": 2026,
+      "cvv": "123",
+      "type": "grey"
+    },
+    {
+      "card_number": "4532222222225678",
+      "exp_month": 11,
+      "exp_year": 2025,
+      "cvv": "456",
+      "type": "pink"
+    }
+  ]
+}
+Ответ (201 Created):
+json
+{
+  "success": true,
+  "data": {
+    "created": 2,
+    "cards": [
+      {
+        "id": "card1_uuid",
+        "card_number_mask": "4532 **** **** 1234",
+        "status": "active"
+      },
+      {
+        "id": "card2_uuid",
+        "card_number_mask": "4532 **** **** 5678",
+        "status": "active"
+      }
+    ]
+  }
+}
+11.4.3 POST /cards/{id}/reveal
+Запрос:
+json
+{
+  "context": {
+    "purpose": "deposit",
+    "casino_id": "casino_uuid",
+    "work_id": "work_uuid"
+  },
+  "totp_code": "123456"
+}
+Ответ (200 OK):
+json
+{
+  "success": true,
+  "data": {
+    "card_details": {
+      "pan": "4532111111111234",
+      "cvv": "123",
+      "exp_month": 12,
+      "exp_year": 2026,
+      "ttl_seconds": 60,
+      "expires_at": "2025-01-15T10:01:00Z"
+    },
+    "token": "reveal_token_uuid"
+  }
+}
+11.4.4 POST /cards/assign
+Запрос (Manager назначает карты):
+json
+{
+  "assignments": [
+    {
+      "card_id": "card1_uuid",
+      "casino_id": "casino_uuid",
+      "junior_id": "junior1_uuid"
+    },
+    {
+      "card_id": "card2_uuid",
+      "casino_id": "casino_uuid",
+      "junior_id": "junior2_uuid"
+    }
+  ]
+}
+Ответ (200 OK):
+json
+{
+  "success": true,
+  "data": {
+    "assigned": 2,
+    "assignments": [
+      {
+        "id": "assignment1_uuid",
+        "card_id": "card1_uuid",
+        "junior_id": "junior1_uuid",
+        "status": "assigned"
+      },
+      {
+        "id": "assignment2_uuid",
+        "card_id": "card2_uuid",
+        "junior_id": "junior2_uuid",
+        "status": "assigned"
+      }
+    ],
+    "notifications_sent": 2
+  }
+}
+11.5 Работа с депозитами и выводами
+11.5.1 POST /works
+Запрос (Junior создает депозит):
+json
+{
+  "casino_id": "casino_uuid",
+  "card_id": "card_uuid",
+  "deposit_amount": 200.00,
+  "casino_username": "player123",
+  "casino_password": "encrypted_password"
+}
+Ответ (201 Created):
+json
+{
+  "success": true,
+  "data": {
+    "work": {
+      "id": "work_uuid",
+      "junior_id": "junior_uuid",
+      "casino_id": "casino_uuid",
+      "card_id": "card_uuid",
+      "deposit_amount": 200.00,
+      "status": "active",
+      "work_date": "2025-01-15",
+      "created_at": "2025-01-15T10:00:00Z"
+    }
+  }
+}
+11.5.2 POST /withdrawals
+Запрос (Junior создает вывод):
+json
+{
+  "work_id": "work_uuid",
+  "withdrawal_amount": 450.00
+}
+Ответ (201 Created):
+json
+{
+  "success": true,
+  "data": {
+    "withdrawal": {
+      "id": "withdrawal_uuid",
+      "work_id": "work_uuid",
+      "withdrawal_amount": 450.00,
+      "status": "new",
+      "profit": 250.00,
+      "created_at": "2025-01-15T10:00:00Z"
+    }
+  }
+}
+11.5.3 GET /withdrawals/queue
+Параметры запроса (для Manager):
+?status=waiting&sort=created_at:asc&include=junior,casino,card
+Ответ (200 OK):
+json
+{
+  "success": true,
+  "data": {
+    "withdrawals": [
+      {
+        "id": "withdrawal_uuid",
+        "work_id": "work_uuid",
+        "withdrawal_amount": 450.00,
+        "deposit_amount": 200.00,
+        "profit": 250.00,
+        "status": "waiting",
+        "created_at": "2025-01-15T09:00:00Z",
+        "waiting_time_minutes": 60,
+        "junior": {
+          "id": "junior_uuid",
+          "name": "John Doe",
+          "success_rate": 87.5,
+          "total_profit_month": 2450.00
+        },
+        "casino": {
+          "id": "casino_uuid",
+          "name": "TestCasino",
+          "auto_approve": false
+        },
+        "card": {
+          "id": "card_uuid",
+          "last4": "1234",
+          "bank_name": "Test Bank"
+        }
+      }
+    ],
+    "stats": {
+      "total_waiting": 15,
+      "avg_waiting_time": 45,
+      "critical_count": 3
+    }
+  }
+}
+11.5.4 PATCH /withdrawals/{id}/check
+Запрос (Manager проверяет):
+json
+{
+  "action": "received",
+  "comment": "Verified successfully"
+}
+Ответ (200 OK):
+json
+{
+  "success": true,
+  "data": {
+    "withdrawal": {
+      "id": "withdrawal_uuid",
+      "status": "received",
+      "checked_by": "manager_uuid",
+      "checked_at": "2025-01-15T10:00:00Z",
+      "profit": 250.00
+    },
+    "junior_notified": true,
+    "profit_added": true
+  }
+}
+11.6 Банковские операции
+11.6.1 GET /banks
+Ответ (200 OK):
+json
+{
+  "success": true,
+  "data": {
+    "banks": [
+      {
+        "id": "bank_uuid",
+        "name": "Test Bank",
+        "country": "US",
+        "currency": "USD",
+        "accounts": [
+          {
+            "id": "account_uuid",
+            "holder_name": "John Doe",
+            "balance": 5000.00,
+            "status": "active",
+            "cards_count": 12,
+            "active_cards": 8
+          }
+        ]
+      }
+    ]
+  }
+}
+11.6.2 PATCH /banks/accounts/{id}/balance
+Запрос (CFO/Manager/HR обновляет баланс):
+json
+{
+  "balance": 10000.00,
+  "comment": "Пополнение счета"
+}
+Ответ (200 OK):
+json
+{
+  "success": true,
+  "data": {
+    "account": {
+      "id": "account_uuid",
+      "balance": 10000.00,
+      "previous_balance": 5000.00,
+      "balance_updated_at": "2025-01-15T10:00:00Z",
+      "balance_updated_by": "cfo_uuid"
+    },
+    "cards_affected": {
+      "made_available": 5,
+      "remained_available": 7
+    },
+    "notifications_sent": 5
+  }
+}
+11.7 Финансовые операции
+11.7.1 POST /finance/salary/calculate
+Запрос (CFO запускает расчет):
+json
+{
+  "month": "2025-01",
+  "include_bonuses": true,
+  "apply_penalties": true
+}
+Ответ (200 OK):
+json
+{
+  "success": true,
+  "data": {
+    "calculations": [
+      {
+        "user_id": "junior_uuid",
+        "user_name": "John Doe",
+        "gross_profit": 5000.00,
+        "percentage": 10,
+        "base_salary": 500.00,
+        "bonus": 200.00,
+        "penalties": 0,
+        "total_salary": 700.00
+      }
+    ],
+    "summary": {
+      "total_profit": 25000.00,
+      "total_salaries": 3500.00,
+      "employees_count": 5
+    }
+  }
+}
+11.7.2 POST /finance/transfers
+Запрос (CFO создает USDT перевод):
+json
+{
+  "transfers": [
+    {
+      "to_user_id": "junior_uuid",
+      "amount": 700.00,
+      "transfer_type": "salary",
+      "wallet_address": "TRC20_address"
+    }
+  ],
+  "idempotency_key": "salary_2025_01_batch_1"
+}
+Ответ (200 OK):
+json
+{
+  "success": true,
+  "data": {
+    "batch_id": "batch_uuid",
+    "transfers": [
+      {
+        "id": "transfer_uuid",
+        "to_user_id": "junior_uuid",
+        "amount": 700.00,
+        "status": "pending",
+        "wallet_address": "TRC20_address"
+      }
+    ],
+    "total_amount": 700.00
+  }
+}
+11.7.3 POST /finance/transfers/{id}/confirm
+Запрос:
+json
+{
+  "transaction_hash": "0x1234567890abcdef...",
+  "network": "TRON",
+  "fee": 1.00
+}
+Ответ (200 OK):
+json
+{
+  "success": true,
+  "data": {
+    "transfer": {
+      "id": "transfer_uuid",
+      "status": "confirmed",
+      "transaction_hash": "0x1234567890abcdef...",
+      "confirmed_at": "2025-01-15T10:00:00Z"
+    }
+  }
+}
+11.8 Отчеты и аналитика
+11.8.1 GET /reports/profit
+Параметры запроса:
+?period=month&date_from=2025-01-01&date_to=2025-01-31&group_by=junior
+Ответ (200 OK):
+json
+{
+  "success": true,
+  "data": {
+    "report": {
+      "period": "2025-01",
+      "data": [
+        {
+          "junior_id": "junior_uuid",
+          "junior_name": "John Doe",
+          "total_deposits": 6000.00,
+          "total_withdrawals": 11000.00,
+          "profit": 5000.00,
+          "success_rate": 87.5,
+          "operations_count": 24
+        }
+      ],
+      "summary": {
+        "total_profit": 25000.00,
+        "avg_profit_per_junior": 5000.00,
+        "best_performer": "John Doe",
+        "growth_vs_previous": 12.5
+      }
+    }
+  }
+}
+11.8.2 GET /reports/matrix
+Параметры запроса:
+?type=casino_junior&period=current_month
+Ответ (200 OK):
+json
+{
+  "success": true,
+  "data": {
+    "matrix": {
+      "rows": ["Junior 1", "Junior 2", "Junior 3"],
+      "columns": ["Casino A", "Casino B", "Casino C"],
+      "data": [
+        [1200, 800, 0],
+        [500, 1500, 200],
+        [0, 900, 1800]
+      ],
+      "totals": {
+        "by_row": [2000, 2200, 2700],
+        "by_column": [1700, 3200, 2000],
+        "grand_total": 6900
+      }
+    }
+  }
+}
+11.9 Системные операции
+11.9.1 GET /system/health
+Ответ (200 OK):
+json
+{
+  "success": true,
+  "data": {
+    "status": "healthy",
+    "services": {
+      "database": "ok",
+      "redis": "ok",
+      "notifications": "ok"
+    },
+    "metrics": {
+      "active_sessions": 45,
+      "queue_size": 12,
+      "avg_response_time": 125
+    }
+  }
+}
+11.9.2 POST /system/backup
+Запрос (Admin создает backup):
+json
+{
+  "backup_type": "full",
+  "include_files": true,
+  "compress": true
+}
+Ответ (202 Accepted):
+json
+{
+  "success": true,
+  "data": {
+    "backup": {
+      "id": "backup_uuid",
+      "status": "started",
+      "estimated_time": 300,
+      "progress_url": "/system/backup/backup_uuid/progress"
+    }
+  }
+}
+11.10 WebSocket события
+11.10.1 Подключение к WebSocket
+javascript
+const ws = new WebSocket('wss://api.example.com/ws');
+
+ws.onopen = () => {
+  ws.send(JSON.stringify({
+    type: 'auth',
+    token: 'jwt_token'
+  }));
+  
+  ws.send(JSON.stringify({
+    type: 'subscribe',
+    channels: ['user:uuid', 'withdrawals', 'notifications']
+  }));
+};
+11.10.2 Примеры событий
+Новое уведомление:
+json
+{
+  "type": "notification",
+  "channel": "user:uuid",
+  "data": {
+    "id": "notification_uuid",
+    "type": "withdrawal",
+    "title": "Вывод подтвержден",
+    "message": "Ваш вывод на сумму $450 был подтвержден",
+    "priority": "normal",
+    "created_at": "2025-01-15T10:00:00Z"
+  }
+}
+Обновление статуса вывода:
+json
+{
+  "type": "withdrawal_update",
+  "channel": "withdrawals",
+  "data": {
+    "id": "withdrawal_uuid",
+    "status": "received",
+    "checked_by": "manager_uuid",
+    "profit": 250.00
+  }
+}
+Изменение баланса банка:
+json
+{
+  "type": "bank_balance_update",
+  "channel": "cards",
+  "data": {
+    "account_id": "account_uuid",
+    "new_balance": 10000.00,
+    "cards_affected": 5,
+    "availability_changed": true
+  }
+}
+11.11 Обработка ошибок
+11.11.1 Стандартные коды ошибок
+json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Данные не прошли валидацию",
+    "details": {
+      "fields": {
+        "deposit_amount": ["Сумма должна быть больше 10"],
+        "card_id": ["Карта недоступна"]
+      }
+    }
+  }
+}
+11.11.2 HTTP коды состояния
+200 - OK (успешный GET/PATCH)
+201 - Created (успешный POST)
+202 - Accepted (асинхронная операция)
+400 - Bad Request (ошибка валидации)
+401 - Unauthorized (требуется аутентификация)
+403 - Forbidden (недостаточно прав)
+404 - Not Found (ресурс не найден)
+409 - Conflict (конфликт версий/дубликат)
+429 - Too Many Requests (превышен rate limit)
+500 - Internal Server Error (ошибка сервера)
+Все API endpoints поддерживают идемпотентность для критичных операций, версионирование для обновлений и полное логирование в audit_log.
+
