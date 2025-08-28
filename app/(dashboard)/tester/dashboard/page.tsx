@@ -203,27 +203,35 @@ export default function TesterDashboard() {
       <div className="mt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Link 
           href="/tester/tests" 
-          className="bg-blue-50 hover:bg-blue-100 p-4 rounded-lg text-blue-800 font-medium text-center"
+          className="bg-blue-50 hover:bg-blue-100 p-6 rounded-lg text-blue-800 font-medium text-center transition-colors group"
         >
-          Все тесты
+          <div className="text-2xl mb-2">🧪</div>
+          <div className="font-semibold">Управление тестами</div>
+          <div className="text-xs text-blue-600 mt-1">Создать, запустить, завершить тесты</div>
         </Link>
         <Link 
           href="/tester/casinos" 
-          className="bg-green-50 hover:bg-green-100 p-4 rounded-lg text-green-800 font-medium text-center"
+          className="bg-green-50 hover:bg-green-100 p-6 rounded-lg text-green-800 font-medium text-center transition-colors group"
         >
-          Казино
+          <div className="text-2xl mb-2">🎰</div>
+          <div className="font-semibold">Казино</div>
+          <div className="text-xs text-green-600 mt-1">Просмотр и тестирование казино</div>
         </Link>
         <Link 
           href="/tester/manuals" 
-          className="bg-purple-50 hover:bg-purple-100 p-4 rounded-lg text-purple-800 font-medium text-center"
+          className="bg-purple-50 hover:bg-purple-100 p-6 rounded-lg text-purple-800 font-medium text-center transition-colors group"
         >
-          Мануалы
+          <div className="text-2xl mb-2">📋</div>
+          <div className="font-semibold">Мануалы</div>
+          <div className="text-xs text-purple-600 mt-1">Создание инструкций для казино</div>
         </Link>
         <Link 
           href="/tester/reports" 
-          className="bg-orange-50 hover:bg-orange-100 p-4 rounded-lg text-orange-800 font-medium text-center"
+          className="bg-orange-50 hover:bg-orange-100 p-6 rounded-lg text-orange-800 font-medium text-center transition-colors group"
         >
-          Отчеты
+          <div className="text-2xl mb-2">📊</div>
+          <div className="font-semibold">Отчеты</div>
+          <div className="text-xs text-orange-600 mt-1">Статистика и аналитика</div>
         </Link>
       </div>
     </div>
