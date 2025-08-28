@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react'
 import DataTable, { Column, ActionConfig } from '@/components/ui/DataTable'
 import StatusBadge from '@/components/ui/StatusBadge'
 import KPICard from '@/components/ui/KPICard'
+import WithdrawalCheckModal from '@/components/ui/WithdrawalCheckModal'
+import { useToast } from '@/components/ui/Toast'
 
 interface Withdrawal {
   id: string
@@ -11,8 +13,10 @@ interface Withdrawal {
   status: string
   profit: number
   waiting_minutes: number
+  created_at: string
   works: {
     deposit_amount: number
+    casino_username: string
     users: { first_name: string; last_name: string }
     casinos: { name: string }
     cards: { card_number_mask: string }
@@ -20,8 +24,11 @@ interface Withdrawal {
 }
 
 export default function ManagerDashboard() {
+  const { addToast } = useToast()
   const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([])
   const [loading, setLoading] = useState(true)
+  const [selectedWithdrawal, setSelectedWithdrawal] = useState<Withdrawal | null>(null)
+  const [modalOpen, setModalOpen] = useState(false)
   const [stats, setStats] = useState({
     totalQueue: 0,
     urgentCount: 0,
@@ -58,15 +65,50 @@ export default function ManagerDashboard() {
     setLoading(false)
   }
   
-  async function checkWithdrawal(id: string, status: 'received' | 'problem' | 'block') {
-    const res = await fetch(`/api/withdrawals/${id}/check`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status })
-    })
-    
-    if (res.ok) {
-      loadQueue() // Перезагрузка очереди
+  function openCheckModal(withdrawal: Withdrawal) {
+    setSelectedWithdrawal(withdrawal)
+    setModalOpen(true)
+  }
+
+  function closeCheckModal() {
+    setSelectedWithdrawal(null)
+    setModalOpen(false)
+  }
+
+  async function handleWithdrawalCheck(status: string, message?: string) {
+    if (!selectedWithdrawal) return
+
+    try {
+      const response = await fetch(`/api/withdrawals/${selectedWithdrawal.id}/check`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          status,
+          alarm_message: message
+        })
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error)
+      }
+
+      addToast({ 
+        type: 'success', 
+        title: data.message || 'Вывод успешно обработан' 
+      })
+
+      // Перезагружаем очередь
+      loadQueue()
+
+    } catch (error: any) {
+      addToast({ 
+        type: 'error', 
+        title: error.message || 'Ошибка обработки вывода' 
+      })
     }
   }
 
@@ -135,19 +177,9 @@ export default function ManagerDashboard() {
   // Конфигурация действий
   const actions: ActionConfig[] = [
     {
-      label: '✓',
-      action: (row: Withdrawal) => checkWithdrawal(row.id, 'received'),
+      label: 'Проверить',
+      action: (row: Withdrawal) => openCheckModal(row),
       variant: 'primary'
-    },
-    {
-      label: '?',
-      action: (row: Withdrawal) => checkWithdrawal(row.id, 'problem'),
-      variant: 'secondary'
-    },
-    {
-      label: '✗',
-      action: (row: Withdrawal) => checkWithdrawal(row.id, 'block'),
-      variant: 'danger'
     }
   ]
 
@@ -271,6 +303,16 @@ export default function ManagerDashboard() {
           📊 Экспорт отчета
         </button>
       </div>
+
+      {/* Модальное окно проверки вывода */}
+      {selectedWithdrawal && (
+        <WithdrawalCheckModal
+          withdrawal={selectedWithdrawal}
+          isOpen={modalOpen}
+          onClose={closeCheckModal}
+          onSubmit={handleWithdrawalCheck}
+        />
+      )}
     </div>
   )
 }
