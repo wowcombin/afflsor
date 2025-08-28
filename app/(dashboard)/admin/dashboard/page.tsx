@@ -88,13 +88,21 @@ export default function AdminDashboard() {
       </div>
 
       {/* Быстрые ссылки */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <Link 
           href="/junior/dashboard"
           className="bg-blue-50 hover:bg-blue-100 p-6 rounded-lg border border-blue-200 transition-colors"
         >
           <h3 className="font-semibold text-blue-800 mb-2">Junior Dashboard</h3>
           <p className="text-sm text-blue-600">Управление депозитами и картами</p>
+        </Link>
+
+        <Link 
+          href="/tester/dashboard"
+          className="bg-purple-50 hover:bg-purple-100 p-6 rounded-lg border border-purple-200 transition-colors"
+        >
+          <h3 className="font-semibold text-purple-800 mb-2">Tester Dashboard</h3>
+          <p className="text-sm text-purple-600">Тестирование казино и мануалы</p>
         </Link>
 
         <Link 
@@ -115,17 +123,17 @@ export default function AdminDashboard() {
 
         <Link 
           href="/cfo/dashboard"
-          className="bg-purple-50 hover:bg-purple-100 p-6 rounded-lg border border-purple-200 transition-colors"
+          className="bg-orange-50 hover:bg-orange-100 p-6 rounded-lg border border-orange-200 transition-colors"
         >
-          <h3 className="font-semibold text-purple-800 mb-2">CFO Dashboard</h3>
-          <p className="text-sm text-purple-600">Финансовая отчетность</p>
+          <h3 className="font-semibold text-orange-800 mb-2">CFO Dashboard</h3>
+          <p className="text-sm text-orange-600">Финансовая отчетность</p>
         </Link>
       </div>
 
       {/* Дополнительные админские функции */}
       <div className="mt-8">
         <h2 className="text-xl font-semibold mb-4">Административные функции</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <Link 
             href="/hr/users/new"
             className="bg-white hover:bg-gray-50 p-4 rounded-lg border transition-colors"
@@ -140,6 +148,14 @@ export default function AdminDashboard() {
           >
             <h4 className="font-medium">Управление банками</h4>
             <p className="text-sm text-gray-600">Балансы и карты</p>
+          </Link>
+
+          <Link 
+            href="/tester/casinos"
+            className="bg-white hover:bg-gray-50 p-4 rounded-lg border transition-colors"
+          >
+            <h4 className="font-medium">Управление казино</h4>
+            <p className="text-sm text-gray-600">Добавление и тестирование</p>
           </Link>
 
           <Link 
