@@ -47,7 +47,6 @@ export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([])
   const [stats, setStats] = useState<UserStats | null>(null)
   const [loading, setLoading] = useState(true)
-  const [selectedUsers, setSelectedUsers] = useState<string[]>([])
 
   useEffect(() => {
     loadUsers()
@@ -113,30 +112,9 @@ export default function UsersPage() {
   }
 
   async function handleBulkStatusChange(status: 'active' | 'inactive' | 'terminated') {
-    if (selectedUsers.length === 0) {
-      addToast({ type: 'warning', title: 'Выберите пользователей для изменения статуса' })
-      return
-    }
-
-    try {
-      const supabase = createClient()
-      const { error } = await supabase
-        .from('users')
-        .update({ 
-          status,
-          updated_at: new Date().toISOString()
-        })
-        .in('id', selectedUsers)
-
-      if (error) throw error
-
-      addToast({ type: 'success', title: `Статус ${selectedUsers.length} пользователей изменен` })
-      setSelectedUsers([])
-      await loadUsers()
-    } catch (error) {
-      console.error('Ошибка массового изменения статуса:', error)
-      addToast({ type: 'error', title: 'Ошибка изменения статуса' })
-    }
+    // Эта функция будет вызываться DataTable с выбранными пользователями
+    // TODO: Реализовать массовое изменение статуса через DataTable selection
+    addToast({ type: 'info', title: 'Функция в разработке' })
   }
 
   const columns: Column[] = [
@@ -214,29 +192,26 @@ export default function UsersPage() {
   const actions = [
     {
       label: 'Редактировать',
-      icon: <PencilIcon className="h-4 w-4" />,
-      onClick: (user: User) => router.push(`/hr/users/${user.id}/edit`),
+      action: (user: User) => router.push(`/hr/users/${user.id}/edit`),
       variant: 'primary' as const
     },
     {
       label: 'Активировать',
-      onClick: (user: User) => handleStatusChange(user.id, 'active'),
+      action: (user: User) => handleStatusChange(user.id, 'active'),
       condition: (user: User) => user.status !== 'active',
-      variant: 'success' as const
+      variant: 'secondary' as const
     },
     {
       label: 'Деактивировать',
-      onClick: (user: User) => handleStatusChange(user.id, 'inactive'),
+      action: (user: User) => handleStatusChange(user.id, 'inactive'),
       condition: (user: User) => user.status === 'active',
-      variant: 'warning' as const
+      variant: 'secondary' as const
     },
     {
       label: 'Уволить',
-      icon: <TrashIcon className="h-4 w-4" />,
-      onClick: (user: User) => handleStatusChange(user.id, 'terminated'),
+      action: (user: User) => handleStatusChange(user.id, 'terminated'),
       condition: (user: User) => user.status !== 'terminated',
-      variant: 'danger' as const,
-      confirmMessage: 'Вы уверены, что хотите уволить этого пользователя?'
+      variant: 'danger' as const
     }
   ]
 
@@ -269,37 +244,13 @@ export default function UsersPage() {
     <div className="p-8">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Управление пользователями</h1>
-        <div className="flex space-x-3">
-          {selectedUsers.length > 0 && (
-            <div className="flex space-x-2">
-              <button
-                onClick={() => handleBulkStatusChange('active')}
-                className="px-3 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700"
-              >
-                Активировать ({selectedUsers.length})
-              </button>
-              <button
-                onClick={() => handleBulkStatusChange('inactive')}
-                className="px-3 py-2 bg-yellow-600 text-white text-sm rounded-lg hover:bg-yellow-700"
-              >
-                Деактивировать ({selectedUsers.length})
-              </button>
-              <button
-                onClick={() => handleBulkStatusChange('terminated')}
-                className="px-3 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700"
-              >
-                Уволить ({selectedUsers.length})
-              </button>
-            </div>
-          )}
-          <button
-            onClick={() => router.push('/hr/users/new')}
-            className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-          >
-            <PlusIcon className="h-5 w-5 mr-2" />
-            Добавить пользователя
-          </button>
-        </div>
+        <button
+          onClick={() => router.push('/hr/users/new')}
+          className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+        >
+          <PlusIcon className="h-5 w-5 mr-2" />
+          Добавить пользователя
+        </button>
       </div>
 
       {/* KPI Cards */}
@@ -373,16 +324,24 @@ export default function UsersPage() {
           actions={actions}
           pagination={{ pageSize: 20 }}
           sorting={{ key: 'created_at', direction: 'desc' }}
-          filtering={true}
           selection={{
-            enabled: true,
-            selectedIds: selectedUsers,
-            onSelectionChange: setSelectedUsers
+            mode: 'multiple',
+            actions: [
+              {
+                label: 'Активировать выбранных',
+                action: () => handleBulkStatusChange('active')
+              },
+              {
+                label: 'Деактивировать выбранных',
+                action: () => handleBulkStatusChange('inactive')
+              },
+              {
+                label: 'Уволить выбранных',
+                action: () => handleBulkStatusChange('terminated')
+              }
+            ]
           }}
-          export={{
-            enabled: true,
-            filename: 'users-export'
-          }}
+          export={true}
         />
       </div>
     </div>
