@@ -38,14 +38,18 @@ export default function ProfilePage() {
   })
   const [showPasswordForm, setShowPasswordForm] = useState(false)
 
-  const supabase = createClient()
-
   useEffect(() => {
-    loadUser()
+    // Проверяем, что мы в браузере
+    if (typeof window !== 'undefined') {
+      loadUser()
+    } else {
+      setLoading(false)
+    }
   }, [])
 
   async function loadUser() {
     try {
+      const supabase = createClient()
       const { data: { user: authUser } } = await supabase.auth.getUser()
       
       if (authUser) {
@@ -83,6 +87,7 @@ export default function ProfilePage() {
     setMessage(null)
 
     try {
+      const supabase = createClient()
       const { error } = await supabase
         .from('users')
         .update({
@@ -123,6 +128,7 @@ export default function ProfilePage() {
     setMessage(null)
 
     try {
+      const supabase = createClient()
       const { error } = await supabase.auth.updateUser({
         password: passwordData.new_password
       })
