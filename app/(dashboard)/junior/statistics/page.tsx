@@ -15,6 +15,18 @@ interface StatisticsData {
   statusDistribution: Array<{ status: string; count: number }>
 }
 
+interface WorkWithWithdrawals {
+  id: string
+  deposit_amount: number
+  created_at: string
+  casinos: { name: string } | null
+  work_withdrawals: Array<{
+    withdrawal_amount: number
+    status: string
+    created_at: string
+  }>
+}
+
 export default function JuniorStatisticsPage() {
   const router = useRouter()
   const [stats, setStats] = useState<StatisticsData>({
@@ -79,19 +91,21 @@ export default function JuniorStatisticsPage() {
 
       if (!worksData) return
 
+      const typedWorksData: WorkWithWithdrawals[] = worksData as WorkWithWithdrawals[]
+
       // Обрабатываем данные
-      const totalDeposits = worksData.reduce((sum, work) => sum + work.deposit_amount, 0)
-      const successfulWithdrawals = worksData.filter(work => 
-        work.work_withdrawals.some(w => w.status === 'received')
+      const totalDeposits = typedWorksData.reduce((sum, work) => sum + work.deposit_amount, 0)
+      const successfulWithdrawals = typedWorksData.filter(work => 
+        work.work_withdrawals.some((w: any) => w.status === 'received')
       )
       const totalProfit = successfulWithdrawals.reduce((sum, work) => {
-        const withdrawal = work.work_withdrawals.find(w => w.status === 'received')
+        const withdrawal = work.work_withdrawals.find((w: any) => w.status === 'received')
         return sum + (withdrawal ? withdrawal.withdrawal_amount - work.deposit_amount : 0)
       }, 0)
 
       // Статистика по казино
       const casinoMap = new Map()
-      worksData.forEach(work => {
+      typedWorksData.forEach(work => {
         const casinoName = work.casinos?.name || 'Unknown'
         if (!casinoMap.has(casinoName)) {
           casinoMap.set(casinoName, { name: casinoName, count: 0, profit: 0 })
@@ -99,7 +113,7 @@ export default function JuniorStatisticsPage() {
         const casino = casinoMap.get(casinoName)
         casino.count++
         
-        const withdrawal = work.work_withdrawals.find(w => w.status === 'received')
+        const withdrawal = work.work_withdrawals.find((w: any) => w.status === 'received')
         if (withdrawal) {
           casino.profit += withdrawal.withdrawal_amount - work.deposit_amount
         }
@@ -115,7 +129,7 @@ export default function JuniorStatisticsPage() {
       }
 
       successfulWithdrawals.forEach(work => {
-        const withdrawal = work.work_withdrawals.find(w => w.status === 'received')
+        const withdrawal = work.work_withdrawals.find((w: any) => w.status === 'received')
         if (withdrawal) {
           const monthKey = new Date(withdrawal.created_at).toLocaleDateString('ru-RU', { 
             month: 'short', 
@@ -131,8 +145,8 @@ export default function JuniorStatisticsPage() {
 
       // Распределение статусов
       const statusMap = new Map()
-      worksData.forEach(work => {
-        work.work_withdrawals.forEach(withdrawal => {
+      typedWorksData.forEach(work => {
+        work.work_withdrawals.forEach((withdrawal: any) => {
           const status = withdrawal.status
           statusMap.set(status, (statusMap.get(status) || 0) + 1)
         })
@@ -147,7 +161,7 @@ export default function JuniorStatisticsPage() {
         dailyActivityMap.set(dateKey, { date: dateKey, deposits: 0, withdrawals: 0 })
       }
 
-      worksData.forEach(work => {
+      typedWorksData.forEach(work => {
         const dateKey = new Date(work.created_at).toLocaleDateString('ru-RU', { 
           day: '2-digit', 
           month: '2-digit' 
@@ -156,7 +170,7 @@ export default function JuniorStatisticsPage() {
           dailyActivityMap.get(dateKey).deposits++
         }
 
-        work.work_withdrawals.forEach(withdrawal => {
+        work.work_withdrawals.forEach((withdrawal: any) => {
           const withdrawalDateKey = new Date(withdrawal.created_at).toLocaleDateString('ru-RU', { 
             day: '2-digit', 
             month: '2-digit' 
@@ -168,14 +182,14 @@ export default function JuniorStatisticsPage() {
       })
 
       const bestCasino = Array.from(casinoMap.values())
-        .sort((a, b) => b.profit - a.profit)[0]?.name || 'N/A'
+        .sort((a: any, b: any) => b.profit - a.profit)[0]?.name || 'N/A'
 
       setStats({
         monthlyProfit: Array.from(monthlyProfitMap.entries()).map(([month, profit]) => ({
           month,
           profit
         })),
-        casinoStats: Array.from(casinoMap.values()).sort((a, b) => b.profit - a.profit),
+        casinoStats: Array.from(casinoMap.values()).sort((a: any, b: any) => b.profit - a.profit),
         dailyActivity: Array.from(dailyActivityMap.values()),
         statusDistribution: Array.from(statusMap.entries()).map(([status, count]) => ({
           status,
@@ -186,10 +200,10 @@ export default function JuniorStatisticsPage() {
       setSummary({
         totalProfit,
         totalDeposits,
-        avgDepositAmount: worksData.length > 0 ? totalDeposits / worksData.length : 0,
-        successRate: worksData.length > 0 ? (successfulWithdrawals.length / worksData.length) * 100 : 0,
+        avgDepositAmount: typedWorksData.length > 0 ? totalDeposits / typedWorksData.length : 0,
+        successRate: typedWorksData.length > 0 ? (successfulWithdrawals.length / typedWorksData.length) * 100 : 0,
         bestCasino,
-        totalWorks: worksData.length
+        totalWorks: typedWorksData.length
       })
 
     } catch (error) {
