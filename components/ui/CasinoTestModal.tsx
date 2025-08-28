@@ -14,12 +14,12 @@ interface CasinoTest {
   casino_id: string
   test_type: string
   status: 'pending' | 'in_progress' | 'completed' | 'failed'
-  rating?: number
-  deposit_test_amount?: number
-  withdrawal_test_amount?: number
-  test_notes?: string
-  issues_found?: string
-  recommendations?: string
+  rating: number | null
+  deposit_test_amount: number | null
+  withdrawal_test_amount: number | null
+  test_notes: string | null
+  issues_found: string | null
+  recommendations: string | null
   casinos?: {
     name: string
   }
@@ -65,12 +65,12 @@ export default function CasinoTestModal({
         setFormData({
           casino_id: test.casino_id,
           test_type: test.test_type,
-          rating: test.rating || 5,
-          deposit_test_amount: test.deposit_test_amount || 100,
-          withdrawal_test_amount: test.withdrawal_test_amount || 50,
-          test_notes: test.test_notes || '',
-          issues_found: test.issues_found || '',
-          recommendations: test.recommendations || ''
+          rating: test.rating ?? 5,
+          deposit_test_amount: test.deposit_test_amount ?? 100,
+          withdrawal_test_amount: test.withdrawal_test_amount ?? 50,
+          test_notes: test.test_notes ?? '',
+          issues_found: test.issues_found ?? '',
+          recommendations: test.recommendations ?? ''
         })
       }
     }
