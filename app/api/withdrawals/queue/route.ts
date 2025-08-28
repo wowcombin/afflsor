@@ -1,6 +1,9 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 
+// Отключаем статическую генерацию для этого API route
+export const dynamic = 'force-dynamic'
+
 export async function GET() {
   const supabase = await createClient()
   
