@@ -174,7 +174,7 @@ export default function WorkDetailPage() {
   if (!work) {
     return (
       <div className="p-8">
-        <Alert type="error" title="Работа не найдена">
+        <Alert variant="error" title="Работа не найдена">
           Запрашиваемая работа не существует или у вас нет к ней доступа.
         </Alert>
       </div>
@@ -315,7 +315,7 @@ export default function WorkDetailPage() {
               </div>
 
               {work.casinos.auto_approve_limit && (
-                <Alert type="info" title="Автоодобрение">
+                <Alert variant="info" title="Автоодобрение">
                   Выводы до ${work.casinos.auto_approve_limit} могут быть одобрены автоматически.
                 </Alert>
               )}
@@ -329,7 +329,7 @@ export default function WorkDetailPage() {
               </button>
             </div>
           ) : (
-            <Alert type="warning" title="Работа неактивна">
+            <Alert variant="warning" title="Работа неактивна">
               Нельзя создавать выводы для неактивной работы.
             </Alert>
           )}
@@ -364,7 +364,7 @@ export default function WorkDetailPage() {
                         )}
                         
                         {withdrawal.alarm_message && (
-                          <Alert type="warning" title="Сообщение от менеджера">
+                          <Alert variant="warning" title="Сообщение от менеджера">
                             {withdrawal.alarm_message}
                           </Alert>
                         )}
