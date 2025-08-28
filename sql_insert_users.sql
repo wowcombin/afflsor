@@ -134,7 +134,7 @@ INSERT INTO users (
   salary_bonus,
   created_at
 ) VALUES (
-  '8f947e16-d0a8-4272-878e-c484d347365c-hr', -- Добавляем суффикс для уникальности
+  '9f947e16-d0a8-4272-878e-c484d347365c', -- Новый валидный UUID (изменена первая цифра)
   'yupiter871@gmail.com',
   'hr',
   'active',
