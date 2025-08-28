@@ -369,10 +369,12 @@ export default function ExpensesPage() {
           <div className="bg-white rounded-lg shadow p-6">
             <h3 className="text-lg font-semibold mb-4">Расходы по категориям</h3>
             <SimpleChart
+              title="По категориям"
               type="pie"
-              data={stats.byCategory}
-              valueKey="amount"
-              labelKey="category"
+              data={stats.byCategory.map(item => ({
+                label: item.category,
+                value: item.amount
+              }))}
               height={300}
             />
           </div>
@@ -381,12 +383,12 @@ export default function ExpensesPage() {
           <div className="bg-white rounded-lg shadow p-6">
             <h3 className="text-lg font-semibold mb-4">Тренд расходов</h3>
             <SimpleChart
+              title="По месяцам"
               type="bar"
-              data={stats.monthlyTrend}
-              xKey="month"
-              yKeys={[
-                { key: 'amount', label: 'Расходы', color: '#ef4444' }
-              ]}
+              data={stats.monthlyTrend.map(item => ({
+                label: item.month,
+                value: item.amount
+              }))}
               height={300}
             />
           </div>
