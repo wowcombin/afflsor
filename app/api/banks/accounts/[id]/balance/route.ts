@@ -16,7 +16,7 @@ export async function PATCH(
     .eq('auth_id', user?.id)
     .single()
   
-  if (!['cfo', 'manager', 'hr'].includes(userData?.role || '')) {
+  if (!userData || !['cfo', 'manager', 'hr'].includes(userData.role)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
   
