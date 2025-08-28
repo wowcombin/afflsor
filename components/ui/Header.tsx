@@ -80,7 +80,26 @@ export default function Header({ title, showBackButton = true, backUrl }: Header
     const segments = pathname.split('/').filter(Boolean)
     const breadcrumbs: { label: string; href: string }[] = []
 
-    // Главная страница dashboard
+    // Специальная обработка для страницы профиля
+    if (segments[0] === 'profile') {
+      // Добавляем ссылку на дашборд пользователя
+      if (user?.role) {
+        breadcrumbs.push({
+          label: getRoleName(user.role),
+          href: `/${user.role}/dashboard`
+        })
+      }
+      
+      // Добавляем текущую страницу профиля
+      breadcrumbs.push({
+        label: 'Профиль',
+        href: '/profile'
+      })
+      
+      return breadcrumbs
+    }
+
+    // Обычная обработка для dashboard страниц
     if (segments.length > 0 && segments[0] !== 'login') {
       const role = segments[0] === 'dashboard' ? user?.role : segments[0]
       breadcrumbs.push({
@@ -89,7 +108,7 @@ export default function Header({ title, showBackButton = true, backUrl }: Header
       })
     }
 
-    // Остальные сегменты
+    // Остальные сегменты (кроме dashboard и profile)
     let currentPath = ''
     segments.forEach((segment, index) => {
       if (segment === 'dashboard') return
@@ -98,7 +117,7 @@ export default function Header({ title, showBackButton = true, backUrl }: Header
       
       breadcrumbs.push({
         label: getPageName(segment),
-        href: segments[0] + '/dashboard' + currentPath
+        href: `/${segments[0]}/dashboard${currentPath}`
       })
     })
 
