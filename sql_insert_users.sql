@@ -121,8 +121,7 @@ INSERT INTO users (
   salary_percentage = EXCLUDED.salary_percentage,
   salary_bonus = EXCLUDED.salary_bonus;
 
--- 5. HR пользователь (тот же email что и CFO, но другая роль)
--- Примечание: Один человек может иметь несколько ролей, создаем отдельную запись
+-- 5. HR пользователь (отдельный сотрудник)
 INSERT INTO users (
   auth_id, 
   email, 
@@ -134,12 +133,12 @@ INSERT INTO users (
   salary_bonus,
   created_at
 ) VALUES (
-  '9f947e16-d0a8-4272-878e-c484d347365c', -- Новый валидный UUID (изменена первая цифра)
-  'yupiter871@gmail.com',
+  'f9928513-e6d1-45f1-a911-fae70ecf56a7',
+  'zavgorodni22@gmail.com',
   'hr',
   'active',
-  'Юрий',
-  'Кадровик',
+  'Анна',
+  'Загородняя',
   18.00,
   800.00,
   NOW()
@@ -168,7 +167,8 @@ WHERE email IN (
   'dimkoxobbit87@gmail.com',
   'pocformail@gmail.com', 
   'rezunenko1707@gmail.com',
-  'yupiter871@gmail.com'
+  'yupiter871@gmail.com',
+  'zavgorodni22@gmail.com'
 )
 ORDER BY role, created_at;
 

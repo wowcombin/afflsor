@@ -8,7 +8,7 @@
 | pocformail@gmail.com | aa58b8ef-a514-4242-863a-57c3ec578a26 | Manager | Александр |
 | rezunenko1707@gmail.com | 854c82c7-ad11-4cd2-bed7-bac7c340e52f | Tester | Роман |
 | yupiter871@gmail.com | 8f947e16-d0a8-4272-878e-c484d347365c | CFO | Юрий |
-| yupiter871@gmail.com | 9f947e16-d0a8-4272-878e-c484d347365c | HR | Юрий |
+| zavgorodni22@gmail.com | f9928513-e6d1-45f1-a911-fae70ecf56a7 | HR | Анна |
 
 ## 🚀 ПОШАГОВАЯ ИНСТРУКЦИЯ:
 
@@ -35,17 +35,17 @@
 - **Manager**: `pocformail@gmail.com` → `/manager/dashboard`  
 - **Tester**: `rezunenko1707@gmail.com` → `/tester/dashboard`
 - **CFO**: `yupiter871@gmail.com` → `/cfo/dashboard`
-- **HR**: `yupiter871@gmail.com` → `/hr/dashboard`
+- **HR**: `zavgorodni22@gmail.com` → `/hr/dashboard`
 
 ## ⚠️ ВАЖНЫЕ ЗАМЕЧАНИЯ:
 
-### ПРОБЛЕМА С ДУБЛИРОВАНИЕМ EMAIL:
-Пользователь `yupiter871@gmail.com` указан для двух ролей (CFO и HR). 
+### ОБНОВЛЕНО: HR ПОЛЬЗОВАТЕЛЬ
+✅ **HR теперь отдельный сотрудник:**
+- Email: `zavgorodni22@gmail.com`
+- UUID: `f9928513-e6d1-45f1-a911-fae70ecf56a7`
+- Имя: Анна Загородняя
 
-**Решение использовано:**
-✅ **Создано два отдельных UUID** для одного email:
-- CFO: `8f947e16-d0a8-4272-878e-c484d347365c`
-- HR: `9f947e16-d0a8-4272-878e-c484d347365c` (изменена первая цифра)
+**Больше нет дублирования email - каждый пользователь уникален!**
 
 ### РЕКОМЕНДУЕМЫЕ ПАРОЛИ:
 - Создайте временные пароли (например: `TempPass123!`)

@@ -21,13 +21,13 @@ INSERT INTO users (auth_id, email, role, status)
 VALUES ('8f947e16-d0a8-4272-878e-c484d347365c', 'yupiter871@gmail.com', 'cfo', 'active')
 ON CONFLICT (auth_id) DO UPDATE SET role = EXCLUDED.role, status = EXCLUDED.status;
 
--- HR (отдельная запись с новым валидным UUID)
+-- HR (отдельный пользователь)
 INSERT INTO users (auth_id, email, role, status) 
-VALUES ('9f947e16-d0a8-4272-878e-c484d347365c', 'yupiter871@gmail.com', 'hr', 'active')
+VALUES ('f9928513-e6d1-45f1-a911-fae70ecf56a7', 'zavgorodni22@gmail.com', 'hr', 'active')
 ON CONFLICT (auth_id) DO UPDATE SET role = EXCLUDED.role, status = EXCLUDED.status;
 
 -- Проверка результата
 SELECT auth_id, email, role, status, created_at 
 FROM users 
-WHERE email IN ('dimkoxobbit87@gmail.com', 'pocformail@gmail.com', 'rezunenko1707@gmail.com', 'yupiter871@gmail.com')
+WHERE email IN ('dimkoxobbit87@gmail.com', 'pocformail@gmail.com', 'rezunenko1707@gmail.com', 'yupiter871@gmail.com', 'zavgorodni22@gmail.com')
 ORDER BY email, role;

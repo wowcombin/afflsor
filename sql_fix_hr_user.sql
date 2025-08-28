@@ -1,13 +1,13 @@
--- ИСПРАВЛЕНИЕ: SQL для HR пользователя с валидным UUID
--- Выполните этот код если получили ошибку с предыдущим HR UUID
+-- HR ПОЛЬЗОВАТЕЛЬ: SQL с правильными данными
+-- Выполните этот код для создания HR пользователя
 
--- HR пользователь с исправленным UUID
+-- HR пользователь с правильными данными
 INSERT INTO users (auth_id, email, role, status) 
-VALUES ('9f947e16-d0a8-4272-878e-c484d347365c', 'yupiter871@gmail.com', 'hr', 'active')
+VALUES ('f9928513-e6d1-45f1-a911-fae70ecf56a7', 'zavgorodni22@gmail.com', 'hr', 'active')
 ON CONFLICT (auth_id) DO UPDATE SET role = EXCLUDED.role, status = EXCLUDED.status;
 
 -- Проверка результата
 SELECT auth_id, email, role, status, created_at 
 FROM users 
-WHERE email = 'yupiter871@gmail.com'
+WHERE email = 'zavgorodni22@gmail.com'
 ORDER BY role;
