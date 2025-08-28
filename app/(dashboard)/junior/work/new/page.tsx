@@ -1,56 +1,67 @@
-'use client'
+'use client';
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { createClient } from '@/lib/supabase/client';
+
+interface Casino {
+  id: string;
+  name: string;
+}
+
+interface Card {
+  id: string;
+  card_number_mask: string;
+  bank_balance: number;
+}
 
 export default function NewWorkPage() {
-  const router = useRouter()
-  const supabase = createClient()
-  const [casinos, setCasinos] = useState([])
-  const [cards, setCards] = useState([])
-  const [selectedCasino, setSelectedCasino] = useState('')
-  const [selectedCard, setSelectedCard] = useState('')
-  const [depositAmount, setDepositAmount] = useState('')
-  const [casinoUsername, setCasinoUsername] = useState('')
-  const [casinoPassword, setCasinoPassword] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+  const router = useRouter();
+  const supabase = createClient();
+  const [casinos, setCasinos] = useState<Casino[]>([]);
+  const [cards, setCards] = useState<Card[]>([]);
+  const [selectedCasino, setSelectedCasino] = useState('');
+  const [selectedCard, setSelectedCard] = useState('');
+  const [depositAmount, setDepositAmount] = useState('');
+  const [casinoUsername, setCasinoUsername] = useState('');
+  const [casinoPassword, setCasinoPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   
   useEffect(() => {
-    loadCasinos()
-  }, [])
+    loadCasinos();
+  }, []);
   
   useEffect(() => {
     if (selectedCasino) {
-      loadAvailableCards(selectedCasino)
+      loadAvailableCards(selectedCasino);
     }
-  }, [selectedCasino])
+  }, [selectedCasino]);
   
   async function loadCasinos() {
     const { data } = await supabase
       .from('casinos')
       .select('id, name')
-      .eq('status', 'active')
-    setCasinos(data || [])
+      .eq('status', 'active');
+    setCasinos(data || []);
   }
   
   async function loadAvailableCards(casinoId: string) {
-    const res = await fetch(`/api/cards/available?casino_id=${casinoId}`)
-    const data = await res.json()
-    setCards(data.cards || [])
+    const res = await fetch(`/api/cards/available?casino_id=${casinoId}`);
+    const data = await res.json();
+    setCards(data.cards || []);
     
     if (data.cards?.length === 0) {
-      setError('Нет доступных карт. Все банки имеют баланс < $10')
+      setError('Нет доступных карт. Все банки имеют баланс < $10');
     } else {
-      setError('')
+      setError('');
     }
   }
   
   async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setLoading(true)
-    setError('')
+    e.preventDefault();
+    setLoading(true);
+    setError('');
     
     try {
       const res = await fetch('/api/works', {
@@ -63,19 +74,19 @@ export default function NewWorkPage() {
           casino_username: casinoUsername,
           casino_password: casinoPassword
         })
-      })
+      });
       
-      const data = await res.json()
+      const data = await res.json();
       
       if (!res.ok) {
-        throw new Error(data.error)
+        throw new Error(data.error);
       }
       
-      router.push('/junior/dashboard')
+      router.push('/junior/dashboard');
     } catch (err: any) {
-      setError(err.message)
+      setError(err.message);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
   
@@ -99,7 +110,7 @@ export default function NewWorkPage() {
             required
           >
             <option value="">Выберите казино</option>
-            {casinos.map((c: any) => (
+            {casinos.map((c) => (
               <option key={c.id} value={c.id}>{c.name}</option>
             ))}
           </select>
@@ -111,7 +122,7 @@ export default function NewWorkPage() {
               <label className="block text-sm font-medium mb-1">Карта</label>
               {cards.length === 0 ? (
                 <div className="p-3 bg-yellow-50 text-yellow-700 rounded">
-                  Нет доступных карт (баланс всех банков < $10)
+                  Нет доступных карт (баланс всех банков менее $10)
                 </div>
               ) : (
                 <select
@@ -121,7 +132,7 @@ export default function NewWorkPage() {
                   required
                 >
                   <option value="">Выберите карту</option>
-                  {cards.map((c: any) => (
+                  {cards.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.card_number_mask} | Баланс: ${c.bank_balance}
                     </option>
@@ -176,5 +187,5 @@ export default function NewWorkPage() {
         </button>
       </form>
     </div>
-  )
+  );
 }
