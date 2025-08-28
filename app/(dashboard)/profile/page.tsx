@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 
 import FormCard from '@/components/ui/FormCard'
 import Alert from '@/components/ui/Alert'
-import { UserCircleIcon, KeyIcon, CreditCardIcon } from '@heroicons/react/24/outline'
+
 
 interface User {
   id: string
@@ -198,7 +198,6 @@ export default function ProfilePage() {
             <FormCard
               title="Персональные данные"
               description="Обновите свою личную информацию"
-              icon={<UserCircleIcon className="h-6 w-6 text-blue-600" />}
             >
               <form onSubmit={handleProfileUpdate} className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -270,7 +269,6 @@ export default function ProfilePage() {
             <FormCard
               title="Безопасность"
               description="Управление паролем и настройки безопасности"
-              icon={<KeyIcon className="h-6 w-6 text-red-600" />}
             >
               {!showPasswordForm ? (
                 <button
@@ -344,7 +342,6 @@ export default function ProfilePage() {
             {/* Информация об аккаунте */}
             <FormCard
               title="Информация об аккаунте"
-              icon={<CreditCardIcon className="h-6 w-6 text-green-600" />}
             >
               <div className="space-y-3">
                 <div>
