@@ -88,7 +88,10 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER IF NOT EXISTS trg_nda_templates_updated_at
+-- Удаляем триггер если существует и создаем заново
+DROP TRIGGER IF EXISTS trg_nda_templates_updated_at ON nda_templates;
+
+CREATE TRIGGER trg_nda_templates_updated_at
   BEFORE UPDATE ON nda_templates
   FOR EACH ROW
   EXECUTE FUNCTION update_nda_template_updated_at();
@@ -187,7 +190,10 @@ SELECT
 
 Дата підписання: [SIGNATURE_DATE]',
   1,
-  (SELECT id FROM users WHERE role = 'admin' LIMIT 1)
+  COALESCE(
+    (SELECT id FROM users WHERE role = 'admin' LIMIT 1),
+    (SELECT id FROM users LIMIT 1)
+  )
 WHERE NOT EXISTS (SELECT 1 FROM nda_templates WHERE name = 'Стандартный NDA');
 
 COMMENT ON TABLE nda_templates IS 'Шаблоны NDA договоров с версионированием';
