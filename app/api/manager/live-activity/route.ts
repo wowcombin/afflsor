@@ -27,7 +27,16 @@ export async function GET() {
     const tenMinutesAgo = new Date(now.getTime() - 10 * 60 * 1000)
 
     // Последние 20 действий (последние 10 минут)
-    const activities = []
+    const activities: Array<{
+      id: string
+      time: string
+      user: string
+      action: string
+      details: string
+      type: 'deposit' | 'withdrawal' | 'assignment' | 'other'
+      status: string
+      impact: 'positive' | 'negative' | 'neutral'
+    }> = []
 
     // 1. Новые депозиты
     const { data: newDeposits } = await supabase
