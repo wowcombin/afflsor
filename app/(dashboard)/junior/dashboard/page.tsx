@@ -8,6 +8,10 @@ import DataTable, { Column } from '@/components/ui/DataTable'
 import StatusBadge from '@/components/ui/StatusBadge'
 import Alert from '@/components/ui/Alert'
 import { useToast } from '@/components/ui/Toast'
+import AssignedCardsBlock from '@/components/ui/AssignedCardsBlock'
+import TopPerformersBlock from '@/components/ui/TopPerformersBlock'
+import RecentTransactionsBlock from '@/components/ui/RecentTransactionsBlock'
+import SimpleChart from '@/components/ui/SimpleChart'
 import { CurrencyDollarIcon, TrophyIcon, CalendarIcon, ChartBarIcon } from '@heroicons/react/24/outline'
 
 interface Work {
@@ -44,11 +48,9 @@ export default function JuniorDashboard() {
     pendingWithdrawals: 0
   })
   const [recentWorks, setRecentWorks] = useState<Work[]>([])
-  const [assignedCards, setAssignedCards] = useState<any[]>([])
-  const [profitChart, setProfitChart] = useState<any[]>([])
-  const [topPerformers, setTopPerformers] = useState<any[]>([])
-  const [recentTransactions, setRecentTransactions] = useState<any[]>([])
+  const [enhancedData, setEnhancedData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [chartPeriod, setChartPeriod] = useState<7 | 14 | 30>(7)
   
   useEffect(() => {
     loadDashboardData()
@@ -59,10 +61,24 @@ export default function JuniorDashboard() {
   
   async function loadDashboardData() {
     try {
+      // Загружаем базовые данные
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
       
       if (!user) return
+
+      // Загружаем расширенную статистику через API
+      const enhancedResponse = await fetch('/api/junior/enhanced-stats')
+      if (enhancedResponse.ok) {
+        const enhancedStats = await enhancedResponse.json()
+        setEnhancedData(enhancedStats)
+        
+        // Обновляем основную статистику
+        setStats(prev => ({
+          ...prev,
+          ...enhancedStats.stats
+        }))
+      }
       
       // Профит за месяц
       const startOfMonth = new Date()
@@ -354,6 +370,75 @@ export default function JuniorDashboard() {
               <span className="text-yellow-600 text-sm">В очереди у менеджера</span>
             )
           }
+        />
+      </div>
+
+      {/* Новые блоки согласно спецификации */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        {/* График профита за 7 дней */}
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-semibold">График профита</h3>
+            <div className="flex space-x-2">
+              <button
+                onClick={() => setChartPeriod(7)}
+                className={`px-3 py-1 text-sm rounded ${chartPeriod === 7 ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600'}`}
+              >
+                7 дней
+              </button>
+              <button
+                onClick={() => setChartPeriod(14)}
+                className={`px-3 py-1 text-sm rounded ${chartPeriod === 14 ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600'}`}
+              >
+                14 дней
+              </button>
+              <button
+                onClick={() => setChartPeriod(30)}
+                className={`px-3 py-1 text-sm rounded ${chartPeriod === 30 ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600'}`}
+              >
+                30 дней
+              </button>
+            </div>
+          </div>
+          
+          {enhancedData?.profitChart ? (
+            <SimpleChart
+              title="Профит в USD"
+              type="line"
+              data={enhancedData.profitChart.map((item: any) => ({
+                label: item.date,
+                value: item.profit
+              }))}
+              height={250}
+            />
+          ) : (
+            <div className="h-64 flex items-center justify-center text-gray-500">
+              Загрузка графика...
+            </div>
+          )}
+        </div>
+
+        {/* Топ-5 лидеров */}
+        <TopPerformersBlock
+          performers={enhancedData?.topPerformers || []}
+          loading={!enhancedData}
+          onViewFullRanking={() => router.push('/junior/ranking')}
+        />
+      </div>
+
+      {/* Активные карты и последние транзакции */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        {/* Блок активных карт */}
+        <AssignedCardsBlock
+          cards={enhancedData?.assignedCards || []}
+          loading={!enhancedData}
+        />
+
+        {/* Последние транзакции */}
+        <RecentTransactionsBlock
+          transactions={enhancedData?.recentTransactions || []}
+          loading={!enhancedData}
+          onViewAll={() => router.push('/junior/transactions')}
         />
       </div>
 
