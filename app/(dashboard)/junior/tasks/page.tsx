@@ -60,12 +60,23 @@ export default function JuniorTasksPage() {
       key: 'priority',
       label: 'Приоритет',
       sortable: true,
-      render: (task: Task) => (
-        <StatusBadge 
-          status={task.priority} 
-          type="priority"
-        />
-      )
+      render: (task: Task) => {
+        const priorityColors = {
+          low: 'bg-gray-100 text-gray-800',
+          medium: 'bg-yellow-100 text-yellow-800', 
+          high: 'bg-red-100 text-red-800'
+        }
+        const priorityLabels = {
+          low: '⚪ Низкий',
+          medium: '🔵 Средний',
+          high: '⚡ Высокий'
+        }
+        return (
+          <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${priorityColors[task.priority as keyof typeof priorityColors]}`}>
+            {priorityLabels[task.priority as keyof typeof priorityLabels]}
+          </span>
+        )
+      }
     },
     {
       key: 'status',
