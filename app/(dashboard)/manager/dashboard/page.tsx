@@ -5,6 +5,8 @@ import DataTable, { Column, ActionConfig } from '@/components/ui/DataTable'
 import StatusBadge from '@/components/ui/StatusBadge'
 import KPICard from '@/components/ui/KPICard'
 import WithdrawalCheckModal from '@/components/ui/WithdrawalCheckModal'
+import CriticalAlertsPanel from '@/components/ui/CriticalAlertsPanel'
+import LiveActivityMonitor from '@/components/ui/LiveActivityMonitor'
 import { useToast } from '@/components/ui/Toast'
 
 interface Withdrawal {
@@ -29,18 +31,32 @@ export default function ManagerDashboard() {
   const [loading, setLoading] = useState(true)
   const [selectedWithdrawal, setSelectedWithdrawal] = useState<Withdrawal | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
+  const [alerts, setAlerts] = useState<any[]>([])
+  const [alertsSummary, setAlertsSummary] = useState<any>(null)
+  const [liveActivity, setLiveActivity] = useState<any>(null)
   const [stats, setStats] = useState({
     totalQueue: 0,
     urgentCount: 0,
     todayProfit: 0,
-    avgWaitTime: 0
+    avgWaitTime: 0,
+    teamOnline: 0,
+    freeCards: 0,
+    activeCasinos: 0
   })
   
   useEffect(() => {
-    loadQueue()
-    const interval = setInterval(loadQueue, 30000) // Обновление каждые 30 сек
+    loadAllData()
+    const interval = setInterval(loadAllData, 10000) // Обновление каждые 10 сек для live данных
     return () => clearInterval(interval)
   }, [])
+
+  async function loadAllData() {
+    await Promise.all([
+      loadQueue(),
+      loadCriticalAlerts(),
+      loadLiveActivity()
+    ])
+  }
   
   async function loadQueue() {
     const res = await fetch('/api/withdrawals/queue')
@@ -55,14 +71,80 @@ export default function ManagerDashboard() {
       ? withdrawalData.reduce((sum: number, w: Withdrawal) => sum + w.waiting_minutes, 0) / withdrawalData.length 
       : 0
     
-    setStats({
+    setStats(prev => ({
+      ...prev,
       totalQueue: withdrawalData.length,
       urgentCount,
       todayProfit,
       avgWaitTime: Math.round(avgWaitTime)
-    })
+    }))
     
     setLoading(false)
+  }
+
+  async function loadCriticalAlerts() {
+    try {
+      const response = await fetch('/api/manager/critical-alerts')
+      if (response.ok) {
+        const data = await response.json()
+        setAlerts(data.alerts || [])
+        setAlertsSummary(data.summary || null)
+      }
+    } catch (error) {
+      console.error('Ошибка загрузки алертов:', error)
+    }
+  }
+
+  async function loadLiveActivity() {
+    try {
+      const response = await fetch('/api/manager/live-activity')
+      if (response.ok) {
+        const data = await response.json()
+        setLiveActivity(data)
+        
+        // Обновляем статистику команды
+        setStats(prev => ({
+          ...prev,
+          teamOnline: data.teamStatus?.onlineJuniors || 0,
+          freeCards: 0, // TODO: Добавить загрузку свободных карт
+          activeCasinos: 0 // TODO: Добавить загрузку активных казино
+        }))
+      }
+    } catch (error) {
+      console.error('Ошибка загрузки live activity:', error)
+    }
+  }
+
+  async function handleAlertAction(action: string, data: any) {
+    try {
+      // Обработка различных действий алертов
+      switch (action) {
+        case 'unblock_account':
+          addToast({ type: 'info', title: 'Функция разблокировки в разработке' })
+          break
+        case 'reassign_cards':
+          addToast({ type: 'info', title: 'Функция переназначения карт в разработке' })
+          break
+        case 'bulk_check_withdrawals':
+          addToast({ type: 'info', title: 'Функция массовой проверки в разработке' })
+          break
+        case 'contact_junior':
+          if (data.telegram) {
+            window.open(`https://t.me/${data.telegram}`, '_blank')
+          } else {
+            addToast({ type: 'warning', title: 'Telegram не указан у пользователя' })
+          }
+          break
+        case 'pause_casino':
+          addToast({ type: 'info', title: 'Функция остановки казино в разработке' })
+          break
+        default:
+          addToast({ type: 'info', title: `Действие ${action} в разработке` })
+      }
+    } catch (error) {
+      console.error('Ошибка выполнения действия:', error)
+      addToast({ type: 'error', title: 'Ошибка выполнения действия' })
+    }
   }
   
   function openCheckModal(withdrawal: Withdrawal) {
@@ -190,9 +272,20 @@ export default function ManagerDashboard() {
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold">Manager Dashboard</h1>
         <div className="text-sm text-gray-500">
-          Обновляется каждые 30 секунд
+          Обновляется каждые 10 секунд
         </div>
       </div>
+
+      {/* Критические алерты */}
+      <CriticalAlertsPanel
+        alerts={alerts}
+        summary={alertsSummary}
+        loading={loading}
+        onActionClick={handleAlertAction}
+        onDismiss={(alertId) => {
+          setAlerts(prev => prev.filter(a => a.id !== alertId))
+        }}
+      />
 
       {/* KPI карточки */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -263,6 +356,28 @@ export default function ManagerDashboard() {
             loading={loading}
           />
         )}
+      </div>
+
+      {/* Live Activity Monitor */}
+      <div className="mb-8">
+        <LiveActivityMonitor
+          activities={liveActivity?.activities || []}
+          stats={liveActivity?.stats || {
+            totalActivities: 0,
+            depositsCount: 0,
+            withdrawalsCount: 0,
+            assignmentsCount: 0,
+            successfulActions: 0,
+            problematicActions: 0
+          }}
+          teamStatus={liveActivity?.teamStatus || {
+            onlineJuniors: 0,
+            totalJuniors: 0,
+            onlinePercentage: 0
+          }}
+          loading={!liveActivity}
+          lastUpdate={liveActivity?.lastUpdate}
+        />
       </div>
 
       {/* Быстрые действия */}
