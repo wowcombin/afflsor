@@ -21,7 +21,7 @@ export async function POST(request: Request) {
       .eq('auth_id', user.id)
       .single()
 
-    if (!userData || userData.role !== 'hr') {
+    if (!userData || !['hr', 'admin'].includes(userData.role)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
