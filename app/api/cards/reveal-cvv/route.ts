@@ -53,17 +53,20 @@ export async function POST(request: Request) {
     
     if (pin !== SYSTEM_PIN) {
       // Логируем неудачную попытку
-      await supabase
-        .from('cvv_access_log')
-        .insert({
-          user_id: userData.id,
-          card_id,
-          success: false,
-          ip_address: request.headers.get('x-forwarded-for') || 'unknown',
-          user_agent: request.headers.get('user-agent') || 'unknown',
-          attempted_at: new Date().toISOString()
-        })
-        .catch(err => console.log('CVV log failed:', err))
+      try {
+        await supabase
+          .from('cvv_access_log')
+          .insert({
+            user_id: userData.id,
+            card_id,
+            success: false,
+            ip_address: request.headers.get('x-forwarded-for') || 'unknown',
+            user_agent: request.headers.get('user-agent') || 'unknown',
+            attempted_at: new Date().toISOString()
+          })
+      } catch (logError) {
+        console.log('CVV log failed:', logError)
+      }
 
       return NextResponse.json({ error: 'Неверный PIN' }, { status: 403 })
     }
@@ -104,17 +107,20 @@ export async function POST(request: Request) {
     })
 
     // Логируем успешный доступ
-    await supabase
-      .from('cvv_access_log')
-      .insert({
-        user_id: userData.id,
-        card_id,
-        success: true,
-        ip_address: request.headers.get('x-forwarded-for') || 'unknown',
-        user_agent: request.headers.get('user-agent') || 'unknown',
-        accessed_at: new Date().toISOString()
-      })
-      .catch(err => console.log('CVV log failed:', err))
+    try {
+      await supabase
+        .from('cvv_access_log')
+        .insert({
+          user_id: userData.id,
+          card_id,
+          success: true,
+          ip_address: request.headers.get('x-forwarded-for') || 'unknown',
+          user_agent: request.headers.get('user-agent') || 'unknown',
+          accessed_at: new Date().toISOString()
+        })
+    } catch (logError) {
+      console.log('CVV log failed:', logError)
+    }
 
     return NextResponse.json({
       success: true,
