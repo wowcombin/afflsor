@@ -86,18 +86,21 @@ export async function PATCH(
         .eq('id', casinoId)
     }
 
-    // Логируем изменение БИНов
-    await supabase
-      .from('casino_bin_history')
-      .insert({
-        casino_id: casinoId,
-        old_bins: casino.allowed_bins || [],
-        new_bins: uniqueBins,
-        changed_by: userData.id,
-        changed_at: new Date().toISOString(),
-        reason: 'Tester установил БИНы после тестирования'
-      })
-      .catch(err => console.log('History logging failed:', err)) // Не критично если история не записалась
+    // Логируем изменение БИНов (не критично если не получится)
+    try {
+      await supabase
+        .from('casino_bin_history')
+        .insert({
+          casino_id: casinoId,
+          old_bins: casino.allowed_bins || [],
+          new_bins: uniqueBins,
+          changed_by: userData.id,
+          changed_at: new Date().toISOString(),
+          reason: 'Tester установил БИНы после тестирования'
+        })
+    } catch (historyError) {
+      console.log('History logging failed:', historyError) // Не критично если история не записалась
+    }
 
     return NextResponse.json({
       success: true,
