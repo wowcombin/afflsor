@@ -1,6 +1,8 @@
 'use client'
 
-import { CreditCardIcon, CheckCircleIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline'
+import { useState } from 'react'
+import { CreditCardIcon, CheckCircleIcon, ExclamationTriangleIcon, EyeIcon } from '@heroicons/react/24/outline'
+import CVVRevealModal from './CVVRevealModal'
 
 interface AssignedCard {
   id: string
@@ -22,6 +24,18 @@ interface AssignedCardsBlockProps {
 }
 
 export default function AssignedCardsBlock({ cards, loading }: AssignedCardsBlockProps) {
+  const [selectedCard, setSelectedCard] = useState<AssignedCard | null>(null)
+  const [cvvModalOpen, setCvvModalOpen] = useState(false)
+
+  function openCvvModal(card: AssignedCard) {
+    setSelectedCard(card)
+    setCvvModalOpen(true)
+  }
+
+  function closeCvvModal() {
+    setSelectedCard(null)
+    setCvvModalOpen(false)
+  }
   function getStatusColor(status: string): string {
     switch (status) {
       case 'available': return 'text-green-600 bg-green-50'
@@ -119,11 +133,22 @@ export default function AssignedCardsBlock({ cards, loading }: AssignedCardsBloc
                   </div>
                 </div>
 
-                {/* Статус */}
-                <div className="ml-4">
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(card.status)}`}>
-                    {getStatusLabel(card.status)}
-                  </span>
+                {/* Действия */}
+                <div className="ml-4 space-y-2">
+                  <div>
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(card.status)}`}>
+                      {getStatusLabel(card.status)}
+                    </span>
+                  </div>
+                  
+                  <button
+                    onClick={() => openCvvModal(card)}
+                    className="flex items-center px-3 py-1 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700 transition-colors"
+                    title="Показать CVV (требуется PIN)"
+                  >
+                    <EyeIcon className="h-3 w-3 mr-1" />
+                    Показать CVV
+                  </button>
                 </div>
               </div>
 
@@ -137,6 +162,19 @@ export default function AssignedCardsBlock({ cards, loading }: AssignedCardsBloc
           ))}
         </div>
       )}
+
+      {/* CVV Reveal Modal */}
+      <CVVRevealModal
+        card={selectedCard ? {
+          id: selectedCard.id,
+          card_number_mask: selectedCard.card_number_mask,
+          card_bin: selectedCard.card_bin,
+          exp_month: selectedCard.exp_month,
+          exp_year: selectedCard.exp_year
+        } : null}
+        isOpen={cvvModalOpen}
+        onClose={closeCvvModal}
+      />
     </div>
   )
 }
