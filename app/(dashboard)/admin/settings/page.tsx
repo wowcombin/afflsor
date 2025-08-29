@@ -62,25 +62,25 @@ export default function AdminSettingsPage() {
       {/* Overview Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
         <KPICard
-          title="Активных пользователей"
-          value="52"
-          color="green"
-          icon={<ShieldCheckIcon className="h-6 w-6" />}
-        />
-        <KPICard
-          title="Системных процессов"
-          value="8"
+          title="Базовый % Junior"
+          value={`${settings.juniorBasePercentage}%`}
           color="blue"
           icon={<CogIcon className="h-6 w-6" />}
         />
         <KPICard
-          title="Время работы"
-          value="99.9%"
+          title="Макс карт на Junior"
+          value={settings.maxCardsPerJunior.toString()}
           color="green"
+          icon={<ShieldCheckIcon className="h-6 w-6" />}
+        />
+        <KPICard
+          title="Таймаут сессии"
+          value={`${settings.sessionTimeout} мин`}
+          color="yellow"
           icon={<ClockIcon className="h-6 w-6" />}
         />
         <KPICard
-          title="Расходы к профиту"
+          title="Порог расходов"
           value={`${settings.expenseThreshold}%`}
           color={settings.expenseThreshold > 20 ? "red" : "green"}
           icon={<BanknotesIcon className="h-6 w-6" />}

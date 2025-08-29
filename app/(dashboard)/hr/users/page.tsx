@@ -49,7 +49,11 @@ export default function UsersPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    loadUsers()
+    if (typeof window !== 'undefined') {
+      loadUsers()
+    } else {
+      setLoading(false)
+    }
   }, [])
 
   async function loadUsers() {
@@ -324,24 +328,6 @@ export default function UsersPage() {
           actions={actions}
           pagination={{ pageSize: 20 }}
           sorting={{ key: 'created_at', direction: 'desc' }}
-          selection={{
-            mode: 'multiple',
-            actions: [
-              {
-                label: 'Активировать выбранных',
-                action: () => handleBulkStatusChange('active')
-              },
-              {
-                label: 'Деактивировать выбранных',
-                action: () => handleBulkStatusChange('inactive')
-              },
-              {
-                label: 'Уволить выбранных',
-                action: () => handleBulkStatusChange('terminated')
-              }
-            ]
-          }}
-          export={true}
         />
       </div>
     </div>
