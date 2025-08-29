@@ -89,7 +89,13 @@ export default function TesterCasinosPage() {
 
       if (response.ok) {
         setShowCreateForm(false)
-        setNewCasino({ name: '', url: '', auto_approve_limit: 200 })
+        setNewCasino({ 
+          name: '', 
+          url: '', 
+          auto_approve_limit: 200,
+          withdrawal_time_value: 0,
+          withdrawal_time_unit: 'instant'
+        })
         loadCasinos()
       } else {
         alert('Ошибка создания казино: ' + data.error)
@@ -215,6 +221,66 @@ export default function TesterCasinosPage() {
                   min="0"
                   step="0.01"
                 />
+              </div>
+            </div>
+
+            {/* Время вывода */}
+            <div className="bg-blue-50 p-4 rounded-lg">
+              <h4 className="font-medium text-blue-900 mb-3">⏰ Время вывода казино</h4>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Тип времени</label>
+                  <select
+                    value={newCasino.withdrawal_time_unit}
+                    onChange={(e) => {
+                      const unit = e.target.value
+                      setNewCasino({
+                        ...newCasino, 
+                        withdrawal_time_unit: unit,
+                        withdrawal_time_value: unit === 'instant' ? 0 : 1
+                      })
+                    }}
+                    className="w-full p-2 border rounded"
+                  >
+                    <option value="instant">⚡ Моментально</option>
+                    <option value="minutes">🕐 Минуты</option>
+                    <option value="hours">⏰ Часы</option>
+                  </select>
+                </div>
+
+                {newCasino.withdrawal_time_unit !== 'instant' && (
+                  <div>
+                    <label className="block text-sm font-medium mb-1">
+                      Количество {newCasino.withdrawal_time_unit === 'minutes' ? 'минут' : 'часов'}
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      max={newCasino.withdrawal_time_unit === 'minutes' ? "1440" : "72"}
+                      value={newCasino.withdrawal_time_value}
+                      onChange={(e) => setNewCasino({...newCasino, withdrawal_time_value: parseInt(e.target.value) || 1})}
+                      className="w-full p-2 border rounded"
+                      placeholder="1"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Предпросмотр */}
+              <div className="mt-3 p-2 bg-white rounded border">
+                <span className="text-sm text-gray-600">Время вывода: </span>
+                <span className="font-medium text-gray-900">
+                  {newCasino.withdrawal_time_unit === 'instant' 
+                    ? 'Моментально' 
+                    : `${newCasino.withdrawal_time_value} ${
+                        newCasino.withdrawal_time_unit === 'minutes' ? 
+                          (newCasino.withdrawal_time_value === 1 ? 'минута' : 
+                           newCasino.withdrawal_time_value < 5 ? 'минуты' : 'минут') :
+                          (newCasino.withdrawal_time_value === 1 ? 'час' : 
+                           newCasino.withdrawal_time_value < 5 ? 'часа' : 'часов')
+                      }`
+                  }
+                </span>
               </div>
             </div>
             <div className="flex gap-4 mt-6">

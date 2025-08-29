@@ -72,7 +72,14 @@ export async function POST(request: Request) {
     }
 
     // Валидация данных
-    const { name, url, allowed_bins, auto_approve_limit } = body
+    const { 
+      name, 
+      url, 
+      allowed_bins, 
+      auto_approve_limit,
+      withdrawal_time_value = 0,
+      withdrawal_time_unit = 'instant'
+    } = body
 
     if (!name || !url) {
       return NextResponse.json({ error: 'Name and URL are required' }, { status: 400 })
@@ -86,6 +93,8 @@ export async function POST(request: Request) {
         url,
         allowed_bins: allowed_bins || [],
         auto_approve_limit: auto_approve_limit || 200,
+        withdrawal_time_value,
+        withdrawal_time_unit,
         status: 'pending'
       })
       .select()
