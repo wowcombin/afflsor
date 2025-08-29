@@ -37,3 +37,21 @@ BEGIN
   END CASE;
 END;
 $$ LANGUAGE plpgsql;
+
+-- Таблица для истории изменений БИНов
+CREATE TABLE IF NOT EXISTS casino_bin_history (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  casino_id UUID NOT NULL REFERENCES casinos(id) ON DELETE CASCADE,
+  old_bins TEXT[] DEFAULT '{}',
+  new_bins TEXT[] DEFAULT '{}',
+  changed_by UUID NOT NULL REFERENCES users(id),
+  changed_at TIMESTAMPTZ DEFAULT NOW(),
+  reason TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Индекс для быстрого поиска истории по казино
+CREATE INDEX IF NOT EXISTS idx_casino_bin_history_casino ON casino_bin_history(casino_id, changed_at DESC);
+
+-- Индекс для поиска по пользователю
+CREATE INDEX IF NOT EXISTS idx_casino_bin_history_user ON casino_bin_history(changed_by, changed_at DESC);

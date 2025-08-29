@@ -53,7 +53,7 @@ export async function PATCH(
     // Проверяем, что казино существует
     const { data: casino, error: casinoError } = await supabase
       .from('casinos')
-      .select('id, name, status')
+      .select('id, name, status, allowed_bins')
       .eq('id', casinoId)
       .single()
 
