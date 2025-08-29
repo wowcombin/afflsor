@@ -193,10 +193,10 @@ export default function HRNDAPage() {
       render: (request: NDARequest) => (
         <div>
           <div className="font-medium text-gray-900">
-            {request.user.first_name} {request.user.last_name}
+            {request?.user?.first_name || ''} {request?.user?.last_name || ''}
           </div>
-          <div className="text-sm text-gray-500">{request.user.email}</div>
-          <div className="text-xs text-blue-600 capitalize">{request.user.role}</div>
+          <div className="text-sm text-gray-500">{request?.user?.email || 'Нет email'}</div>
+          <div className="text-xs text-blue-600 capitalize">{request?.user?.role || 'Нет роли'}</div>
         </div>
       )
     },
@@ -205,8 +205,8 @@ export default function HRNDAPage() {
       label: 'Статус',
       sortable: true,
       render: (request: NDARequest) => (
-        <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(request.status)}`}>
-          {getStatusLabel(request.status)}
+        <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(request?.status || 'pending')}`}>
+          {getStatusLabel(request?.status || 'pending')}
         </span>
       )
     },
@@ -215,10 +215,10 @@ export default function HRNDAPage() {
       label: 'Активность',
       render: (request: NDARequest) => (
         <div className="text-sm">
-          <div className={request.was_viewed ? 'text-green-600' : 'text-gray-500'}>
-            {request.was_viewed ? '👁️ Просмотрен' : '📄 Не просмотрен'}
+          <div className={request?.was_viewed ? 'text-green-600' : 'text-gray-500'}>
+            {request?.was_viewed ? '👁️ Просмотрен' : '📄 Не просмотрен'}
           </div>
-          {request.view_count > 0 && (
+          {(request?.view_count || 0) > 0 && (
             <div className="text-xs text-gray-500">
               {request.view_count} просмотров
             </div>
@@ -231,6 +231,10 @@ export default function HRNDAPage() {
       label: 'Истекает',
       sortable: true,
       render: (request: NDARequest) => {
+        if (!request?.expires_at) {
+          return <div className="text-sm text-gray-500">Не указано</div>
+        }
+        
         const expiresAt = new Date(request.expires_at)
         const now = new Date()
         const daysLeft = Math.ceil((expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
