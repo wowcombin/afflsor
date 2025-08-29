@@ -131,12 +131,12 @@ export default function UsersPage() {
           <UserIcon className="h-5 w-5 text-gray-400 mr-2" />
           <div>
             <div className="font-medium text-gray-900">
-              {user.first_name && user.last_name 
+              {user?.first_name && user?.last_name 
                 ? `${user.first_name} ${user.last_name}`
                 : 'Не указано'
               }
             </div>
-            <div className="text-sm text-gray-500">{user.email}</div>
+            <div className="text-sm text-gray-500">{user?.email || 'Нет email'}</div>
           </div>
         </div>
       )
@@ -145,21 +145,21 @@ export default function UsersPage() {
       key: 'role',
       label: 'Роль',
       sortable: true,
-      render: (user: User) => <RoleBadge role={user.role} />
+      render: (user: User) => <RoleBadge role={user?.role || 'junior'} />
     },
     {
       key: 'status',
       label: 'Статус',
       sortable: true,
-      render: (user: User) => <StatusBadge status={user.status} />
+      render: (user: User) => <StatusBadge status={user?.status || 'active'} />
     },
     {
       key: 'salary_info',
       label: 'Зарплата',
       render: (user: User) => (
         <div className="text-sm">
-          <div>{user.salary_percentage}%</div>
-          {user.salary_bonus > 0 && (
+          <div>{user?.salary_percentage || 0}%</div>
+          {(user?.salary_bonus || 0) > 0 && (
             <div className="text-green-600">+${user.salary_bonus}</div>
           )}
         </div>
@@ -170,10 +170,10 @@ export default function UsersPage() {
       label: 'Контакты',
       render: (user: User) => (
         <div className="text-sm">
-          {user.telegram_username && (
+          {user?.telegram_username && (
             <div className="text-blue-600">@{user.telegram_username}</div>
           )}
-          {user.usdt_wallet && (
+          {user?.usdt_wallet && (
             <div className="text-gray-500 font-mono text-xs">
               {user.usdt_wallet.slice(0, 8)}...{user.usdt_wallet.slice(-6)}
             </div>
@@ -187,7 +187,7 @@ export default function UsersPage() {
       sortable: true,
       render: (user: User) => (
         <div className="text-sm text-gray-500">
-          {new Date(user.created_at).toLocaleDateString('ru-RU')}
+          {user?.created_at ? new Date(user.created_at).toLocaleDateString('ru-RU') : 'Не указано'}
         </div>
       )
     }
