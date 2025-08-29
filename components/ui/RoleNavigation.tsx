@@ -93,12 +93,12 @@ export default function RoleNavigation({ userRole, className = '' }: RoleNavigat
 
       case 'admin':
         return [
-          { name: 'Executive', href: `${baseHref}/dashboard`, icon: HomeIcon },
-          { name: 'Finance Control', href: `${baseHref}/finance`, icon: BanknotesIcon },
-          { name: 'Team Management', href: `${baseHref}/team`, icon: UsersIcon },
-          { name: 'System Settings', href: `${baseHref}/settings`, icon: CogIcon },
-          { name: 'Security Center', href: `${baseHref}/security`, icon: ShieldCheckIcon },
-          { name: 'Audit Log', href: `${baseHref}/audit`, icon: EyeIcon }
+          { name: 'Dashboard', href: `${baseHref}/dashboard`, icon: HomeIcon },
+          { name: 'Users', href: '/hr/users', icon: UsersIcon },
+          { name: 'Finance', href: '/cfo/dashboard', icon: BanknotesIcon },
+          { name: 'Tester', href: '/tester/dashboard', icon: BeakerIcon },
+          { name: 'Manager', href: '/manager/dashboard', icon: ClipboardDocumentListIcon },
+          { name: 'Settings', href: `${baseHref}/settings`, icon: CogIcon }
         ]
 
       default:
