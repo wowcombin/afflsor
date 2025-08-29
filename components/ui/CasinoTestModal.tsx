@@ -77,7 +77,9 @@ export default function CasinoTestModal({
     withdrawal_test_amount: 50,
     test_notes: '',
     issues_found: '',
-    recommendations: ''
+    recommendations: '',
+    withdrawal_time_value: 0,
+    withdrawal_time_unit: 'instant'
   })
 
   useEffect(() => {
@@ -144,7 +146,9 @@ export default function CasinoTestModal({
       withdrawal_test_amount: 50,
       test_notes: '',
       issues_found: '',
-      recommendations: ''
+      recommendations: '',
+      withdrawal_time_value: 0,
+      withdrawal_time_unit: 'instant'
     })
     setCards([])
   }
@@ -303,6 +307,72 @@ export default function CasinoTestModal({
                   <option value="deposit">Только тест депозита</option>
                   <option value="withdrawal">Только тест вывода</option>
                 </select>
+              </div>
+
+              {/* Время вывода казино */}
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <h4 className="font-medium text-blue-900 mb-3">⏰ Настройка времени вывода</h4>
+                <p className="text-sm text-blue-700 mb-4">
+                  Укажите время, в течение которого казино выводит средства
+                </p>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Тип времени
+                    </label>
+                    <select
+                      value={formData.withdrawal_time_unit}
+                      onChange={(e) => {
+                        const unit = e.target.value
+                        setFormData({
+                          ...formData, 
+                          withdrawal_time_unit: unit,
+                          withdrawal_time_value: unit === 'instant' ? 0 : 1
+                        })
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="instant">⚡ Моментально</option>
+                      <option value="minutes">🕐 Минуты</option>
+                      <option value="hours">⏰ Часы</option>
+                    </select>
+                  </div>
+
+                  {formData.withdrawal_time_unit !== 'instant' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Количество {formData.withdrawal_time_unit === 'minutes' ? 'минут' : 'часов'}
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        max={formData.withdrawal_time_unit === 'minutes' ? "1440" : "72"}
+                        value={formData.withdrawal_time_value}
+                        onChange={(e) => setFormData({...formData, withdrawal_time_value: parseInt(e.target.value) || 1})}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="1"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* Предпросмотр */}
+                <div className="mt-3 p-2 bg-white rounded border">
+                  <span className="text-sm text-gray-600">Время вывода: </span>
+                  <span className="font-medium text-gray-900">
+                    {formData.withdrawal_time_unit === 'instant' 
+                      ? 'Моментально' 
+                      : `${formData.withdrawal_time_value} ${
+                          formData.withdrawal_time_unit === 'minutes' ? 
+                            (formData.withdrawal_time_value === 1 ? 'минута' : 
+                             formData.withdrawal_time_value < 5 ? 'минуты' : 'минут') :
+                            (formData.withdrawal_time_value === 1 ? 'час' : 
+                             formData.withdrawal_time_value < 5 ? 'часа' : 'часов')
+                        }`
+                    }
+                  </span>
+                </div>
               </div>
 
               {/* Суммы тестирования */}

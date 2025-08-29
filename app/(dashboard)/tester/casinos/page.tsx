@@ -10,6 +10,8 @@ interface Casino {
   status: string
   allowed_bins?: string[]
   auto_approve_limit: number
+  withdrawal_time_value: number
+  withdrawal_time_unit: 'instant' | 'minutes' | 'hours'
   created_at: string
   updated_at: string
 }
@@ -22,8 +24,34 @@ export default function TesterCasinosPage() {
   const [newCasino, setNewCasino] = useState({
     name: '',
     url: '',
-    auto_approve_limit: 200
+    auto_approve_limit: 200,
+    withdrawal_time_value: 0,
+    withdrawal_time_unit: 'instant'
   })
+
+  function getWithdrawalTimeLabel(casino: Casino): string {
+    if (casino.withdrawal_time_unit === 'instant') {
+      return '⚡ Моментально'
+    } else if (casino.withdrawal_time_unit === 'minutes') {
+      const value = casino.withdrawal_time_value
+      if (value === 1) return '🕐 1 минута'
+      if (value < 5) return `🕐 ${value} минуты`
+      return `🕐 ${value} минут`
+    } else if (casino.withdrawal_time_unit === 'hours') {
+      const value = casino.withdrawal_time_value
+      if (value === 1) return '⏰ 1 час'
+      if (value < 5) return `⏰ ${value} часа`
+      return `⏰ ${value} часов`
+    }
+    return 'Не указано'
+  }
+
+  function getWithdrawalTimeColor(casino: Casino): string {
+    if (casino.withdrawal_time_unit === 'instant') return 'text-green-600 bg-green-50'
+    if (casino.withdrawal_time_unit === 'minutes' && casino.withdrawal_time_value <= 30) return 'text-blue-600 bg-blue-50'
+    if (casino.withdrawal_time_unit === 'minutes' && casino.withdrawal_time_value <= 120) return 'text-yellow-600 bg-yellow-50'
+    return 'text-red-600 bg-red-50'
+  }
 
   useEffect(() => {
     loadCasinos()
@@ -233,6 +261,9 @@ export default function TesterCasinosPage() {
                     Статус
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Время вывода
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Лимит
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -259,6 +290,11 @@ export default function TesterCasinosPage() {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(casino.status)}`}>
                         {getStatusLabel(casino.status)}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex px-3 py-1 text-xs font-medium rounded-full ${getWithdrawalTimeColor(casino)}`}>
+                        {getWithdrawalTimeLabel(casino)}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">

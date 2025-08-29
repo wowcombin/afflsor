@@ -94,7 +94,9 @@ export async function POST(request: Request) {
       test_type = 'full',
       deposit_test_amount = 100,
       withdrawal_test_amount = 50,
-      test_notes 
+      test_notes,
+      withdrawal_time_value = 0,
+      withdrawal_time_unit = 'instant'
     } = body
 
     if (!casino_id) {
@@ -181,10 +183,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    // Обновляем статус казино на 'testing'
+    // Обновляем казино: статус на 'testing' и время вывода
     await supabase
       .from('casinos')
-      .update({ status: 'testing' })
+      .update({ 
+        status: 'testing',
+        withdrawal_time_value,
+        withdrawal_time_unit
+      })
       .eq('id', casino_id)
 
     return NextResponse.json({ 
