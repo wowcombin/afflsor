@@ -20,7 +20,7 @@ export async function PATCH(
 
     const { data: userData } = await supabase
       .from('users')
-      .select('role')
+      .select('id, role')
       .eq('auth_id', user.id)
       .single()
 
@@ -130,7 +130,7 @@ export async function GET(
 
     const { data: userData } = await supabase
       .from('users')
-      .select('role')
+      .select('id, role')
       .eq('auth_id', user.id)
       .single()
 
