@@ -97,7 +97,9 @@ export default function CasinoTestModal({
           withdrawal_test_amount: test.withdrawal_test_amount ?? 50,
           test_notes: test.test_notes ?? '',
           issues_found: test.issues_found ?? '',
-          recommendations: test.recommendations ?? ''
+          recommendations: test.recommendations ?? '',
+          withdrawal_time_value: 0, // В режиме complete время уже установлено в казино
+          withdrawal_time_unit: 'instant'
         })
       }
     }
