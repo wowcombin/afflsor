@@ -3,6 +3,8 @@ import { NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
 
+// Force Vercel rebuild - API bins with userData.id fix
+
 export async function PATCH(
   request: Request,
   { params }: { params: { id: string } }
