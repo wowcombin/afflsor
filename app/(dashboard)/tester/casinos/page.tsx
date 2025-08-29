@@ -2,6 +2,8 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
+import BinManagementModal from '@/components/ui/BinManagementModal'
+import { useToast } from '@/components/ui/Toast'
 
 interface Casino {
   id: string
@@ -17,10 +19,13 @@ interface Casino {
 }
 
 export default function TesterCasinosPage() {
+  const { addToast } = useToast()
   const [casinos, setCasinos] = useState<Casino[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<string>('all')
   const [showCreateForm, setShowCreateForm] = useState(false)
+  const [selectedCasinoForBins, setSelectedCasinoForBins] = useState<Casino | null>(null)
+  const [binModalOpen, setBinModalOpen] = useState(false)
   const [newCasino, setNewCasino] = useState({
     name: '',
     url: '',
@@ -51,6 +56,51 @@ export default function TesterCasinosPage() {
     if (casino.withdrawal_time_unit === 'minutes' && casino.withdrawal_time_value <= 30) return 'text-blue-600 bg-blue-50'
     if (casino.withdrawal_time_unit === 'minutes' && casino.withdrawal_time_value <= 120) return 'text-yellow-600 bg-yellow-50'
     return 'text-red-600 bg-red-50'
+  }
+
+  function openBinManagement(casino: Casino) {
+    setSelectedCasinoForBins(casino)
+    setBinModalOpen(true)
+  }
+
+  function closeBinManagement() {
+    setSelectedCasinoForBins(null)
+    setBinModalOpen(false)
+  }
+
+  async function handleBinsSave(casinoId: string, bins: string[]) {
+    try {
+      const response = await fetch(`/api/casinos/${casinoId}/bins`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ bins })
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error)
+      }
+
+      addToast({
+        type: 'success',
+        title: 'БИНы обновлены',
+        description: `Установлено ${bins.length} БИНов для казино`
+      })
+
+      // Перезагружаем список казино
+      await loadCasinos()
+    } catch (error: any) {
+      console.error('Ошибка сохранения БИНов:', error)
+      addToast({
+        type: 'error',
+        title: 'Ошибка сохранения БИНов',
+        description: error.message
+      })
+      throw error
+    }
   }
 
   useEffect(() => {
@@ -330,6 +380,9 @@ export default function TesterCasinosPage() {
                     Время вывода
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    БИНы
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Лимит
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -363,6 +416,24 @@ export default function TesterCasinosPage() {
                         {getWithdrawalTimeLabel(casino)}
                       </span>
                     </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {casino.allowed_bins && casino.allowed_bins.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {casino.allowed_bins.slice(0, 3).map((bin, index) => (
+                            <span key={index} className="inline-flex px-2 py-1 text-xs font-mono bg-gray-100 text-gray-800 rounded">
+                              {bin}
+                            </span>
+                          ))}
+                          {casino.allowed_bins.length > 3 && (
+                            <span className="inline-flex px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded">
+                              +{casino.allowed_bins.length - 3}
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-gray-400 text-sm">Не указаны</span>
+                      )}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       ${casino.auto_approve_limit}
                     </td>
@@ -378,6 +449,24 @@ export default function TesterCasinosPage() {
                           Начать тест
                         </button>
                       )}
+                      
+                      {(casino.status === 'checking' || casino.status === 'testing') && (
+                        <button
+                          onClick={() => openBinManagement(casino)}
+                          className="bg-purple-600 text-white px-3 py-1 rounded hover:bg-purple-700"
+                        >
+                          Установить БИНы
+                        </button>
+                      )}
+                      
+                      <button
+                        onClick={() => openBinManagement(casino)}
+                        className="bg-orange-600 text-white px-3 py-1 rounded hover:bg-orange-700"
+                        title="Управление БИНами"
+                      >
+                        БИНы ({casino.allowed_bins?.length || 0})
+                      </button>
+                      
                       <Link
                         href={`/tester/casinos/${casino.id}`}
                         className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 inline-block"
@@ -392,6 +481,14 @@ export default function TesterCasinosPage() {
           </div>
         )}
       </div>
+
+      {/* Модальное окно управления БИНами */}
+      <BinManagementModal
+        casino={selectedCasinoForBins}
+        isOpen={binModalOpen}
+        onClose={closeBinManagement}
+        onSave={handleBinsSave}
+      />
     </div>
   )
 }
