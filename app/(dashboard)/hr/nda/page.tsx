@@ -78,11 +78,11 @@ export default function HRNDAPage() {
 
       if (requestsError) throw requestsError
 
-      // Загружаем пользователей без подписанного NDA
+      // Загружаем всех пользователей (включая неактивных - они еще не подписали NDA)
       const { data: usersData, error: usersError } = await supabase
         .from('users')
-        .select('id, email, first_name, last_name, role')
-        .eq('status', 'active')
+        .select('id, email, first_name, last_name, role, status')
+        .in('status', ['active', 'inactive']) // Исключаем только уволенных
         .order('created_at', { ascending: false })
 
       if (usersError) throw usersError
@@ -301,7 +301,7 @@ export default function HRNDAPage() {
             <option value="">Выберите сотрудника</option>
             {users.map(user => (
               <option key={user.id} value={user.id}>
-                {user.first_name} {user.last_name} ({user.email})
+                {user.first_name || 'Имя не указано'} {user.last_name || ''} - {user.email} ({user.role})
               </option>
             ))}
           </select>

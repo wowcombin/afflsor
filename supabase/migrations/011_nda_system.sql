@@ -103,13 +103,19 @@ SELECT
   nt.token,
   nt.expires_at,
   nt.created_at,
-  u.id as user_id,
-  u.email,
-  u.first_name,
-  u.last_name,
-  u.role,
-  ntemp.name as template_name,
-  ntemp.version as template_version,
+  -- Данные пользователя в виде JSON объекта
+  jsonb_build_object(
+    'id', u.id,
+    'email', u.email,
+    'first_name', u.first_name,
+    'last_name', u.last_name,
+    'role', u.role
+  ) as user,
+  -- Данные шаблона в виде JSON объекта
+  jsonb_build_object(
+    'name', ntemp.name,
+    'version', ntemp.version
+  ) as template,
   CASE 
     WHEN nt.expires_at < NOW() THEN 'expired'
     WHEN nt.is_used THEN 'signed'
@@ -122,7 +128,6 @@ SELECT
 FROM nda_tokens nt
 JOIN users u ON u.id = nt.user_id
 JOIN nda_templates ntemp ON ntemp.id = nt.template_id
-WHERE nt.is_used = FALSE
 ORDER BY nt.created_at DESC;
 
 -- Вставляем базовый шаблон NDA
