@@ -77,7 +77,7 @@ export default function HRNDAPage() {
     try {
       const supabase = createClient()
       
-      // Загружаем активные NDA запросы (временно используем прямые запросы пока представление не работает)
+      // Загружаем активные NDA запросы (теперь с поддержкой is_revoked)
       const { data: requestsData, error: requestsError } = await supabase
         .from('nda_tokens')
         .select(`
@@ -86,6 +86,7 @@ export default function HRNDAPage() {
           expires_at,
           created_at,
           is_used,
+          is_revoked,
           users!nda_tokens_user_id_fkey(
             id,
             email,
@@ -116,10 +117,11 @@ export default function HRNDAPage() {
         let status: 'pending' | 'expired' | 'signed' | 'revoked' = 'pending'
         if (token.is_used) {
           status = 'signed'
+        } else if (token.is_revoked) {
+          status = 'revoked'
         } else if (new Date(token.expires_at) <= new Date()) {
           status = 'expired'
         }
-        // is_revoked пока не используем, так как поле может не существовать в БД
         
         return {
           id: token.id,

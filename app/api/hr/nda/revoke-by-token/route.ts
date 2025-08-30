@@ -32,7 +32,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Токен обязателен' }, { status: 400 })
     }
 
-    // Сначала пробуем найти в обычных NDA токенах (без связи с users для простоты)
+    // Сначала пробуем найти в обычных NDA токенах
     const { data: tokenData, error: tokenError } = await supabase
       .from('nda_tokens')
       .select(`
@@ -40,6 +40,7 @@ export async function POST(request: Request) {
         token,
         user_id,
         is_used,
+        is_revoked,
         expires_at
       `)
       .eq('token', token)
@@ -79,11 +80,15 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Нельзя отозвать уже подписанный NDA' }, { status: 400 })
       }
 
-      // Помечаем обычный токен как использованный (имитируем отзыв)
+      if (tokenData.is_revoked) {
+        return NextResponse.json({ error: 'NDA запрос уже отозван' }, { status: 400 })
+      }
+
+      // Помечаем обычный токен как отозванный
       const { error: revokeError } = await supabase
         .from('nda_tokens')
         .update({ 
-          is_used: true, // Используем is_used вместо is_revoked
+          is_revoked: true,
           updated_at: new Date().toISOString()
         })
         .eq('token', token)
@@ -93,17 +98,21 @@ export async function POST(request: Request) {
       }
     }
 
-          // Проверки для внешних токенов (пока не используем, так как таблица может не существовать)
+    // Проверки для внешних токенов
     if (externalData) {
       if (externalData.is_signed) {
         return NextResponse.json({ error: 'Нельзя отозвать уже подписанный NDA' }, { status: 400 })
       }
 
-      // Помечаем внешний токен как подписанный (имитируем отзыв)
+      if (externalData.is_revoked) {
+        return NextResponse.json({ error: 'NDA запрос уже отозван' }, { status: 400 })
+      }
+
+      // Помечаем внешний токен как отозванный
       const { error: revokeError } = await supabase
         .from('external_nda_requests')
         .update({ 
-          is_signed: true, // Используем is_signed вместо is_revoked
+          is_revoked: true,
           updated_at: new Date().toISOString()
         })
         .eq('token', token)
