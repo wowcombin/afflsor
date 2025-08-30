@@ -23,12 +23,14 @@ interface NDARequest {
   was_viewed: boolean
   view_count: number
   created_at: string
+  request_type: 'internal' | 'external'
   user: {
-    id: string
+    id: string | null
     email: string
     first_name: string
     last_name: string
     role: string
+    status?: string
   }
   template: {
     name: string
@@ -58,6 +60,10 @@ export default function HRNDAPage() {
   const [loading, setLoading] = useState(true)
   const [selectedUserId, setSelectedUserId] = useState('')
   const [generating, setGenerating] = useState(false)
+  const [showExternalForm, setShowExternalForm] = useState(false)
+  const [externalEmail, setExternalEmail] = useState('')
+  const [externalFullName, setExternalFullName] = useState('')
+  const [generatingExternal, setGeneratingExternal] = useState(false)
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -207,6 +213,58 @@ export default function HRNDAPage() {
     }
   }
 
+  async function generateExternalNDA() {
+    if (!externalEmail) {
+      addToast({ type: 'warning', title: 'Введите email' })
+      return
+    }
+
+    setGeneratingExternal(true)
+
+    try {
+      const response = await fetch('/api/hr/nda/generate-external', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          email: externalEmail,
+          full_name: externalFullName
+        })
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error)
+      }
+
+      // Копируем ссылку в буфер обмена
+      await navigator.clipboard.writeText(data.link)
+
+      addToast({
+        type: 'success',
+        title: 'NDA ссылка для внешнего пользователя создана',
+        description: `Ссылка скопирована в буфер обмена. Отправьте на ${externalEmail}`
+      })
+
+      setExternalEmail('')
+      setExternalFullName('')
+      setShowExternalForm(false)
+      await loadData()
+
+    } catch (error: any) {
+      console.error('Ошибка генерации внешнего NDA:', error)
+      addToast({ 
+        type: 'error', 
+        title: 'Ошибка создания внешнего NDA',
+        description: error.message || 'Попробуйте еще раз'
+      })
+    } finally {
+      setGeneratingExternal(false)
+    }
+  }
+
   function getStatusColor(status: string): string {
     switch (status) {
       case 'pending': return 'bg-yellow-100 text-yellow-800'
@@ -233,10 +291,22 @@ export default function HRNDAPage() {
       render: (request: NDARequest) => (
         <div>
           <div className="font-medium text-gray-900">
-            {request?.user?.first_name || ''} {request?.user?.last_name || ''}
+            {request?.user?.first_name && request?.user?.last_name 
+              ? `${request.user.first_name} ${request.user.last_name}`.trim()
+              : request?.user?.email?.split('@')[0] || 'Неизвестно'
+            }
           </div>
           <div className="text-sm text-gray-500">{request?.user?.email || 'Нет email'}</div>
-          <div className="text-xs text-blue-600 capitalize">{request?.user?.role || 'Нет роли'}</div>
+          <div className="flex items-center space-x-2">
+            <div className="text-xs text-blue-600 capitalize">
+              {request?.user?.role === 'external' ? 'Внешний' : request?.user?.role || 'Нет роли'}
+            </div>
+            {request?.request_type === 'external' && (
+              <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded-full bg-orange-100 text-orange-800">
+                Внешний
+              </span>
+            )}
+          </div>
         </div>
       )
     },
@@ -339,6 +409,7 @@ export default function HRNDAPage() {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Управление NDA</h1>
         <div className="flex space-x-3">
+          {/* Создание NDA для зарегистрированных пользователей */}
           <select
             value={selectedUserId}
             onChange={(e) => setSelectedUserId(e.target.value)}
@@ -360,8 +431,51 @@ export default function HRNDAPage() {
             <PaperAirplaneIcon className="h-5 w-5 mr-2" />
             {generating ? 'Создание...' : 'Создать NDA ссылку'}
           </button>
+
+          {/* Кнопка для внешних NDA */}
+          <button
+            onClick={() => setShowExternalForm(!showExternalForm)}
+            className="flex items-center px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700"
+          >
+            <DocumentTextIcon className="h-5 w-5 mr-2" />
+            Внешний NDA
+          </button>
         </div>
       </div>
+
+      {/* Форма для создания внешних NDA */}
+      {showExternalForm && (
+        <div className="mb-6 bg-orange-50 border border-orange-200 rounded-lg p-4">
+          <h3 className="font-medium text-orange-900 mb-3">📧 Создать NDA для внешнего пользователя</h3>
+          <div className="flex space-x-3">
+            <input
+              type="email"
+              placeholder="Email (обязательно)"
+              value={externalEmail}
+              onChange={(e) => setExternalEmail(e.target.value)}
+              className="flex-1 px-3 py-2 border border-orange-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+            />
+            <input
+              type="text"
+              placeholder="Полное имя (необязательно)"
+              value={externalFullName}
+              onChange={(e) => setExternalFullName(e.target.value)}
+              className="flex-1 px-3 py-2 border border-orange-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+            />
+            <button
+              onClick={generateExternalNDA}
+              disabled={!externalEmail || generatingExternal}
+              className="flex items-center px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50"
+            >
+              <PaperAirplaneIcon className="h-5 w-5 mr-2" />
+              {generatingExternal ? 'Создание...' : 'Создать'}
+            </button>
+          </div>
+          <div className="mt-2 text-sm text-orange-700">
+            💡 Внешние NDA создаются для людей, которые не зарегистрированы в системе
+          </div>
+        </div>
+      )}
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
