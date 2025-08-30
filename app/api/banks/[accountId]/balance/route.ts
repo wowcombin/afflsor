@@ -78,15 +78,20 @@ export async function PATCH(
       .single()
 
     // Форматируем данные пользователя
-    const formattedAccount = updatedAccount ? {
-      ...updatedAccount,
-      updated_by_user: updatedAccount.users ? {
-        name: Array.isArray(updatedAccount.users) 
-          ? `${updatedAccount.users[0]?.first_name || ''} ${updatedAccount.users[0]?.last_name || ''}`.trim()
-          : `${updatedAccount.users.first_name || ''} ${updatedAccount.users.last_name || ''}`.trim(),
-        role: Array.isArray(updatedAccount.users) ? updatedAccount.users[0]?.role : updatedAccount.users.role
-      } : null
-    } : null
+    let formattedAccount = null
+    if (updatedAccount) {
+      const user_info = Array.isArray(updatedAccount.users) 
+        ? updatedAccount.users[0] 
+        : updatedAccount.users
+
+      formattedAccount = {
+        ...updatedAccount,
+        updated_by_user: user_info ? {
+          name: `${user_info.first_name || ''} ${user_info.last_name || ''}`.trim(),
+          role: user_info.role
+        } : null
+      }
+    }
 
     return NextResponse.json({
       success: true,
