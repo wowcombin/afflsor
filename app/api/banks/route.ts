@@ -59,14 +59,18 @@ export async function GET() {
     // Форматируем данные
     const formattedBanks = banks.map(bank => ({
       ...bank,
-      accounts: bank.bank_accounts.filter(acc => acc.is_active).map(account => ({
-        ...account,
-        updated_by_user: account.users ? {
-          name: `${account.users.first_name || ''} ${account.users.last_name || ''}`.trim(),
-          role: account.users.role
-        } : null,
-        cards_available: account.balance >= 10
-      }))
+      accounts: bank.bank_accounts.filter(acc => acc.is_active).map(account => {
+        const user_info = Array.isArray(account.users) ? account.users[0] : account.users
+        
+        return {
+          ...account,
+          updated_by_user: user_info ? {
+            name: `${user_info.first_name || ''} ${user_info.last_name || ''}`.trim(),
+            role: user_info.role
+          } : null,
+          cards_available: account.balance >= 10
+        }
+      })
     }))
 
     return NextResponse.json({ banks: formattedBanks })

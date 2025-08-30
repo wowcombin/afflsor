@@ -77,10 +77,21 @@ export async function PATCH(
       .eq('id', accountId)
       .single()
 
+    // Форматируем данные пользователя
+    const formattedAccount = updatedAccount ? {
+      ...updatedAccount,
+      updated_by_user: updatedAccount.users ? {
+        name: Array.isArray(updatedAccount.users) 
+          ? `${updatedAccount.users[0]?.first_name || ''} ${updatedAccount.users[0]?.last_name || ''}`.trim()
+          : `${updatedAccount.users.first_name || ''} ${updatedAccount.users.last_name || ''}`.trim(),
+        role: Array.isArray(updatedAccount.users) ? updatedAccount.users[0]?.role : updatedAccount.users.role
+      } : null
+    } : null
+
     return NextResponse.json({
       success: true,
       message: `Баланс аккаунта "${account.holder_name}" обновлен`,
-      account: updatedAccount,
+      account: formattedAccount,
       change: {
         old_balance: account.balance,
         new_balance: balance,
@@ -143,7 +154,20 @@ export async function GET(
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    return NextResponse.json({ history })
+    // Форматируем историю
+    const formattedHistory = history.map(entry => {
+      const user_info = Array.isArray(entry.users) ? entry.users[0] : entry.users
+      
+      return {
+        ...entry,
+        changed_by_user: user_info ? {
+          name: `${user_info.first_name || ''} ${user_info.last_name || ''}`.trim(),
+          role: user_info.role
+        } : null
+      }
+    })
+
+    return NextResponse.json({ history: formattedHistory })
 
   } catch (error) {
     console.error('Get balance history error:', error)
