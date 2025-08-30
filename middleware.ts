@@ -1,0 +1,137 @@
+import { createServerClient, type CookieOptions } from '@supabase/ssr'
+import { NextResponse, type NextRequest } from 'next/server'
+
+export async function middleware(request: NextRequest) {
+  let response = NextResponse.next({
+    request: {
+      headers: request.headers,
+    },
+  })
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return request.cookies.get(name)?.value
+        },
+        set(name: string, value: string, options: CookieOptions) {
+          request.cookies.set({
+            name,
+            value,
+            ...options,
+          })
+          response = NextResponse.next({
+            request: {
+              headers: request.headers,
+            },
+          })
+          response.cookies.set({
+            name,
+            value,
+            ...options,
+          })
+        },
+        remove(name: string, options: CookieOptions) {
+          request.cookies.set({
+            name,
+            value: '',
+            ...options,
+          })
+          response = NextResponse.next({
+            request: {
+              headers: request.headers,
+            },
+          })
+          response.cookies.set({
+            name,
+            value: '',
+            ...options,
+          })
+        },
+      },
+    }
+  )
+
+  const { data: { user } } = await supabase.auth.getUser()
+  const { pathname } = request.nextUrl
+
+  // Публичные маршруты (не требуют аутентификации)
+  const publicRoutes = ['/auth/login', '/auth/register', '/auth/reset-password']
+  const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route))
+
+  // Если пользователь не аутентифицирован и пытается попасть на защищенную страницу
+  if (!user && !isPublicRoute) {
+    const redirectUrl = new URL('/auth/login', request.url)
+    redirectUrl.searchParams.set('redirect', pathname)
+    return NextResponse.redirect(redirectUrl)
+  }
+
+  // Если пользователь аутентифицирован и пытается попасть на страницу входа
+  if (user && pathname.startsWith('/auth/login')) {
+    // Получаем роль пользователя
+    const { data: userData } = await supabase
+      .from('users')
+      .select('role, status')
+      .eq('auth_id', user.id)
+      .single()
+
+    if (userData && userData.status === 'active') {
+      const roleRoutes = {
+        junior: '/dashboard/junior',
+        manager: '/dashboard/manager',
+        tester: '/dashboard/tester',
+        hr: '/dashboard/hr',
+        cfo: '/dashboard/cfo',
+        admin: '/dashboard/admin'
+      }
+      
+      const redirectPath = roleRoutes[userData.role as keyof typeof roleRoutes] || '/dashboard'
+      return NextResponse.redirect(new URL(redirectPath, request.url))
+    }
+  }
+
+  // Проверка доступа к ролевым маршрутам
+  if (user && pathname.startsWith('/dashboard/')) {
+    const roleFromPath = pathname.split('/')[2] // /dashboard/[role]/...
+    
+    if (roleFromPath) {
+      const { data: userData } = await supabase
+        .from('users')
+        .select('role, status')
+        .eq('auth_id', user.id)
+        .single()
+
+      if (!userData || userData.status !== 'active') {
+        return NextResponse.redirect(new URL('/auth/login?error=account_disabled', request.url))
+      }
+
+      // Admin имеет доступ ко всем разделам
+      if (userData.role === 'admin') {
+        return response
+      }
+
+      // Проверяем соответствие роли и маршрута
+      if (userData.role !== roleFromPath) {
+        const correctPath = `/dashboard/${userData.role}`
+        return NextResponse.redirect(new URL(correctPath, request.url))
+      }
+    }
+  }
+
+  return response
+}
+
+export const config = {
+  matcher: [
+    /*
+     * Match all request paths except for the ones starting with:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - public folder
+     */
+    '/((?!_next/static|_next/image|favicon.ico|public/).*)',
+  ],
+}
