@@ -24,7 +24,7 @@ export async function GET() {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    // Получаем банки с аккаунтами
+    // Получаем банки с аккаунтами (минимальный набор полей)
     const { data: banks, error } = await supabase
       .from('banks')
       .select(`
@@ -36,17 +36,11 @@ export async function GET() {
         bank_accounts(
           id,
           holder_name,
-          account_number,
           balance,
           currency,
           is_active,
           balance_updated_at,
-          balance_updated_by,
-          users!bank_accounts_balance_updated_by_fkey(
-            first_name,
-            last_name,
-            role
-          )
+          balance_updated_by
         )
       `)
       .eq('is_active', true)
@@ -56,21 +50,15 @@ export async function GET() {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    // Форматируем данные
+    // Форматируем данные (упрощенная версия без связей с пользователями)
     const formattedBanks = banks.map(bank => ({
       ...bank,
-      accounts: bank.bank_accounts.filter(acc => acc.is_active).map(account => {
-        const user_info = Array.isArray(account.users) ? account.users[0] : account.users
-        
-        return {
-          ...account,
-          updated_by_user: user_info ? {
-            name: `${user_info.first_name || ''} ${user_info.last_name || ''}`.trim(),
-            role: user_info.role
-          } : null,
-          cards_available: account.balance >= 10
-        }
-      })
+      accounts: bank.bank_accounts.filter(acc => acc.is_active).map(account => ({
+        ...account,
+        account_number: account.account_number || 'Не указан',
+        updated_by_user: null, // Пока убираем связи с пользователями
+        cards_available: account.balance >= 10
+      }))
     }))
 
     return NextResponse.json({ banks: formattedBanks })
