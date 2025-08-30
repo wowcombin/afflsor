@@ -240,6 +240,8 @@ export default function HRNDAPage() {
       return
     }
 
+    console.log('🚫 Revoking NDA with token:', request.token)
+
     try {
       const response = await fetch('/api/hr/nda/revoke-by-token', {
         method: 'POST',

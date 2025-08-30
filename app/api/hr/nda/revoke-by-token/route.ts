@@ -26,11 +26,13 @@ export async function POST(request: Request) {
     const body = await request.json()
     const { token, revocation_reason } = body
 
+    console.log('🔍 Revoke API called with token:', token)
+
     if (!token) {
       return NextResponse.json({ error: 'Токен обязателен' }, { status: 400 })
     }
 
-    // Сначала пробуем найти в обычных NDA токенах
+    // Сначала пробуем найти в обычных NDA токенах (без связи с users для простоты)
     const { data: tokenData, error: tokenError } = await supabase
       .from('nda_tokens')
       .select(`
@@ -38,11 +40,12 @@ export async function POST(request: Request) {
         token,
         user_id,
         is_used,
-        expires_at,
-        users!inner(first_name, last_name, email)
+        expires_at
       `)
       .eq('token', token)
       .single()
+
+    console.log('🔍 Token search result:', { tokenData, tokenError })
 
     // Если не найден в nda_tokens, пробуем в external_nda_requests
     let externalData = null
@@ -128,14 +131,13 @@ export async function POST(request: Request) {
     // Формируем ответ в зависимости от типа запроса
     let responseData
     if (tokenData) {
-      const user_info = Array.isArray(tokenData.users) ? tokenData.users[0] : tokenData.users
       responseData = {
         success: true,
-        message: `NDA запрос для ${user_info?.first_name} ${user_info?.last_name} отозван`,
+        message: `NDA запрос отозван`,
         revoked_token: tokenData.token,
         user: {
-          name: `${user_info?.first_name || ''} ${user_info?.last_name || ''}`.trim(),
-          email: user_info?.email
+          name: 'Пользователь',
+          email: 'unknown@example.com'
         }
       }
     } else if (externalData) {
