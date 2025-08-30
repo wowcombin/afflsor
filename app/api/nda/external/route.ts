@@ -4,6 +4,7 @@ import crypto from 'crypto'
 
 export const dynamic = 'force-dynamic'
 
+// POST - Создать внешний NDA запрос
 export async function POST(request: Request) {
   try {
     const supabase = await createClient()
@@ -31,41 +32,39 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Email обязателен' }, { status: 400 })
     }
 
-    // Проверяем, что пользователь с таким email не зарегистрирован в системе
+    // Проверяем, что пользователь с таким email не зарегистрирован
     const { data: existingUser } = await supabase
       .from('users')
-      .select('id, email, status')
+      .select('id')
       .eq('email', email)
       .single()
 
     if (existingUser) {
       return NextResponse.json({ 
-        error: 'Пользователь с таким email уже зарегистрирован в системе. Используйте обычное создание NDA для зарегистрированных пользователей.' 
+        error: 'Пользователь с таким email уже зарегистрирован. Используйте обычное создание NDA.' 
       }, { status: 400 })
     }
 
-    // Проверяем, нет ли уже активного внешнего NDA запроса для этого email
-    const { data: existingRequest } = await supabase
+    // Проверяем активные внешние запросы
+    const { data: existingExternal } = await supabase
       .from('external_nda_requests')
-      .select('id, token, expires_at')
+      .select('id')
       .eq('email', email)
       .eq('is_signed', false)
       .eq('is_revoked', false)
       .gt('expires_at', new Date().toISOString())
       .single()
 
-    if (existingRequest) {
+    if (existingExternal) {
       return NextResponse.json({ 
-        error: 'Для этого email уже есть активный NDA запрос',
-        existing_token: existingRequest.token,
-        existing_link: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/nda/${existingRequest.token}`
+        error: 'Для этого email уже есть активный внешний NDA запрос' 
       }, { status: 400 })
     }
 
-    // Получаем активный шаблон NDA
+    // Получаем активный шаблон
     const { data: template } = await supabase
       .from('nda_templates')
-      .select('id, name, content, version')
+      .select('id')
       .eq('is_active', true)
       .order('version', { ascending: false })
       .limit(1)
@@ -75,15 +74,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Активный шаблон NDA не найден' }, { status: 500 })
     }
 
-    // Генерируем уникальный токен
+    // Создаем внешний запрос
     const token = crypto.randomBytes(32).toString('hex')
-    
-    // Устанавливаем срок действия (7 дней)
     const expiresAt = new Date()
     expiresAt.setDate(expiresAt.getDate() + 7)
 
-    // Создаем внешний NDA запрос
-    const { data: ndaRequest, error } = await supabase
+    const { data: newRequest, error: createError } = await supabase
       .from('external_nda_requests')
       .insert({
         token,
@@ -96,31 +92,22 @@ export async function POST(request: Request) {
       .select()
       .single()
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
+    if (createError) {
+      return NextResponse.json({ error: createError.message }, { status: 500 })
     }
 
-    // Формируем ссылку
     const link = `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/nda/${token}`
 
     return NextResponse.json({
       success: true,
+      request: newRequest,
       link,
-      token,
-      expires_at: expiresAt.toISOString(),
       email,
-      full_name: full_name || null,
-      template: {
-        name: template.name,
-        version: template.version
-      },
-      request_id: ndaRequest.id
+      full_name: full_name || null
     })
 
   } catch (error) {
-    console.error('External NDA generation API error:', error)
-    return NextResponse.json({
-      error: 'Внутренняя ошибка сервера'
-    }, { status: 500 })
+    console.error('Create external NDA request error:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

@@ -75,96 +75,50 @@ export default function HRNDAPage() {
 
   async function loadData() {
     try {
-      const supabase = createClient()
+      // Используем новый API для получения NDA запросов
+      const response = await fetch('/api/nda/requests')
       
-      // Загружаем активные NDA запросы (теперь с поддержкой is_revoked)
-      const { data: requestsData, error: requestsError } = await supabase
-        .from('nda_tokens')
-        .select(`
-          id,
-          token,
-          expires_at,
-          created_at,
-          is_used,
-          is_revoked,
-          users!nda_tokens_user_id_fkey(
-            id,
-            email,
-            first_name,
-            last_name,
-            role,
-            status
-          )
-        `)
-        .order('created_at', { ascending: false })
+      if (!response.ok) {
+        throw new Error('Ошибка загрузки NDA запросов')
+      }
 
-      if (requestsError) throw requestsError
+      const { requests } = await response.json()
 
-      // Загружаем всех пользователей (включая неактивных - они еще не подписали NDA)
+      // Загружаем пользователей для создания новых NDA
+      const supabase = createClient()
       const { data: usersData, error: usersError } = await supabase
         .from('users')
         .select('id, email, first_name, last_name, role, status')
-        .in('status', ['active', 'inactive']) // Исключаем только уволенных
+        .in('status', ['active', 'inactive'])
         .order('created_at', { ascending: false })
 
       if (usersError) throw usersError
 
-      // Преобразуем данные в правильный формат для интерфейса
-      const formattedRequests: NDARequest[] = (requestsData || []).map(token => {
-        const user_info = Array.isArray(token.users) ? token.users[0] : token.users
-        
-        // Определяем статус с правильным типом
-        let status: 'pending' | 'expired' | 'signed' | 'revoked' = 'pending'
-        if (token.is_used) {
-          status = 'signed'
-        } else if (token.is_revoked) {
-          status = 'revoked'
-        } else if (new Date(token.expires_at) <= new Date()) {
-          status = 'expired'
+      // Форматируем запросы для интерфейса
+      const formattedRequests: NDARequest[] = requests.map((request: any) => ({
+        id: request.id,
+        token: request.token,
+        expires_at: request.expires_at,
+        created_at: request.created_at,
+        request_type: 'internal' as const,
+        status: request.status,
+        was_viewed: false,
+        view_count: 0,
+        user: request.user,
+        template: {
+          name: 'Стандартный NDA',
+          version: 1
         }
-        
-        return {
-          id: token.id,
-          token: token.token,
-          expires_at: token.expires_at,
-          created_at: token.created_at,
-          request_type: 'internal' as const,
-          status,
-          was_viewed: false, // TODO: добавить логику просмотра
-          view_count: 0,
-          user: {
-            id: user_info?.id || null,
-            email: user_info?.email || '',
-            first_name: user_info?.first_name || '',
-            last_name: user_info?.last_name || '',
-            role: user_info?.role || '',
-            status: user_info?.status || ''
-          },
-          template: {
-            name: 'Стандартный NDA',
-            version: 1
-          }
-        }
-      })
+      }))
 
       setRequests(formattedRequests)
       setUsers(usersData || [])
 
-      // Временное логирование для отладки
-      console.log('🔍 Original NDA Tokens:', requestsData?.slice(0, 1))
-      console.log('✨ Formatted Requests:', JSON.stringify(formattedRequests?.slice(0, 1), null, 2))
-      console.log('👥 Users Data:', usersData?.slice(0, 1))
-      
-      // Логируем первый токен детально
-      if (requestsData && requestsData.length > 0) {
-        console.log('📋 First token detailed:', JSON.stringify(requestsData[0], null, 2))
-      }
-
       // Рассчитываем статистику
-      const totalRequests = formattedRequests?.length || 0
-      const pendingRequests = formattedRequests?.filter(r => r.status === 'pending').length || 0
-      const signedRequests = formattedRequests?.filter(r => r.status === 'signed').length || 0
-      const expiredRequests = formattedRequests?.filter(r => r.status === 'expired').length || 0
+      const totalRequests = formattedRequests.length
+      const pendingRequests = formattedRequests.filter(r => r.status === 'pending').length
+      const signedRequests = formattedRequests.filter(r => r.status === 'signed').length
+      const expiredRequests = formattedRequests.filter(r => r.status === 'expired').length
       const complianceRate = totalRequests > 0 ? Math.round((signedRequests / totalRequests) * 100) : 0
 
       setStats({
@@ -192,7 +146,7 @@ export default function HRNDAPage() {
     setGenerating(true)
 
     try {
-      const response = await fetch('/api/hr/nda/generate', {
+      const response = await fetch('/api/nda/requests', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -222,7 +176,7 @@ export default function HRNDAPage() {
 
     } catch (error: any) {
       console.error('Ошибка генерации NDA:', error)
-      addToast({ type: 'error', title: 'Ошибка создания NDA ссылки' })
+      addToast({ type: 'error', title: 'Ошибка создания NDA ссылки', description: error.message })
     } finally {
       setGenerating(false)
     }
@@ -242,18 +196,12 @@ export default function HRNDAPage() {
       return
     }
 
-    console.log('🚫 Revoking NDA with token:', request.token)
-
     try {
-      const response = await fetch('/api/hr/nda/revoke-by-token', {
+      const response = await fetch(`/api/nda/requests/${request.id}/revoke`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          token: request.token,
-          revocation_reason: 'Отозвано через интерфейс HR'
-        })
+        }
       })
 
       const data = await response.json()
@@ -289,7 +237,7 @@ export default function HRNDAPage() {
     setGeneratingExternal(true)
 
     try {
-      const response = await fetch('/api/hr/nda/generate-external', {
+      const response = await fetch('/api/nda/external', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
