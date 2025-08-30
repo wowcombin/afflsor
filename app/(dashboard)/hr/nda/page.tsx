@@ -167,6 +167,46 @@ export default function HRNDAPage() {
     }
   }
 
+  async function revokeNDA(requestId: string) {
+    if (!confirm('Вы уверены, что хотите отозвать этот запрос на подписание NDA?')) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/hr/nda/${requestId}/revoke`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          revocation_reason: 'Отозвано через интерфейс HR'
+        })
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error)
+      }
+
+      addToast({
+        type: 'success',
+        title: 'NDA запрос отозван',
+        description: 'Ссылка больше не действительна'
+      })
+
+      await loadData() // Перезагружаем данные
+
+    } catch (error: any) {
+      console.error('Ошибка отзыва NDA:', error)
+      addToast({ 
+        type: 'error', 
+        title: 'Ошибка отзыва NDA запроса',
+        description: error.message || 'Попробуйте еще раз'
+      })
+    }
+  }
+
   function getStatusColor(status: string): string {
     switch (status) {
       case 'pending': return 'bg-yellow-100 text-yellow-800'
@@ -269,6 +309,12 @@ export default function HRNDAPage() {
       action: (request: NDARequest) => resendNDA(request.id),
       condition: (request: NDARequest) => request.status === 'pending',
       variant: 'secondary' as const
+    },
+    {
+      label: 'Отозвать',
+      action: (request: NDARequest) => revokeNDA(request.id),
+      condition: (request: NDARequest) => request.status === 'pending',
+      variant: 'danger' as const
     }
   ]
 

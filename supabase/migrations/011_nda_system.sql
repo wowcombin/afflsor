@@ -50,6 +50,16 @@ CREATE TABLE IF NOT EXISTS nda_view_logs (
   viewed_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Таблица логов отзыва NDA запросов
+CREATE TABLE IF NOT EXISTS nda_revocation_log (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  token_id UUID NOT NULL REFERENCES nda_tokens(id),
+  revoked_by UUID NOT NULL REFERENCES users(id),
+  reason TEXT,
+  revoked_at TIMESTAMPTZ DEFAULT NOW(),
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- Индексы для производительности
 CREATE INDEX IF NOT EXISTS idx_nda_tokens_token ON nda_tokens(token);
 CREATE INDEX IF NOT EXISTS idx_nda_tokens_user ON nda_tokens(user_id, expires_at);
