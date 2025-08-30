@@ -86,7 +86,6 @@ export default function HRNDAPage() {
           expires_at,
           created_at,
           is_used,
-          is_revoked,
           users!nda_tokens_user_id_fkey(
             id,
             email,
@@ -117,11 +116,10 @@ export default function HRNDAPage() {
         let status: 'pending' | 'expired' | 'signed' | 'revoked' = 'pending'
         if (token.is_used) {
           status = 'signed'
-        } else if (token.is_revoked) {
-          status = 'revoked'
         } else if (new Date(token.expires_at) <= new Date()) {
           status = 'expired'
         }
+        // is_revoked пока не используем, так как поле может не существовать в БД
         
         return {
           id: token.id,
@@ -152,8 +150,13 @@ export default function HRNDAPage() {
 
       // Временное логирование для отладки
       console.log('🔍 Original NDA Tokens:', requestsData?.slice(0, 1))
-      console.log('✨ Formatted Requests:', formattedRequests?.slice(0, 1))
+      console.log('✨ Formatted Requests:', JSON.stringify(formattedRequests?.slice(0, 1), null, 2))
       console.log('👥 Users Data:', usersData?.slice(0, 1))
+      
+      // Логируем первый токен детально
+      if (requestsData && requestsData.length > 0) {
+        console.log('📋 First token detailed:', JSON.stringify(requestsData[0], null, 2))
+      }
 
       // Рассчитываем статистику
       const totalRequests = formattedRequests?.length || 0
