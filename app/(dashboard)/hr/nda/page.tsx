@@ -110,18 +110,26 @@ export default function HRNDAPage() {
       if (usersError) throw usersError
 
       // Преобразуем данные в правильный формат для интерфейса
-      const formattedRequests = (requestsData || []).map(token => {
+      const formattedRequests: NDARequest[] = (requestsData || []).map(token => {
         const user_info = Array.isArray(token.users) ? token.users[0] : token.users
+        
+        // Определяем статус с правильным типом
+        let status: 'pending' | 'expired' | 'signed' | 'revoked' = 'pending'
+        if (token.is_used) {
+          status = 'signed'
+        } else if (token.is_revoked) {
+          status = 'revoked'
+        } else if (new Date(token.expires_at) <= new Date()) {
+          status = 'expired'
+        }
         
         return {
           id: token.id,
           token: token.token,
           expires_at: token.expires_at,
           created_at: token.created_at,
-          request_type: 'internal',
-          status: token.is_used ? 'signed' : 
-                  (token.is_revoked ? 'revoked' : 
-                   (new Date(token.expires_at) <= new Date() ? 'expired' : 'pending')),
+          request_type: 'internal' as const,
+          status,
           was_viewed: false, // TODO: добавить логику просмотра
           view_count: 0,
           user: {
