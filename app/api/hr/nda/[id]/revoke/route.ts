@@ -27,7 +27,7 @@ export async function POST(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    // Проверяем, что токен существует и не использован/отозван
+    // Сначала пробуем найти в обычных NDA токенах
     const { data: tokenData, error: tokenError } = await supabase
       .from('nda_tokens')
       .select(`
@@ -42,29 +42,78 @@ export async function POST(
       .eq('id', tokenId)
       .single()
 
-    if (tokenError || !tokenData) {
+    // Если не найден в nda_tokens, пробуем в external_nda_requests
+    let externalData = null
+    if (tokenError) {
+      const { data: extData, error: extError } = await supabase
+        .from('external_nda_requests')
+        .select(`
+          id,
+          token,
+          email,
+          full_name,
+          is_signed,
+          is_revoked,
+          expires_at
+        `)
+        .eq('id', tokenId)
+        .single()
+      
+      if (!extError && extData) {
+        externalData = extData
+      }
+    }
+
+    if (!tokenData && !externalData) {
       return NextResponse.json({ error: 'NDA запрос не найден' }, { status: 404 })
     }
 
-    if (tokenData.is_used) {
-      return NextResponse.json({ error: 'Нельзя отозвать уже подписанный NDA' }, { status: 400 })
+    // Проверки для обычных токенов
+    if (tokenData) {
+      if (tokenData.is_used) {
+        return NextResponse.json({ error: 'Нельзя отозвать уже подписанный NDA' }, { status: 400 })
+      }
+
+      if (tokenData.is_revoked) {
+        return NextResponse.json({ error: 'NDA запрос уже отозван' }, { status: 400 })
+      }
+
+      // Помечаем обычный токен как отозванный
+      const { error: revokeError } = await supabase
+        .from('nda_tokens')
+        .update({ 
+          is_revoked: true,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', tokenId)
+
+      if (revokeError) {
+        return NextResponse.json({ error: revokeError.message }, { status: 500 })
+      }
     }
 
-    if (tokenData.is_revoked) {
-      return NextResponse.json({ error: 'NDA запрос уже отозван' }, { status: 400 })
-    }
+    // Проверки для внешних токенов
+    if (externalData) {
+      if (externalData.is_signed) {
+        return NextResponse.json({ error: 'Нельзя отозвать уже подписанный NDA' }, { status: 400 })
+      }
 
-    // Помечаем токен как отозванный
-    const { error: revokeError } = await supabase
-      .from('nda_tokens')
-      .update({ 
-        is_revoked: true,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', tokenId)
+      if (externalData.is_revoked) {
+        return NextResponse.json({ error: 'NDA запрос уже отозван' }, { status: 400 })
+      }
 
-    if (revokeError) {
-      return NextResponse.json({ error: revokeError.message }, { status: 500 })
+      // Помечаем внешний токен как отозванный
+      const { error: revokeError } = await supabase
+        .from('external_nda_requests')
+        .update({ 
+          is_revoked: true,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', tokenId)
+
+      if (revokeError) {
+        return NextResponse.json({ error: revokeError.message }, { status: 500 })
+      }
     }
 
     // Получаем причину отзыва из тела запроса
@@ -85,17 +134,32 @@ export async function POST(
       console.log('Revocation logging failed:', logError) // Не критично
     }
 
-    const user_info = Array.isArray(tokenData.users) ? tokenData.users[0] : tokenData.users
-
-    return NextResponse.json({
-      success: true,
-      message: `NDA запрос для ${user_info?.first_name} ${user_info?.last_name} отозван`,
-      revoked_token: tokenData.token,
-      user: {
-        name: `${user_info?.first_name || ''} ${user_info?.last_name || ''}`.trim(),
-        email: user_info?.email
+    // Формируем ответ в зависимости от типа запроса
+    let responseData
+    if (tokenData) {
+      const user_info = Array.isArray(tokenData.users) ? tokenData.users[0] : tokenData.users
+      responseData = {
+        success: true,
+        message: `NDA запрос для ${user_info?.first_name} ${user_info?.last_name} отозван`,
+        revoked_token: tokenData.token,
+        user: {
+          name: `${user_info?.first_name || ''} ${user_info?.last_name || ''}`.trim(),
+          email: user_info?.email
+        }
       }
-    })
+    } else if (externalData) {
+      responseData = {
+        success: true,
+        message: `Внешний NDA запрос для ${externalData.email} отозван`,
+        revoked_token: externalData.token,
+        user: {
+          name: externalData.full_name || externalData.email.split('@')[0],
+          email: externalData.email
+        }
+      }
+    }
+
+    return NextResponse.json(responseData)
 
   } catch (error) {
     console.error('NDA revocation API error:', error)
