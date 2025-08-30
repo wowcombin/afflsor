@@ -75,7 +75,7 @@ export default function RoleNavigation({ userRole, className = '' }: RoleNavigat
         return [
           { name: 'Dashboard', href: `${baseHref}/dashboard`, icon: HomeIcon },
           { name: 'Employees', href: `${baseHref}/users`, icon: UsersIcon },
-          { name: 'NDA', href: `${baseHref}/nda`, icon: DocumentTextIcon },
+
           { name: 'Withdrawals', href: `${baseHref}/withdrawals`, icon: ClockIcon },
           { name: 'Comments', href: `${baseHref}/comments`, icon: DocumentChartBarIcon },
           { name: 'Analytics', href: `${baseHref}/analytics`, icon: ChartBarIcon }
