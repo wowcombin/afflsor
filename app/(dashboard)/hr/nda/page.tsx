@@ -77,10 +77,26 @@ export default function HRNDAPage() {
     try {
       const supabase = createClient()
       
-      // Загружаем активные NDA запросы
+      // Загружаем активные NDA запросы (временно используем прямые запросы пока представление не работает)
       const { data: requestsData, error: requestsError } = await supabase
-        .from('active_nda_requests')
-        .select('*')
+        .from('nda_tokens')
+        .select(`
+          id,
+          token,
+          expires_at,
+          created_at,
+          is_used,
+          is_revoked,
+          users!inner(
+            id,
+            email,
+            first_name,
+            last_name,
+            role,
+            status
+          )
+        `)
+        .order('created_at', { ascending: false })
 
       if (requestsError) throw requestsError
 
@@ -93,18 +109,49 @@ export default function HRNDAPage() {
 
       if (usersError) throw usersError
 
-      setRequests(requestsData || [])
+      // Преобразуем данные в правильный формат для интерфейса
+      const formattedRequests = (requestsData || []).map(token => {
+        const user_info = Array.isArray(token.users) ? token.users[0] : token.users
+        
+        return {
+          id: token.id,
+          token: token.token,
+          expires_at: token.expires_at,
+          created_at: token.created_at,
+          request_type: 'internal',
+          status: token.is_used ? 'signed' : 
+                  (token.is_revoked ? 'revoked' : 
+                   (new Date(token.expires_at) <= new Date() ? 'expired' : 'pending')),
+          was_viewed: false, // TODO: добавить логику просмотра
+          view_count: 0,
+          user: {
+            id: user_info?.id || null,
+            email: user_info?.email || '',
+            first_name: user_info?.first_name || '',
+            last_name: user_info?.last_name || '',
+            role: user_info?.role || '',
+            status: user_info?.status || ''
+          },
+          template: {
+            name: 'Стандартный NDA',
+            version: 1
+          }
+        }
+      })
+
+      setRequests(formattedRequests)
       setUsers(usersData || [])
 
       // Временное логирование для отладки
-      console.log('🔍 NDA Requests Data:', requestsData?.slice(0, 2))
-      console.log('👥 Users Data:', usersData?.slice(0, 2))
+      console.log('🔍 Original NDA Tokens:', requestsData?.slice(0, 1))
+      console.log('✨ Formatted Requests:', formattedRequests?.slice(0, 1))
+      console.log('👥 Users Data:', usersData?.slice(0, 1))
 
       // Рассчитываем статистику
-      const totalRequests = requestsData?.length || 0
-      const pendingRequests = requestsData?.filter(r => r.status === 'pending').length || 0
-      const signedRequests = requestsData?.filter(r => r.status === 'signed').length || 0
-      const expiredRequests = requestsData?.filter(r => r.status === 'expired').length || 0
+      const totalRequests = formattedRequests?.length || 0
+      const pendingRequests = formattedRequests?.filter(r => r.status === 'pending').length || 0
+      const signedRequests = formattedRequests?.filter(r => r.status === 'signed').length || 0
+      const expiredRequests = formattedRequests?.filter(r => r.status === 'expired').length || 0
       const complianceRate = totalRequests > 0 ? Math.round((signedRequests / totalRequests) * 100) : 0
 
       setStats({
