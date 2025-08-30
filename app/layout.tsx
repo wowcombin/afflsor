@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
+import { ToastProvider } from '@/components/ui/Toast'
 import './globals.css'
 
 const inter = Inter({ subsets: ['latin', 'cyrillic'] })
@@ -20,15 +21,17 @@ export default function RootLayout({
   return (
     <html lang="ru" className="h-full">
       <body className={`${inter.className} h-full bg-gray-50 antialiased`}>
-        <div id="root" className="min-h-full">
-          {children}
-        </div>
-        
-        {/* Portal для модальных окон */}
-        <div id="modal-root"></div>
-        
-        {/* Portal для уведомлений */}
-        <div id="toast-root"></div>
+        <ToastProvider>
+          <div id="root" className="min-h-full">
+            {children}
+          </div>
+          
+          {/* Portal для модальных окон */}
+          <div id="modal-root"></div>
+          
+          {/* Portal для уведомлений */}
+          <div id="toast-root"></div>
+        </ToastProvider>
       </body>
     </html>
   )

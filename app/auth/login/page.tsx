@@ -3,10 +3,12 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { useToast } from '@/components/ui/Toast'
 import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline'
 
 export default function LoginPage() {
   const router = useRouter()
+  const { addToast } = useToast()
   const [formData, setFormData] = useState({
     email: '',
     password: ''
@@ -63,6 +65,13 @@ export default function LoginPage() {
       }
 
       const redirectPath = roleRoutes[userData.role as keyof typeof roleRoutes] || '/dashboard'
+      
+      addToast({
+        type: 'success',
+        title: 'Добро пожаловать!',
+        description: `Вход выполнен как ${userData.role}`
+      })
+      
       router.push(redirectPath)
 
     } catch (error: any) {
