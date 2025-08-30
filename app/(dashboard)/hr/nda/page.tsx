@@ -96,6 +96,10 @@ export default function HRNDAPage() {
       setRequests(requestsData || [])
       setUsers(usersData || [])
 
+      // Временное логирование для отладки
+      console.log('🔍 NDA Requests Data:', requestsData?.slice(0, 2))
+      console.log('👥 Users Data:', usersData?.slice(0, 2))
+
       // Рассчитываем статистику
       const totalRequests = requestsData?.length || 0
       const pendingRequests = requestsData?.filter(r => r.status === 'pending').length || 0
@@ -289,27 +293,47 @@ export default function HRNDAPage() {
       key: 'user',
       label: 'Сотрудник',
       sortable: true,
-      render: (request: NDARequest) => (
-        <div>
-          <div className="font-medium text-gray-900">
-            {request?.user?.first_name && request?.user?.last_name 
-              ? `${request.user.first_name} ${request.user.last_name}`.trim()
-              : request?.user?.email?.split('@')[0] || 'Неизвестно'
-            }
-          </div>
-          <div className="text-sm text-gray-500">{request?.user?.email || 'Нет email'}</div>
-          <div className="flex items-center space-x-2">
-            <div className="text-xs text-blue-600 capitalize">
-              {request?.user?.role === 'external' ? 'Внешний' : request?.user?.role || 'Нет роли'}
+      render: (request: NDARequest) => {
+        // Временное логирование для отладки конкретного запроса
+        console.log('👤 Rendering user for request:', request?.id, request?.user)
+        
+        const user = request?.user
+        const firstName = user?.first_name?.trim()
+        const lastName = user?.last_name?.trim()
+        const email = user?.email?.trim()
+        const role = user?.role?.trim()
+        
+        // Определяем отображаемое имя
+        let displayName = 'Неизвестно'
+        if (firstName && lastName) {
+          displayName = `${firstName} ${lastName}`
+        } else if (firstName) {
+          displayName = firstName
+        } else if (email) {
+          displayName = email.split('@')[0]
+        }
+        
+        return (
+          <div>
+            <div className="font-medium text-gray-900">
+              {displayName}
             </div>
-            {request?.request_type === 'external' && (
-              <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded-full bg-orange-100 text-orange-800">
-                Внешний
-              </span>
-            )}
+            <div className="text-sm text-gray-500">
+              {email || 'Email не указан'}
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="text-xs text-blue-600 capitalize">
+                {role === 'external' ? 'Внешний пользователь' : (role || 'Роль не указана')}
+              </div>
+              {request?.request_type === 'external' && (
+                <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded-full bg-orange-100 text-orange-800">
+                  Внешний
+                </span>
+              )}
+            </div>
           </div>
-        </div>
-      )
+        )
+      }
     },
     {
       key: 'status',
