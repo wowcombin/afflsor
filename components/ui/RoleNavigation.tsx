@@ -19,7 +19,8 @@ import {
   CogIcon,
   ShieldCheckIcon,
   EyeIcon,
-  BuildingOfficeIcon
+  BuildingOfficeIcon,
+  BuildingLibraryIcon
 } from '@heroicons/react/24/outline'
 
 interface NavigationItem {
