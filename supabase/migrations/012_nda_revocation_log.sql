@@ -48,7 +48,7 @@ SELECT
     ) as user,
     jsonb_build_object(
         'id', ndt.id,
-        'title', ndt.title,
+        'name', ndt.name,
         'content', ndt.content,
         'version', ndt.version
     ) as template
