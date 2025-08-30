@@ -87,7 +87,7 @@ export default function HRNDAPage() {
           created_at,
           is_used,
           is_revoked,
-          users!inner(
+          users!nda_tokens_user_id_fkey(
             id,
             email,
             first_name,
