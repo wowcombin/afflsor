@@ -25,8 +25,8 @@ export async function GET() {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    // Получаем только активные (не отозванные) NDA токены с пользователями
-    const { data: ndaRequests, error } = await supabase
+    // Получаем внутренние NDA токены
+    const { data: internalRequests, error: internalError } = await supabase
       .from('nda_tokens')
       .select(`
         id,
@@ -47,12 +47,28 @@ export async function GET() {
       .eq('is_revoked', false)
       .order('created_at', { ascending: false })
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
+    // Получаем внешние NDA запросы
+    const { data: externalRequests, error: externalError } = await supabase
+      .from('external_nda_requests')
+      .select(`
+        id,
+        token,
+        email,
+        full_name,
+        expires_at,
+        created_at,
+        is_signed,
+        is_revoked
+      `)
+      .eq('is_revoked', false)
+      .order('created_at', { ascending: false })
+
+    if (internalError && externalError) {
+      return NextResponse.json({ error: 'Ошибка загрузки данных' }, { status: 500 })
     }
 
-    // Форматируем данные
-    const formattedRequests = (ndaRequests || []).map(request => {
+    // Форматируем внутренние запросы
+    const formattedInternal = (internalRequests || []).map(request => {
       const user_info = Array.isArray(request.users) ? request.users[0] : request.users
       
       let status = 'pending'
@@ -69,6 +85,7 @@ export async function GET() {
         token: request.token,
         expires_at: request.expires_at,
         created_at: request.created_at,
+        request_type: 'internal',
         status,
         user: {
           id: user_info?.id || null,
@@ -81,7 +98,40 @@ export async function GET() {
       }
     })
 
-    return NextResponse.json({ requests: formattedRequests })
+    // Форматируем внешние запросы
+    const formattedExternal = (externalRequests || []).map(request => {
+      let status = 'pending'
+      if (request.is_signed) {
+        status = 'signed'
+      } else if (request.is_revoked) {
+        status = 'revoked'
+      } else if (new Date(request.expires_at) <= new Date()) {
+        status = 'expired'
+      }
+
+      return {
+        id: request.id,
+        token: request.token,
+        expires_at: request.expires_at,
+        created_at: request.created_at,
+        request_type: 'external',
+        status,
+        user: {
+          id: null,
+          email: request.email,
+          first_name: request.full_name ? request.full_name.split(' ')[0] : '',
+          last_name: request.full_name ? request.full_name.split(' ').slice(1).join(' ') : '',
+          role: 'external',
+          status: 'external'
+        }
+      }
+    })
+
+    // Объединяем и сортируем по дате создания
+    const allRequests = [...formattedInternal, ...formattedExternal]
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+
+    return NextResponse.json({ requests: allRequests })
 
   } catch (error) {
     console.error('Get NDA requests error:', error)

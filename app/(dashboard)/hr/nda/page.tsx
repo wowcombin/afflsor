@@ -176,7 +176,7 @@ export default function HRNDAPage() {
     }
   }
 
-  async function generateExternalNDA() {
+  async function generateNDA() {
     if (!externalEmail) {
       addToast({ type: 'warning', title: 'Введите email' })
       return
@@ -185,16 +185,39 @@ export default function HRNDAPage() {
     setGeneratingExternal(true)
 
     try {
-      const response = await fetch('/api/nda/external', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          email: externalEmail,
-          full_name: externalFullName
+      // Сначала проверяем, зарегистрирован ли пользователь
+      const supabase = createClient()
+      const { data: existingUser } = await supabase
+        .from('users')
+        .select('id, email, first_name, last_name')
+        .eq('email', externalEmail)
+        .single()
+
+      let response
+      if (existingUser) {
+        // Создаем обычный NDA для зарегистрированного пользователя
+        response = await fetch('/api/nda/requests', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            user_id: existingUser.id
+          })
         })
-      })
+      } else {
+        // Создаем внешний NDA для незарегистрированного пользователя
+        response = await fetch('/api/nda/external', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            email: externalEmail,
+            full_name: externalFullName
+          })
+        })
+      }
 
       const data = await response.json()
 
@@ -205,9 +228,10 @@ export default function HRNDAPage() {
       // Копируем ссылку в буфер обмена
       await navigator.clipboard.writeText(data.link)
 
+      const userType = existingUser ? 'зарегистрированного пользователя' : 'внешнего пользователя'
       addToast({
         type: 'success',
-        title: 'NDA ссылка для внешнего пользователя создана',
+        title: `NDA ссылка для ${userType} создана`,
         description: `Ссылка скопирована в буфер обмена. Отправьте на ${externalEmail}`
       })
 
@@ -217,10 +241,10 @@ export default function HRNDAPage() {
       await loadData()
 
     } catch (error: any) {
-      console.error('Ошибка генерации внешнего NDA:', error)
+      console.error('Ошибка генерации NDA:', error)
       addToast({ 
         type: 'error', 
-        title: 'Ошибка создания внешнего NDA',
+        title: 'Ошибка создания NDA',
         description: error.message || 'Попробуйте еще раз'
       })
     } finally {
@@ -439,7 +463,7 @@ export default function HRNDAPage() {
               className="flex-1 px-3 py-2 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500"
             />
             <button
-              onClick={generateExternalNDA}
+              onClick={generateNDA}
               disabled={!externalEmail || generatingExternal}
               className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
             >
