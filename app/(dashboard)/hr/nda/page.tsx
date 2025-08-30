@@ -49,7 +49,6 @@ interface NDAStats {
 export default function HRNDAPage() {
   const { addToast } = useToast()
   const [requests, setRequests] = useState<NDARequest[]>([])
-  const [users, setUsers] = useState<any[]>([])
   const [stats, setStats] = useState<NDAStats>({
     totalRequests: 0,
     pendingRequests: 0,
@@ -58,8 +57,6 @@ export default function HRNDAPage() {
     complianceRate: 0
   })
   const [loading, setLoading] = useState(true)
-  const [selectedUserId, setSelectedUserId] = useState('')
-  const [generating, setGenerating] = useState(false)
   const [showExternalForm, setShowExternalForm] = useState(false)
   const [externalEmail, setExternalEmail] = useState('')
   const [externalFullName, setExternalFullName] = useState('')
@@ -83,16 +80,11 @@ export default function HRNDAPage() {
       }
 
       const { requests } = await response.json()
+      
+      // Отладочное логирование
+      console.log('📋 Raw requests from API:', requests?.slice(0, 1))
 
-      // Загружаем пользователей для создания новых NDA
-      const supabase = createClient()
-      const { data: usersData, error: usersError } = await supabase
-        .from('users')
-        .select('id, email, first_name, last_name, role, status')
-        .in('status', ['active', 'inactive'])
-        .order('created_at', { ascending: false })
 
-      if (usersError) throw usersError
 
       // Форматируем запросы для интерфейса
       const formattedRequests: NDARequest[] = requests.map((request: any) => ({
@@ -112,7 +104,6 @@ export default function HRNDAPage() {
       }))
 
       setRequests(formattedRequests)
-      setUsers(usersData || [])
 
       // Рассчитываем статистику
       const totalRequests = formattedRequests.length
@@ -137,50 +128,7 @@ export default function HRNDAPage() {
     }
   }
 
-  async function generateNDALink() {
-    if (!selectedUserId) {
-      addToast({ type: 'warning', title: 'Выберите пользователя' })
-      return
-    }
 
-    setGenerating(true)
-
-    try {
-      const response = await fetch('/api/nda/requests', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          user_id: selectedUserId
-        })
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error)
-      }
-
-      // Копируем ссылку в буфер обмена
-      await navigator.clipboard.writeText(data.link)
-
-      addToast({
-        type: 'success',
-        title: 'NDA ссылка создана',
-        description: `Ссылка скопирована в буфер обмена. Отправьте ${data.user.name}`
-      })
-
-      setSelectedUserId('')
-      await loadData()
-
-    } catch (error: any) {
-      console.error('Ошибка генерации NDA:', error)
-      addToast({ type: 'error', title: 'Ошибка создания NDA ссылки', description: error.message })
-    } finally {
-      setGenerating(false)
-    }
-  }
 
   async function resendNDA(requestId: string) {
     try {
@@ -384,7 +332,19 @@ export default function HRNDAPage() {
           return <div className="text-sm text-gray-500">Не указано</div>
         }
         
+        // Добавляем отладочное логирование
+        console.log('📅 Date debug:', {
+          expires_at: request.expires_at,
+          type: typeof request.expires_at
+        })
+        
         const expiresAt = new Date(request.expires_at)
+        
+        // Проверяем, что дата валидна
+        if (isNaN(expiresAt.getTime())) {
+          return <div className="text-sm text-red-500">Неверная дата</div>
+        }
+        
         const now = new Date()
         const daysLeft = Math.ceil((expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
         
@@ -448,70 +408,47 @@ export default function HRNDAPage() {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Управление NDA</h1>
         <div className="flex space-x-3">
-          {/* Создание NDA для зарегистрированных пользователей */}
-          <select
-            value={selectedUserId}
-            onChange={(e) => setSelectedUserId(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="">Выберите сотрудника</option>
-            {users.map(user => (
-              <option key={user.id} value={user.id}>
-                {user.first_name || 'Имя не указано'} {user.last_name || ''} - {user.email} ({user.role})
-              </option>
-            ))}
-          </select>
-          
-          <button
-            onClick={generateNDALink}
-            disabled={!selectedUserId || generating}
-            className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-          >
-            <PaperAirplaneIcon className="h-5 w-5 mr-2" />
-            {generating ? 'Создание...' : 'Создать NDA ссылку'}
-          </button>
-
-          {/* Кнопка для внешних NDA */}
+          {/* Только создание внешних NDA */}
           <button
             onClick={() => setShowExternalForm(!showExternalForm)}
-            className="flex items-center px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700"
+            className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
           >
             <DocumentTextIcon className="h-5 w-5 mr-2" />
-            Внешний NDA
+            {showExternalForm ? 'Скрыть форму' : 'Создать NDA'}
           </button>
         </div>
       </div>
 
       {/* Форма для создания внешних NDA */}
       {showExternalForm && (
-        <div className="mb-6 bg-orange-50 border border-orange-200 rounded-lg p-4">
-          <h3 className="font-medium text-orange-900 mb-3">📧 Создать NDA для внешнего пользователя</h3>
+        <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <h3 className="font-medium text-blue-900 mb-3">📧 Создать NDA ссылку</h3>
           <div className="flex space-x-3">
             <input
               type="email"
               placeholder="Email (обязательно)"
               value={externalEmail}
               onChange={(e) => setExternalEmail(e.target.value)}
-              className="flex-1 px-3 py-2 border border-orange-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+              className="flex-1 px-3 py-2 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500"
             />
             <input
               type="text"
               placeholder="Полное имя (необязательно)"
               value={externalFullName}
               onChange={(e) => setExternalFullName(e.target.value)}
-              className="flex-1 px-3 py-2 border border-orange-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+              className="flex-1 px-3 py-2 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500"
             />
             <button
               onClick={generateExternalNDA}
               disabled={!externalEmail || generatingExternal}
-              className="flex items-center px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50"
+              className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
             >
               <PaperAirplaneIcon className="h-5 w-5 mr-2" />
               {generatingExternal ? 'Создание...' : 'Создать'}
             </button>
           </div>
-          <div className="mt-2 text-sm text-orange-700">
-            💡 Внешние NDA создаются для людей, которые не зарегистрированы в системе
+          <div className="mt-2 text-sm text-blue-700">
+            💡 NDA создается для любых пользователей (внутренних или внешних)
           </div>
         </div>
       )}
@@ -565,11 +502,13 @@ export default function HRNDAPage() {
       <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-6">
         <h3 className="font-medium text-blue-900 mb-3">📋 Инструкция по работе с NDA</h3>
         <div className="text-sm text-blue-800 space-y-2">
-          <div>1. <strong>Выберите сотрудника</strong> из списка выше</div>
-          <div>2. <strong>Нажмите "Создать NDA ссылку"</strong> - ссылка автоматически скопируется</div>
-          <div>3. <strong>Отправьте ссылку сотруднику</strong> через Telegram или email</div>
-          <div>4. <strong>Отслеживайте статус</strong> в таблице ниже</div>
-          <div>5. <strong>Ссылка действует 7 дней</strong>, после чего нужно создать новую</div>
+          <div>1. <strong>Нажмите "Создать NDA"</strong> для отображения формы</div>
+          <div>2. <strong>Введите email</strong> пользователя (внутреннего или внешнего)</div>
+          <div>3. <strong>Введите полное имя</strong> (необязательно, но рекомендуется)</div>
+          <div>4. <strong>Нажмите "Создать"</strong> - ссылка автоматически скопируется</div>
+          <div>5. <strong>Отправьте ссылку пользователю</strong> через Telegram или email</div>
+          <div>6. <strong>Отслеживайте статус</strong> в таблице выше</div>
+          <div>7. <strong>Ссылка действует 7 дней</strong>, после чего нужно создать новую</div>
         </div>
       </div>
     </div>

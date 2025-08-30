@@ -25,7 +25,7 @@ export async function GET() {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    // Получаем все NDA токены с пользователями
+    // Получаем только активные (не отозванные) NDA токены с пользователями
     const { data: ndaRequests, error } = await supabase
       .from('nda_tokens')
       .select(`
@@ -44,6 +44,7 @@ export async function GET() {
           status
         )
       `)
+      .eq('is_revoked', false)
       .order('created_at', { ascending: false })
 
     if (error) {
@@ -176,7 +177,7 @@ export async function POST(request: Request) {
     }
 
     // Формируем ссылку
-    const link = `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/nda/${token}`
+    const link = `https://afflsor.vercel.app/nda/${token}`
 
     return NextResponse.json({
       success: true,

@@ -47,6 +47,7 @@ export async function GET(
 
       return NextResponse.json({
         type: 'internal',
+        expires_at: internalToken.expires_at,
         template: {
           name: template.name,
           content: template.content,
@@ -92,6 +93,7 @@ export async function GET(
 
       return NextResponse.json({
         type: 'external',
+        expires_at: externalToken.expires_at,
         template: {
           name: template.name,
           content: template.content,

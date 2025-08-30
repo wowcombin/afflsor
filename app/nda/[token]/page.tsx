@@ -60,8 +60,7 @@ export default function NDASigningPage() {
         }))
       }
 
-      // Логируем просмотр
-      await fetch(`/api/nda/${token}/view`, { method: 'POST' })
+      // Логирование просмотра пока отключено
 
     } catch (error: any) {
       console.error('Ошибка загрузки NDA:', error)
@@ -91,12 +90,17 @@ export default function NDASigningPage() {
     setError('')
 
     try {
-      const response = await fetch(`/api/nda/${params.token}/sign`, {
+      const response = await fetch(`/api/nda/${params.token}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify({
+          full_name: formData.full_name,
+          passport_data: formData.passport,
+          address: formData.address,
+          signature_data: { agreed: formData.agreed, signed_at: new Date().toISOString() }
+        })
       })
 
       const data = await response.json()

@@ -96,7 +96,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: createError.message }, { status: 500 })
     }
 
-    const link = `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/nda/${token}`
+    const link = `https://afflsor.vercel.app/nda/${token}`
 
     return NextResponse.json({
       success: true,
