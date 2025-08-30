@@ -55,7 +55,11 @@ export default function ManagerBanksPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    loadBanks()
+    if (typeof window !== 'undefined') {
+      loadBanks()
+    } else {
+      setLoading(false)
+    }
   }, [])
 
   async function loadBanks() {
@@ -191,7 +195,7 @@ export default function ManagerBanksPage() {
                     <BankBalanceEditor
                       key={account.id}
                       account={account}
-                      userRole={userRole}
+                      userRole="manager"
                       onUpdate={loadBanks}
                     />
                   ))}

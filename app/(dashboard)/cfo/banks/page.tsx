@@ -74,19 +74,29 @@ export default function CFOBanksPage() {
   })
 
   useEffect(() => {
-    loadBanks()
+    if (typeof window !== 'undefined') {
+      loadBanks()
+    } else {
+      setLoading(false)
+    }
   }, [])
 
   async function loadBanks() {
     try {
+      console.log('🏦 Loading banks for CFO...')
+      
       const response = await fetch('/api/banks')
       
       if (!response.ok) {
-        throw new Error('Ошибка загрузки банков')
+        const errorData = await response.json()
+        console.error('❌ Banks API error:', errorData)
+        throw new Error(errorData.error || 'Ошибка загрузки банков')
       }
 
       const { banks: banksData } = await response.json()
-      setBanks(banksData)
+      console.log('✅ Banks loaded:', banksData)
+      
+      setBanks(banksData || [])
 
       // Рассчитываем статистику
       const totalBanks = banksData.length
