@@ -369,6 +369,8 @@ export default function HRNDAPage() {
           displayName = `${firstName} ${lastName}`
         } else if (firstName) {
           displayName = firstName
+        } else if (lastName) {
+          displayName = lastName
         } else if (email) {
           displayName = email.split('@')[0]
         }

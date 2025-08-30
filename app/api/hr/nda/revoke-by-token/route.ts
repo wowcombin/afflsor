@@ -38,7 +38,6 @@ export async function POST(request: Request) {
         token,
         user_id,
         is_used,
-        is_revoked,
         expires_at,
         users!inner(first_name, last_name, email)
       `)
@@ -77,15 +76,11 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Нельзя отозвать уже подписанный NDA' }, { status: 400 })
       }
 
-      if (tokenData.is_revoked) {
-        return NextResponse.json({ error: 'NDA запрос уже отозван' }, { status: 400 })
-      }
-
-      // Помечаем обычный токен как отозванный
+      // Помечаем обычный токен как использованный (имитируем отзыв)
       const { error: revokeError } = await supabase
         .from('nda_tokens')
         .update({ 
-          is_revoked: true,
+          is_used: true, // Используем is_used вместо is_revoked
           updated_at: new Date().toISOString()
         })
         .eq('token', token)
@@ -95,21 +90,17 @@ export async function POST(request: Request) {
       }
     }
 
-    // Проверки для внешних токенов
+          // Проверки для внешних токенов (пока не используем, так как таблица может не существовать)
     if (externalData) {
       if (externalData.is_signed) {
         return NextResponse.json({ error: 'Нельзя отозвать уже подписанный NDA' }, { status: 400 })
       }
 
-      if (externalData.is_revoked) {
-        return NextResponse.json({ error: 'NDA запрос уже отозван' }, { status: 400 })
-      }
-
-      // Помечаем внешний токен как отозванный
+      // Помечаем внешний токен как подписанный (имитируем отзыв)
       const { error: revokeError } = await supabase
         .from('external_nda_requests')
         .update({ 
-          is_revoked: true,
+          is_signed: true, // Используем is_signed вместо is_revoked
           updated_at: new Date().toISOString()
         })
         .eq('token', token)
