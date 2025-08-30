@@ -173,18 +173,19 @@ export default function HRNDAPage() {
     }
   }
 
-  async function revokeNDA(requestId: string) {
+  async function revokeNDA(request: NDARequest) {
     if (!confirm('Вы уверены, что хотите отозвать этот запрос на подписание NDA?')) {
       return
     }
 
     try {
-      const response = await fetch(`/api/hr/nda/${requestId}/revoke`, {
+      const response = await fetch('/api/hr/nda/revoke-by-token', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
+          token: request.token,
           revocation_reason: 'Отозвано через интерфейс HR'
         })
       })
@@ -382,7 +383,7 @@ export default function HRNDAPage() {
     },
     {
       label: 'Отозвать',
-      action: (request: NDARequest) => revokeNDA(request.id),
+      action: (request: NDARequest) => revokeNDA(request),
       condition: (request: NDARequest) => request.status === 'pending',
       variant: 'danger' as const
     }
