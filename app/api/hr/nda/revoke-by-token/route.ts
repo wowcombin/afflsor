@@ -88,8 +88,7 @@ export async function POST(request: Request) {
       const { error: revokeError } = await supabase
         .from('nda_tokens')
         .update({ 
-          is_revoked: true,
-          updated_at: new Date().toISOString()
+          is_revoked: true
         })
         .eq('token', token)
 
@@ -112,8 +111,7 @@ export async function POST(request: Request) {
       const { error: revokeError } = await supabase
         .from('external_nda_requests')
         .update({ 
-          is_revoked: true,
-          updated_at: new Date().toISOString()
+          is_revoked: true
         })
         .eq('token', token)
 
