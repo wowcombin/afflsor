@@ -56,6 +56,7 @@ export default function RoleNavigation({ userRole, className = '' }: RoleNavigat
           { name: 'Dashboard', href: `${baseHref}/dashboard`, icon: HomeIcon },
           { name: 'Workers', href: `${baseHref}/workers`, icon: UsersIcon },
           { name: 'Cards', href: `${baseHref}/cards`, icon: CreditCardIcon },
+          { name: 'Banks', href: `${baseHref}/banks`, icon: BuildingLibraryIcon },
           { name: 'Withdrawals', href: `${baseHref}/withdrawals`, icon: ClockIcon },
           { name: 'Analytics', href: `${baseHref}/analytics`, icon: ChartBarIcon },
           { name: 'Tasks', href: `${baseHref}/tasks`, icon: ClipboardDocumentListIcon },
@@ -75,7 +76,7 @@ export default function RoleNavigation({ userRole, className = '' }: RoleNavigat
         return [
           { name: 'Dashboard', href: `${baseHref}/dashboard`, icon: HomeIcon },
           { name: 'Employees', href: `${baseHref}/users`, icon: UsersIcon },
-
+          { name: 'Banks', href: `${baseHref}/banks`, icon: BuildingLibraryIcon },
           { name: 'Withdrawals', href: `${baseHref}/withdrawals`, icon: ClockIcon },
           { name: 'Comments', href: `${baseHref}/comments`, icon: DocumentChartBarIcon },
           { name: 'Analytics', href: `${baseHref}/analytics`, icon: ChartBarIcon }
@@ -84,7 +85,7 @@ export default function RoleNavigation({ userRole, className = '' }: RoleNavigat
       case 'cfo':
         return [
           { name: 'Dashboard', href: `${baseHref}/dashboard`, icon: HomeIcon },
-          { name: 'Banks', href: `${baseHref}/banks`, icon: BuildingOfficeIcon },
+          { name: 'Banks', href: `${baseHref}/banks`, icon: BuildingLibraryIcon },
           { name: 'Cards', href: `${baseHref}/cards`, icon: CreditCardIcon },
           { name: 'Expenses', href: `${baseHref}/expenses`, icon: BanknotesIcon },
           { name: 'Transfers', href: `${baseHref}/transfers`, icon: ArrowsRightLeftIcon },
