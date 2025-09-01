@@ -74,24 +74,157 @@ export async function GET(request: Request) {
 }
 
 async function getJuniorStats(supabase: any, userId: string) {
-  // Пока возвращаем заглушку
-  return {
-    profit_month: 0,
-    success_rate: 0,
-    ranking: 0,
-    days_to_payout: 0,
-    total_works: 0,
-    pending_withdrawals: 0
+  try {
+    const startOfMonth = new Date()
+    startOfMonth.setDate(1)
+    startOfMonth.setHours(0, 0, 0, 0)
+
+    // Получаем активные карты пользователя
+    const { count: activeCards } = await supabase
+      .from('cards')
+      .select('*', { count: 'exact', head: true })
+      .eq('assigned_to', userId)
+      .eq('status', 'active')
+
+    // Получаем тесты за месяц
+    const { count: monthlyTests } = await supabase
+      .from('casino_tests')
+      .select('*', { count: 'exact', head: true })
+      .eq('tester_id', userId)
+      .gte('created_at', startOfMonth.toISOString())
+
+    // Получаем успешные тесты
+    const { count: successfulTests } = await supabase
+      .from('casino_tests')
+      .select('*', { count: 'exact', head: true })
+      .eq('tester_id', userId)
+      .eq('test_result', 'passed')
+
+    // Получаем ожидающие выводы
+    const { count: pendingWithdrawals } = await supabase
+      .from('test_withdrawals')
+      .select('tw.*, ct.tester_id', { count: 'exact', head: true })
+      .from('test_withdrawals as tw')
+      .innerJoin('casino_tests as ct', 'tw.work_id', 'ct.id')
+      .eq('ct.tester_id', userId)
+      .eq('tw.withdrawal_status', 'pending')
+
+    const successRate = monthlyTests > 0 ? Math.round((successfulTests / monthlyTests) * 100) : 0
+
+    return {
+      active_cards: activeCards || 0,
+      monthly_tests: monthlyTests || 0,
+      success_rate: successRate,
+      pending_withdrawals: pendingWithdrawals || 0,
+      total_works: successfulTests || 0,
+      days_to_payout: 3 // Примерное значение
+    }
+  } catch (error) {
+    console.error('Junior stats error:', error)
+    return {
+      active_cards: 0,
+      monthly_tests: 0,
+      success_rate: 0,
+      pending_withdrawals: 0,
+      total_works: 0,
+      days_to_payout: 0
+    }
   }
 }
 
 async function getManagerStats(supabase: any) {
-  // Пока возвращаем заглушку
-  return {
-    pending_withdrawals: 0,
-    team_size: 0,
-    team_profit: 0,
-    critical_alerts: 0
+  try {
+    const startOfMonth = new Date()
+    startOfMonth.setDate(1)
+    startOfMonth.setHours(0, 0, 0, 0)
+
+    // Получаем ожидающие выводы
+    const { count: pendingWithdrawals } = await supabase
+      .from('test_withdrawals')
+      .select('*', { count: 'exact', head: true })
+      .eq('withdrawal_status', 'pending')
+
+    // Получаем размер команды (активные junior'ы)
+    const { count: teamSize } = await supabase
+      .from('users')
+      .select('*', { count: 'exact', head: true })
+      .eq('role', 'junior')
+      .eq('status', 'active')
+
+    // Получаем профит команды за месяц
+    const { data: monthlyWithdrawals } = await supabase
+      .from('test_withdrawals')
+      .select(`
+        withdrawal_amount,
+        work:casino_tests!inner (
+          deposit_amount,
+          tester:users!inner (
+            role
+          )
+        )
+      `)
+      .eq('work.tester.role', 'junior')
+      .eq('withdrawal_status', 'approved')
+      .gte('updated_at', startOfMonth.toISOString())
+
+    const teamProfit = (monthlyWithdrawals || []).reduce((sum, w) => {
+      return sum + ((w.withdrawal_amount || 0) - (w.work?.deposit_amount || 0))
+    }, 0)
+
+    // Получаем критические алерты (заблокированные карты)
+    const { count: criticalAlerts } = await supabase
+      .from('cards')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'blocked')
+
+    // Получаем статистику успешности команды
+    const { data: allTests } = await supabase
+      .from('casino_tests')
+      .select(`
+        test_result,
+        tester:users!inner (
+          role
+        )
+      `)
+      .eq('tester.role', 'junior')
+
+    const successfulTests = (allTests || []).filter(t => t.test_result === 'passed').length
+    const totalTests = (allTests || []).length
+    const avgSuccessRate = totalTests > 0 ? Math.round((successfulTests / totalTests) * 100) : 0
+
+    // Получаем доступные карты для назначения
+    const { count: availableCards } = await supabase
+      .from('cards')
+      .select(`
+        *,
+        bank_account:bank_accounts!inner (
+          balance,
+          is_active
+        )
+      `, { count: 'exact', head: true })
+      .is('assigned_to', null)
+      .eq('status', 'active')
+      .eq('bank_account.is_active', true)
+      .gte('bank_account.balance', 10)
+
+    return {
+      pending_withdrawals: pendingWithdrawals || 0,
+      team_size: teamSize || 0,
+      team_profit: teamProfit,
+      critical_alerts: criticalAlerts || 0,
+      avg_success_rate: avgSuccessRate,
+      available_cards: availableCards || 0
+    }
+  } catch (error) {
+    console.error('Manager stats error:', error)
+    return {
+      pending_withdrawals: 0,
+      team_size: 0,
+      team_profit: 0,
+      critical_alerts: 0,
+      avg_success_rate: 0,
+      available_cards: 0
+    }
   }
 }
 

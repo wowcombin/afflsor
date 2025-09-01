@@ -1,461 +1,506 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useToast } from '@/components/ui/Toast'
-import DataTable, { Column, ActionButton } from '@/components/ui/DataTable'
-import KPICard from '@/components/ui/KPICard'
-import StatusBadge from '@/components/ui/StatusBadge'
+import { useRouter } from 'next/navigation'
+import DataTable from '@/components/ui/DataTable'
 import Modal from '@/components/ui/Modal'
-import { 
-  CreditCardIcon,
-  UserPlusIcon,
-  EyeIcon,
-  UserMinusIcon,
-  CheckCircleIcon,
-  XCircleIcon,
-  ExclamationTriangleIcon
-} from '@heroicons/react/24/outline'
+import StatusBadge from '@/components/ui/StatusBadge'
+import { useToast } from '@/components/ui/Toast'
+import { Card, BankAccount, Bank, User } from '@/types/database.types'
 
-interface Card {
-  id: string
-  card_number_mask: string
-  card_bin: string
-  card_type: 'grey' | 'pink'
-  exp_month: number
-  exp_year: number
-  status: string
-  assigned_to: string | null
-  assigned_user_name: string | null
-  assigned_user_lastname: string | null
-  bank_balance: number
-  account_balance: number
-  account_currency: string
-  account_holder: string
-  bank_name: string
-  bank_country: string
-  is_available: boolean
-  daily_limit: number | null
-}
-
-interface CardStats {
-  totalCards: number
-  availableCards: number
-  assignedCards: number
-  blockedCards: number
-}
-
-export default function ManagerCardsPage() {
-  const { addToast } = useToast()
-
-  // Функция для получения символа валюты
-  const getCurrencySymbol = (currency: string) => {
-    const symbols = {
-      'USD': '$',
-      'EUR': '€', 
-      'GBP': '£',
-      'CAD': 'C$'
-    }
-    return symbols[currency as keyof typeof symbols] || '$'
+interface CardWithDetails extends Card {
+  bank_account?: BankAccount & {
+    bank?: Bank
   }
-  const [cards, setCards] = useState<Card[]>([])
-  const [users, setUsers] = useState<any[]>([])
-  const [stats, setStats] = useState<CardStats>({
-    totalCards: 0,
-    availableCards: 0,
-    assignedCards: 0,
-    blockedCards: 0
-  })
-  const [loading, setLoading] = useState(true)
+  assigned_user?: User
+}
+
+interface AssignmentData {
+  card_id: string
+  user_id: string
+  casino_id?: string
+  notes?: string
+}
+
+export default function CardsManagement() {
+  const router = useRouter()
+  const { addToast } = useToast()
+  const [cards, setCards] = useState<CardWithDetails[]>([])
+  const [juniors, setJuniors] = useState<User[]>([])
+  const [selectedCards, setSelectedCards] = useState<string[]>([])
   const [showAssignModal, setShowAssignModal] = useState(false)
-  const [selectedCard, setSelectedCard] = useState<Card | null>(null)
-  const [selectedUserId, setSelectedUserId] = useState('')
-  const [assignNotes, setAssignNotes] = useState('')
-  const [assigning, setAssigning] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [actionLoading, setActionLoading] = useState(false)
 
   useEffect(() => {
-    loadData()
+    fetchCards()
+    fetchJuniors()
   }, [])
 
-  async function loadData() {
+  const fetchCards = async () => {
     try {
-      // Загружаем карты
-      const cardsResponse = await fetch('/api/cards')
-      if (!cardsResponse.ok) {
-        throw new Error('Ошибка загрузки карт')
+      const response = await fetch('/api/manager/cards')
+      const data = await response.json()
+      
+      if (data.success) {
+        setCards(data.data)
+      } else {
+        addToast({ type: 'error', title: 'Ошибка', description: data.error || 'Не удалось загрузить карты' })
       }
-      const { cards: cardsData } = await cardsResponse.json()
-
-      // Загружаем Junior пользователей для назначения
-      const usersResponse = await fetch('/api/users')
-      if (!usersResponse.ok) {
-        throw new Error('Ошибка загрузки пользователей')
-      }
-      const { users: usersData } = await usersResponse.json()
-      const juniors = usersData.filter((u: any) => u.role === 'junior' && u.status === 'active')
-
-      setCards(cardsData)
-      setUsers(juniors)
-
-      // Рассчитываем статистику
-      const totalCards = cardsData.length
-      const availableCards = cardsData.filter((c: Card) => c.is_available && !c.assigned_to).length
-      const assignedCards = cardsData.filter((c: Card) => c.assigned_to).length
-      const blockedCards = cardsData.filter((c: Card) => !c.is_available).length
-
-      setStats({
-        totalCards,
-        availableCards,
-        assignedCards,
-        blockedCards
-      })
-
-    } catch (error: any) {
-      console.error('Ошибка загрузки данных:', error)
-      addToast({
-        type: 'error',
-        title: 'Ошибка загрузки данных',
-        description: error.message
-      })
+    } catch (error) {
+      addToast({ type: 'error', title: 'Ошибка', description: 'Ошибка сети' })
     } finally {
       setLoading(false)
     }
   }
 
-  async function handleAssignCard() {
-    if (!selectedCard || !selectedUserId) {
-      addToast({ type: 'error', title: 'Выберите карту и пользователя' })
-      return
-    }
-
-    setAssigning(true)
-
+  const fetchJuniors = async () => {
     try {
-      const response = await fetch(`/api/cards/${selectedCard.id}/assign`, {
+      const response = await fetch('/api/manager/team')
+      const data = await response.json()
+      
+      if (data.success) {
+        setJuniors(data.data.filter((user: User) => user.role === 'junior'))
+      }
+    } catch (error) {
+      console.error('Failed to fetch juniors:', error)
+    }
+  }
+
+  const handleCardAssignment = async (assignmentData: AssignmentData) => {
+    setActionLoading(true)
+    try {
+      const response = await fetch('/api/manager/cards/assign', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          user_id: selectedUserId,
-          notes: assignNotes
-        })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(assignmentData)
       })
 
       const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error)
+      
+      if (data.success) {
+        addToast('success', 'Успешно', 'Карта назначена')
+        setShowAssignModal(false)
+        setSelectedCards([])
+        fetchCards()
+      } else {
+        addToast('error', 'Ошибка', data.error || 'Не удалось назначить карту')
       }
-
-      addToast({
-        type: 'success',
-        title: 'Карта назначена',
-        description: data.message
-      })
-
-      setShowAssignModal(false)
-      setSelectedCard(null)
-      setSelectedUserId('')
-      setAssignNotes('')
-      await loadData()
-
-    } catch (error: any) {
-      console.error('Ошибка назначения карты:', error)
-      addToast({
-        type: 'error',
-        title: 'Ошибка назначения карты',
-        description: error.message
-      })
+    } catch (error) {
+      addToast({ type: 'error', title: 'Ошибка', description: 'Ошибка сети' })
     } finally {
-      setAssigning(false)
+      setActionLoading(false)
     }
   }
 
-  async function handleUnassignCard(card: Card) {
-    if (!confirm(`Отозвать назначение карты ${card.card_number_mask}?`)) {
+  const handleBulkAction = async (action: 'block' | 'unblock' | 'unassign') => {
+    if (selectedCards.length === 0) {
+      addToast('warning', 'Внимание', 'Выберите карты для действия')
       return
     }
 
+    setActionLoading(true)
     try {
-      const response = await fetch(`/api/cards/${card.id}/assign`, {
-        method: 'DELETE'
+      const response = await fetch('/api/manager/cards/bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, card_ids: selectedCards })
       })
 
       const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error)
+      
+      if (data.success) {
+        addToast('success', 'Успешно', `${selectedCards.length} карт обновлено`)
+        setSelectedCards([])
+        fetchCards()
+      } else {
+        addToast('error', 'Ошибка', data.error || 'Не удалось выполнить действие')
       }
-
-      addToast({
-        type: 'success',
-        title: 'Назначение отозвано',
-        description: data.message
-      })
-
-      await loadData()
-
-    } catch (error: any) {
-      console.error('Ошибка отзыва назначения:', error)
-      addToast({
-        type: 'error',
-        title: 'Ошибка отзыва назначения',
-        description: error.message
-      })
+    } catch (error) {
+      addToast({ type: 'error', title: 'Ошибка', description: 'Ошибка сети' })
+    } finally {
+      setActionLoading(false)
     }
   }
 
-
-
-
-
-  const columns: Column<Card>[] = [
+  const columns = [
     {
       key: 'card_number_mask',
-      label: 'Карта',
-      sortable: true,
-      render: (card) => (
+      label: 'Номер карты',
+      render: (item: CardWithDetails) => (
         <div>
-          <div className="font-mono font-medium text-gray-900">
-            {card.card_number_mask}
-          </div>
-          <div className="text-sm text-gray-500">
-            BIN: {card.card_bin} • {card.card_type === 'pink' ? '🌸 Pink' : '⚫ Grey'}
-          </div>
+          <div className="font-mono text-sm font-semibold">{item.card_number_mask}</div>
+          <div className="text-xs text-gray-500">BIN: {item.card_bin}</div>
         </div>
       )
     },
     {
-      key: 'bank_name',
+      key: 'card_type',
+      label: 'Тип',
+      render: (item: CardWithDetails) => (
+        <div className="flex items-center gap-2">
+          <div className={`w-3 h-3 rounded-full ${
+            item.card_type === 'black' ? 'bg-gray-900' :
+            item.card_type === 'gold' ? 'bg-yellow-500' :
+            item.card_type === 'platinum' ? 'bg-gray-400' :
+            'bg-gray-300'
+          }`} />
+          <span className="capitalize">{item.card_type}</span>
+        </div>
+      )
+    },
+    {
+      key: 'bank_account.bank.name',
       label: 'Банк',
-      sortable: true,
-      render: (card) => (
+      render: (item: CardWithDetails) => (
         <div>
-          <div className="font-medium text-gray-900">{card.bank_name}</div>
-          <div className="text-sm text-gray-500">
-            {card.account_holder} • {card.bank_country}
-          </div>
+          <div className="font-medium">{item.bank_account?.bank?.name}</div>
+          <div className="text-sm text-gray-500">{item.bank_account?.bank?.country}</div>
         </div>
       )
     },
     {
-      key: 'bank_balance',
+      key: 'bank_account.balance',
       label: 'Баланс',
-      sortable: true,
-      align: 'right',
-      render: (card) => (
-        <div className="text-right">
-          <div className={`font-mono font-medium ${(card.account_balance || card.bank_balance || 0) >= 10 ? 'text-success-600' : 'text-danger-600'}`}>
-            {getCurrencySymbol(card.account_currency || 'USD')}{(card.account_balance || card.bank_balance || 0).toFixed(2)}
+      render: (item: CardWithDetails) => (
+        <div>
+          <div className={`font-semibold ${
+            (item.bank_account?.balance || 0) >= 10 ? 'text-success-600' : 'text-danger-600'
+          }`}>
+            ${item.bank_account?.balance?.toFixed(2) || '0.00'}
           </div>
-          <div className="text-xs text-gray-500">
-            {(card.account_balance || card.bank_balance || 0) >= 10 && card.status === 'active' ? '✅ Доступна' : '❌ Недоступна'}
-          </div>
+          <div className="text-xs text-gray-500">{item.bank_account?.currency}</div>
         </div>
       )
     },
     {
-      key: 'assigned_to',
+      key: 'assigned_user',
       label: 'Назначена',
-      sortable: true,
-      render: (card) => {
-        if (card.assigned_to) {
-          return (
-            <div>
-              <div className="font-medium text-primary-600">
-                {card.assigned_user_name} {card.assigned_user_lastname}
-              </div>
-              <div className="text-xs text-gray-500">Junior</div>
+      render: (item: CardWithDetails) => (
+        item.assigned_user ? (
+          <div>
+            <div className="font-medium">
+              {item.assigned_user.first_name} {item.assigned_user.last_name}
             </div>
-          )
-        }
-        return <span className="text-gray-500">Не назначена</span>
-      }
+            <div className="text-sm text-gray-500">{item.assigned_user.email}</div>
+          </div>
+        ) : (
+          <span className="text-gray-400">Не назначена</span>
+        )
+      )
     },
     {
       key: 'status',
       label: 'Статус',
-      sortable: true,
-      render: (card) => <StatusBadge status={card.status} />
+      render: (item: CardWithDetails) => <StatusBadge status={item.status} />
     },
     {
-      key: 'exp_year',
-      label: 'Истекает',
-      sortable: true,
-      render: (card) => (
-        <span className="text-sm text-gray-600">
-          {String(card.exp_month).padStart(2, '0')}/{card.exp_year}
-        </span>
+      key: 'daily_limit',
+      label: 'Лимит',
+      render: (item: CardWithDetails) => (
+        <div className="text-sm">
+          {item.daily_limit ? `$${item.daily_limit}` : 'Не установлен'}
+        </div>
       )
+    },
+    {
+      key: 'exp_date',
+      label: 'Срок действия',
+      render: (item: CardWithDetails) => {
+        const expDate = new Date(item.exp_year, item.exp_month - 1)
+        const isExpiring = expDate.getTime() - Date.now() < 30 * 24 * 60 * 60 * 1000 // 30 дней
+        return (
+          <div className={isExpiring ? 'text-warning-600' : 'text-gray-600'}>
+            {String(item.exp_month).padStart(2, '0')}/{item.exp_year}
+          </div>
+        )
+      }
     }
   ]
 
-  const actions: ActionButton<Card>[] = [
+  const actions = [
     {
       label: 'Назначить',
-      action: (card) => {
-        setSelectedCard(card)
+      action: (item: CardWithDetails) => {
+        setSelectedCards([item.id])
         setShowAssignModal(true)
       },
-      variant: 'primary',
-      condition: (card) => !card.assigned_to && (card.account_balance || card.bank_balance || 0) >= 10 && card.status === 'active'
+      variant: 'primary' as const,
+      condition: (item: CardWithDetails) => !item.assigned_to && item.status === 'active'
     },
     {
       label: 'Отозвать',
-      action: handleUnassignCard,
-      variant: 'warning',
-      condition: (card) => !!card.assigned_to
+      action: (item: CardWithDetails) => handleBulkAction('unassign'),
+      variant: 'warning' as const,
+      condition: (item: CardWithDetails) => !!item.assigned_to
     },
     {
-      label: 'Показать',
-      action: (card) => {
-        addToast({ type: 'info', title: 'Показ секретов - в разработке' })
+      label: 'Заблокировать',
+      action: (item: CardWithDetails) => {
+        setSelectedCards([item.id])
+        handleBulkAction('block')
       },
-      variant: 'secondary'
+      variant: 'danger' as const,
+      condition: (item: CardWithDetails) => item.status === 'active'
     }
   ]
+
+  // Группировка карт по банкам
+  const cardsByBank = cards.reduce((acc, card) => {
+    const bankName = card.bank_account?.bank?.name || 'Неизвестный банк'
+    if (!acc[bankName]) {
+      acc[bankName] = []
+    }
+    acc[bankName].push(card)
+    return acc
+  }, {} as Record<string, CardWithDetails[]>)
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Управление картами</h1>
-          <p className="text-gray-600">Создание и назначение карт Junior сотрудникам</p>
+          <p className="text-gray-600">Назначение карт junior'ам и контроль балансов</p>
         </div>
-        <div className="flex space-x-3">
-          <button
-            onClick={() => window.location.href = '/dashboard/manager/banks'}
-            className="btn-info"
+        <div className="flex gap-2">
+          <button className="btn-secondary" onClick={() => router.push('/dashboard/manager')}>
+            ← Назад
+          </button>
+          <button 
+            className="btn-primary" 
+            onClick={() => setShowAssignModal(true)}
+            disabled={selectedCards.length === 0}
           >
-            🏦 Банки и балансы
+            Назначить выбранные ({selectedCards.length})
           </button>
         </div>
       </div>
 
-      {/* KPI Cards */}
+      {/* Статистика по банкам */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <KPICard
-          title="Всего карт"
-          value={stats.totalCards}
-          icon={<CreditCardIcon className="h-6 w-6" />}
-          color="primary"
-        />
-        <KPICard
-          title="Доступные"
-          value={stats.availableCards}
-          icon={<CheckCircleIcon className="h-6 w-6" />}
-          color="success"
-        />
-        <KPICard
-          title="Назначенные"
-          value={stats.assignedCards}
-          icon={<UserPlusIcon className="h-6 w-6" />}
-          color="warning"
-        />
-        <KPICard
-          title="Заблокированные"
-          value={stats.blockedCards}
-          icon={<XCircleIcon className="h-6 w-6" />}
-          color="danger"
-        />
-      </div>
-
-      {/* Таблица карт */}
-      <div className="card">
-        <div className="card-header">
-          <h3 className="text-lg font-semibold text-gray-900">
-            Банковские карты ({cards.length})
-          </h3>
+        <div className="card">
+          <h3 className="text-sm font-medium text-gray-500">Всего карт</h3>
+          <p className="text-2xl font-bold text-gray-900">{cards.length}</p>
         </div>
-        
-        <DataTable
-          data={cards}
-          columns={columns}
-          actions={actions}
-          loading={loading}
-          pagination={{ pageSize: 20 }}
-          filtering={true}
-          exportable={true}
-          emptyMessage="Карты не найдены"
-        />
+        <div className="card">
+          <h3 className="text-sm font-medium text-gray-500">Доступно для назначения</h3>
+          <p className="text-2xl font-bold text-success-600">
+            {cards.filter(c => !c.assigned_to && c.status === 'active' && (c.bank_account?.balance || 0) >= 10).length}
+          </p>
+        </div>
+        <div className="card">
+          <h3 className="text-sm font-medium text-gray-500">Назначено</h3>
+          <p className="text-2xl font-bold text-primary-600">
+            {cards.filter(c => c.assigned_to).length}
+          </p>
+        </div>
+        <div className="card">
+          <h3 className="text-sm font-medium text-gray-500">Заблокировано</h3>
+          <p className="text-2xl font-bold text-danger-600">
+            {cards.filter(c => c.status === 'blocked').length}
+          </p>
+        </div>
       </div>
 
-      {/* Modal назначения карты */}
-      <Modal
-        isOpen={showAssignModal}
-        onClose={() => {
-          setShowAssignModal(false)
-          setSelectedCard(null)
-          setSelectedUserId('')
-          setAssignNotes('')
-        }}
-        title={`Назначить карту ${selectedCard?.card_number_mask}`}
-        size="md"
-      >
-        <div className="space-y-4">
-          {selectedCard && (
-            <div className="bg-gray-50 rounded-lg p-4">
-              <h4 className="font-medium text-gray-900 mb-2">Информация о карте</h4>
-              <div className="text-sm text-gray-600 space-y-1">
-                <div>Номер: {selectedCard.card_number_mask}</div>
-                <div>Банк: {selectedCard.bank_name} ({selectedCard.bank_country})</div>
-                <div>Баланс: {getCurrencySymbol(selectedCard.account_currency || 'USD')}{(selectedCard.account_balance || selectedCard.bank_balance || 0).toFixed(2)}</div>
-                <div>Тип: {selectedCard.card_type === 'pink' ? '🌸 Pink' : '⚫ Grey'}</div>
+      {/* Массовые действия */}
+      {selectedCards.length > 0 && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <span className="text-blue-800">
+              Выбрано карт: {selectedCards.length}
+            </span>
+            <div className="flex gap-2">
+              <button 
+                className="btn-warning btn-sm"
+                onClick={() => handleBulkAction('unassign')}
+                disabled={actionLoading}
+              >
+                Отозвать все
+              </button>
+              <button 
+                className="btn-danger btn-sm"
+                onClick={() => handleBulkAction('block')}
+                disabled={actionLoading}
+              >
+                Заблокировать все
+              </button>
+              <button 
+                className="btn-secondary btn-sm"
+                onClick={() => setSelectedCards([])}
+              >
+                Отменить выбор
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Группировка по банкам */}
+      <div className="space-y-6">
+        {Object.entries(cardsByBank).map(([bankName, bankCards]) => (
+          <div key={bankName} className="card">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">{bankName}</h3>
+              <div className="text-sm text-gray-500">
+                Карт: {bankCards.length} | 
+                Общий баланс: ${bankCards.reduce((sum, card) => sum + (card.bank_account?.balance || 0), 0).toFixed(2)}
               </div>
             </div>
-          )}
-
-          <div>
-            <label className="form-label">Назначить пользователю</label>
-            <select
-              value={selectedUserId}
-              onChange={(e) => setSelectedUserId(e.target.value)}
-              className="form-input"
-              required
-            >
-              <option value="">Выберите Junior</option>
-              {users.map(user => (
-                <option key={user.id} value={user.id}>
-                  {user.first_name} {user.last_name} - {user.email}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="form-label">Комментарий (необязательно)</label>
-            <textarea
-              value={assignNotes}
-              onChange={(e) => setAssignNotes(e.target.value)}
-              className="form-input"
-              rows={3}
-              placeholder="Причина назначения, особые условия..."
+            
+            <DataTable
+              data={bankCards}
+              columns={columns}
+              actions={actions}
+              loading={loading}
+              selectable={true}
+              selectedItems={selectedCards}
+              onSelectionChange={setSelectedCards}
+              filters={[
+                { key: 'status', label: 'Статус', type: 'select', options: [
+                  { value: 'active', label: 'Активна' },
+                  { value: 'blocked', label: 'Заблокирована' },
+                  { value: 'expired', label: 'Просрочена' }
+                ]},
+                { key: 'card_type', label: 'Тип', type: 'select', options: [
+                  { value: 'grey', label: 'Grey' },
+                  { value: 'gold', label: 'Gold' },
+                  { value: 'platinum', label: 'Platinum' },
+                  { value: 'black', label: 'Black' }
+                ]},
+                { key: 'assigned_to', label: 'Назначение', type: 'select', options: [
+                  { value: 'assigned', label: 'Назначена' },
+                  { value: 'unassigned', label: 'Не назначена' }
+                ]}
+              ]}
             />
           </div>
+        ))}
+      </div>
 
-          <div className="flex justify-end space-x-3 pt-4">
-            <button
-              onClick={() => {
-                setShowAssignModal(false)
-                setSelectedCard(null)
-                setSelectedUserId('')
-                setAssignNotes('')
-              }}
-              className="btn-secondary"
-              disabled={assigning}
-            >
-              Отмена
-            </button>
-            <button
-              onClick={handleAssignCard}
-              className="btn-primary"
-              disabled={assigning || !selectedUserId}
-            >
-              {assigning ? 'Назначение...' : 'Назначить карту'}
-            </button>
+      {/* Модальное окно назначения карт */}
+      {showAssignModal && (
+        <CardAssignmentModal
+          cards={cards.filter(c => selectedCards.includes(c.id))}
+          juniors={juniors}
+          onClose={() => {
+            setShowAssignModal(false)
+            setSelectedCards([])
+          }}
+          onAssign={handleCardAssignment}
+          loading={actionLoading}
+        />
+      )}
+    </div>
+  )
+}
+
+// Компонент модального окна назначения карт
+function CardAssignmentModal({ 
+  cards, 
+  juniors, 
+  onClose, 
+  onAssign, 
+  loading 
+}: {
+  cards: CardWithDetails[]
+  juniors: User[]
+  onClose: () => void
+  onAssign: (data: AssignmentData) => void
+  loading: boolean
+}) {
+  const [selectedJunior, setSelectedJunior] = useState('')
+  const [notes, setNotes] = useState('')
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedJunior) return
+
+    // Назначаем первую карту (для простоты)
+    if (cards.length > 0) {
+      onAssign({
+        card_id: cards[0].id,
+        user_id: selectedJunior,
+        notes
+      })
+    }
+  }
+
+  return (
+    <Modal isOpen={true} onClose={onClose} title="Назначение карты">
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Информация о картах */}
+        <div>
+          <h3 className="font-semibold text-gray-900 mb-2">Карты для назначения:</h3>
+          <div className="space-y-2">
+            {cards.map(card => (
+              <div key={card.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div>
+                  <span className="font-mono text-sm">{card.card_number_mask}</span>
+                  <span className="ml-2 text-sm text-gray-500">
+                    {card.bank_account?.bank?.name}
+                  </span>
+                </div>
+                <div className="text-sm font-semibold text-success-600">
+                  ${card.bank_account?.balance?.toFixed(2)}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
-      </Modal>
-    </div>
+
+        {/* Выбор junior'а */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Назначить junior'у *
+          </label>
+          <select
+            value={selectedJunior}
+            onChange={(e) => setSelectedJunior(e.target.value)}
+            className="w-full p-3 border border-gray-300 rounded-lg"
+            required
+          >
+            <option value="">Выберите junior'а</option>
+            {juniors.map(junior => (
+              <option key={junior.id} value={junior.id}>
+                {junior.first_name} {junior.last_name} ({junior.email})
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Комментарий */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Комментарий (опционально)
+          </label>
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            className="w-full p-3 border border-gray-300 rounded-lg"
+            rows={3}
+            placeholder="Добавьте комментарий к назначению..."
+          />
+        </div>
+
+        {/* Действия */}
+        <div className="flex gap-3">
+          <button
+            type="submit"
+            disabled={loading || !selectedJunior}
+            className="btn-primary flex-1"
+          >
+            {loading ? 'Назначение...' : 'Назначить карту'}
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={loading}
+            className="btn-secondary"
+          >
+            Отмена
+          </button>
+        </div>
+      </form>
+    </Modal>
   )
 }

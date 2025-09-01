@@ -1,0 +1,362 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import DataTable from '@/components/ui/DataTable'
+import StatusBadge from '@/components/ui/StatusBadge'
+import { useToast } from '@/components/ui/Toast'
+import { User, CasinoTest } from '@/types/database.types'
+
+interface JuniorWithStats extends User {
+  stats?: {
+    total_tests: number
+    successful_tests: number
+    success_rate: number
+    monthly_tests: number
+    assigned_cards: number
+    pending_withdrawals: number
+    total_profit: number
+    last_activity: string
+  }
+}
+
+export default function TeamManagement() {
+  const router = useRouter()
+  const { addToast } = useToast()
+  const [juniors, setJuniors] = useState<JuniorWithStats[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetchTeamData()
+  }, [])
+
+  const fetchTeamData = async () => {
+    try {
+      const response = await fetch('/api/manager/team')
+      const data = await response.json()
+      
+      if (data.success) {
+        setJuniors(data.data)
+      } else {
+        addToast('error', 'Ошибка', data.error || 'Не удалось загрузить данные команды')
+      }
+    } catch (error) {
+      addToast({ type: 'error', title: 'Ошибка', description: 'Ошибка сети' })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const columns = [
+    {
+      key: 'name',
+      label: 'Junior',
+      render: (item: JuniorWithStats) => (
+        <div>
+          <div className="font-medium text-gray-900">
+            {item.first_name} {item.last_name}
+          </div>
+          <div className="text-sm text-gray-500">{item.email}</div>
+          {item.telegram_username && (
+            <div className="text-xs text-blue-600">@{item.telegram_username}</div>
+          )}
+        </div>
+      )
+    },
+    {
+      key: 'status',
+      label: 'Статус',
+      render: (item: JuniorWithStats) => <StatusBadge status={item.status} />
+    },
+    {
+      key: 'stats.assigned_cards',
+      label: 'Карты',
+      render: (item: JuniorWithStats) => (
+        <div className="text-center">
+          <div className="text-lg font-semibold text-primary-600">
+            {item.stats?.assigned_cards || 0}
+          </div>
+          <div className="text-xs text-gray-500">назначено</div>
+        </div>
+      )
+    },
+    {
+      key: 'stats.monthly_tests',
+      label: 'Тесты за месяц',
+      render: (item: JuniorWithStats) => (
+        <div className="text-center">
+          <div className="text-lg font-semibold text-gray-900">
+            {item.stats?.monthly_tests || 0}
+          </div>
+          <div className="text-xs text-gray-500">выполнено</div>
+        </div>
+      )
+    },
+    {
+      key: 'stats.success_rate',
+      label: 'Успешность',
+      render: (item: JuniorWithStats) => {
+        const rate = item.stats?.success_rate || 0
+        return (
+          <div className="text-center">
+            <div className={`text-lg font-semibold ${
+              rate >= 80 ? 'text-success-600' : 
+              rate >= 60 ? 'text-warning-600' : 
+              'text-danger-600'
+            }`}>
+              {rate}%
+            </div>
+            <div className="text-xs text-gray-500">
+              {item.stats?.successful_tests || 0}/{item.stats?.total_tests || 0}
+            </div>
+          </div>
+        )
+      }
+    },
+    {
+      key: 'stats.pending_withdrawals',
+      label: 'Выводы',
+      render: (item: JuniorWithStats) => (
+        <div className="text-center">
+          <div className={`text-lg font-semibold ${
+            (item.stats?.pending_withdrawals || 0) > 0 ? 'text-warning-600' : 'text-gray-400'
+          }`}>
+            {item.stats?.pending_withdrawals || 0}
+          </div>
+          <div className="text-xs text-gray-500">ожидают</div>
+        </div>
+      )
+    },
+    {
+      key: 'stats.total_profit',
+      label: 'Профит',
+      render: (item: JuniorWithStats) => (
+        <div className="text-center">
+          <div className="text-lg font-semibold text-success-600">
+            ${(item.stats?.total_profit || 0).toFixed(2)}
+          </div>
+          <div className="text-xs text-gray-500">за месяц</div>
+        </div>
+      )
+    },
+    {
+      key: 'salary_percentage',
+      label: 'Процент',
+      render: (item: JuniorWithStats) => (
+        <div className="text-center">
+          <div className="text-lg font-semibold text-gray-900">
+            {item.salary_percentage}%
+          </div>
+          <div className="text-xs text-gray-500">от профита</div>
+        </div>
+      )
+    },
+    {
+      key: 'stats.last_activity',
+      label: 'Активность',
+      render: (item: JuniorWithStats) => {
+        if (!item.stats?.last_activity) {
+          return <span className="text-gray-400">Нет данных</span>
+        }
+        
+        const lastActivity = new Date(item.stats.last_activity)
+        const hoursAgo = Math.floor((Date.now() - lastActivity.getTime()) / (1000 * 60 * 60))
+        
+        return (
+          <div className="text-sm">
+            <div className={hoursAgo < 24 ? 'text-success-600' : hoursAgo < 72 ? 'text-warning-600' : 'text-danger-600'}>
+              {hoursAgo < 24 ? 'Сегодня' : 
+               hoursAgo < 48 ? 'Вчера' : 
+               `${Math.floor(hoursAgo / 24)} дн. назад`}
+            </div>
+            <div className="text-xs text-gray-500">
+              {lastActivity.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
+            </div>
+          </div>
+        )
+      }
+    }
+  ]
+
+  const actions = [
+    {
+      label: 'Детали',
+      action: (item: JuniorWithStats) => router.push(`/dashboard/manager/team/${item.id}`),
+      variant: 'primary' as const
+    },
+    {
+      label: 'Назначить карту',
+      action: (item: JuniorWithStats) => router.push(`/dashboard/manager/cards?assign=${item.id}`),
+      variant: 'secondary' as const,
+      condition: (item: JuniorWithStats) => item.status === 'active'
+    }
+  ]
+
+  // Статистика команды
+  const teamStats = {
+    total_juniors: juniors.length,
+    active_juniors: juniors.filter(j => j.status === 'active').length,
+    total_monthly_tests: juniors.reduce((sum, j) => sum + (j.stats?.monthly_tests || 0), 0),
+    total_monthly_profit: juniors.reduce((sum, j) => sum + (j.stats?.total_profit || 0), 0),
+    avg_success_rate: juniors.length > 0 ? 
+      Math.round(juniors.reduce((sum, j) => sum + (j.stats?.success_rate || 0), 0) / juniors.length) : 0,
+    pending_withdrawals: juniors.reduce((sum, j) => sum + (j.stats?.pending_withdrawals || 0), 0)
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Управление командой</h1>
+          <p className="text-gray-600">Мониторинг и управление junior'ами</p>
+        </div>
+        <div className="flex gap-2">
+          <button className="btn-secondary" onClick={() => router.push('/dashboard/manager')}>
+            ← Назад
+          </button>
+          <button className="btn-primary" onClick={() => router.push('/dashboard/manager/cards')}>
+            Управление картами
+          </button>
+        </div>
+      </div>
+
+      {/* Статистика команды */}
+      <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+        <div className="card">
+          <h3 className="text-sm font-medium text-gray-500">Всего Junior'ов</h3>
+          <p className="text-2xl font-bold text-gray-900">{teamStats.total_juniors}</p>
+        </div>
+        <div className="card">
+          <h3 className="text-sm font-medium text-gray-500">Активных</h3>
+          <p className="text-2xl font-bold text-success-600">{teamStats.active_juniors}</p>
+        </div>
+        <div className="card">
+          <h3 className="text-sm font-medium text-gray-500">Тестов за месяц</h3>
+          <p className="text-2xl font-bold text-primary-600">{teamStats.total_monthly_tests}</p>
+        </div>
+        <div className="card">
+          <h3 className="text-sm font-medium text-gray-500">Средняя успешность</h3>
+          <p className={`text-2xl font-bold ${
+            teamStats.avg_success_rate >= 80 ? 'text-success-600' : 
+            teamStats.avg_success_rate >= 60 ? 'text-warning-600' : 
+            'text-danger-600'
+          }`}>
+            {teamStats.avg_success_rate}%
+          </p>
+        </div>
+        <div className="card">
+          <h3 className="text-sm font-medium text-gray-500">Профит команды</h3>
+          <p className="text-2xl font-bold text-success-600">
+            ${teamStats.total_monthly_profit.toFixed(2)}
+          </p>
+        </div>
+        <div className="card">
+          <h3 className="text-sm font-medium text-gray-500">Ожидают выводы</h3>
+          <p className={`text-2xl font-bold ${
+            teamStats.pending_withdrawals > 0 ? 'text-warning-600' : 'text-gray-400'
+          }`}>
+            {teamStats.pending_withdrawals}
+          </p>
+        </div>
+      </div>
+
+      {/* Матрица эффективности */}
+      <div className="card">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Рейтинг эффективности</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Топ по успешности */}
+          <div>
+            <h4 className="font-medium text-gray-700 mb-2">🏆 Лучшие по успешности</h4>
+            <div className="space-y-2">
+              {juniors
+                .filter(j => j.stats?.total_tests && j.stats.total_tests > 0)
+                .sort((a, b) => (b.stats?.success_rate || 0) - (a.stats?.success_rate || 0))
+                .slice(0, 3)
+                .map((junior, index) => (
+                  <div key={junior.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium">#{index + 1}</span>
+                      <span className="text-sm">{junior.first_name} {junior.last_name}</span>
+                    </div>
+                    <span className="text-sm font-semibold text-success-600">
+                      {junior.stats?.success_rate}%
+                    </span>
+                  </div>
+                ))}
+            </div>
+          </div>
+
+          {/* Топ по профиту */}
+          <div>
+            <h4 className="font-medium text-gray-700 mb-2">💰 Лучшие по профиту</h4>
+            <div className="space-y-2">
+              {juniors
+                .sort((a, b) => (b.stats?.total_profit || 0) - (a.stats?.total_profit || 0))
+                .slice(0, 3)
+                .map((junior, index) => (
+                  <div key={junior.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium">#{index + 1}</span>
+                      <span className="text-sm">{junior.first_name} {junior.last_name}</span>
+                    </div>
+                    <span className="text-sm font-semibold text-success-600">
+                      ${(junior.stats?.total_profit || 0).toFixed(2)}
+                    </span>
+                  </div>
+                ))}
+            </div>
+          </div>
+
+          {/* Требуют внимания */}
+          <div>
+            <h4 className="font-medium text-gray-700 mb-2">⚠️ Требуют внимания</h4>
+            <div className="space-y-2">
+              {juniors
+                .filter(j => 
+                  j.status !== 'active' || 
+                  (j.stats?.success_rate || 0) < 50 ||
+                  (j.stats?.pending_withdrawals || 0) > 3
+                )
+                .slice(0, 3)
+                .map((junior) => (
+                  <div key={junior.id} className="flex items-center justify-between p-2 bg-red-50 rounded">
+                    <div>
+                      <div className="text-sm font-medium">{junior.first_name} {junior.last_name}</div>
+                      <div className="text-xs text-red-600">
+                        {junior.status !== 'active' ? 'Неактивен' :
+                         (junior.stats?.success_rate || 0) < 50 ? 'Низкая успешность' :
+                         'Много ожидающих выводов'}
+                      </div>
+                    </div>
+                    <button 
+                      className="btn-sm btn-danger"
+                      onClick={() => router.push(`/dashboard/manager/team/${junior.id}`)}
+                    >
+                      Проверить
+                    </button>
+                  </div>
+                ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Таблица команды */}
+      <DataTable
+        data={juniors}
+        columns={columns}
+        actions={actions}
+        loading={loading}
+        filters={[
+          { key: 'status', label: 'Статус', type: 'select', options: [
+            { value: 'active', label: 'Активный' },
+            { value: 'inactive', label: 'Неактивный' },
+            { value: 'terminated', label: 'Уволен' }
+          ]},
+          { key: 'stats.success_rate', label: 'Успешность', type: 'range', min: 0, max: 100 },
+          { key: 'stats.monthly_tests', label: 'Тесты за месяц', type: 'range', min: 0, max: 100 }
+        ]}
+      />
+    </div>
+  )
+}
