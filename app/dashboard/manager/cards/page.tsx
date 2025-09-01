@@ -80,6 +80,35 @@ interface Junior {
   }
 }
 
+interface CardAssignment {
+  id: string
+  card: Card
+  casino_assignment: {
+    assignment_id: string
+    casino_id: string
+    casino_name: string
+    casino_company?: string
+    casino_currency?: string
+    assignment_type: string
+    status: string
+    deposit_amount?: number
+    has_deposit: boolean
+  } | null
+  casino: {
+    id: string
+    name: string
+    company: string
+    currency: string
+  } | null
+  assigned_user?: {
+    id: string
+    first_name: string
+    last_name: string
+    email: string
+  }
+  assigned_at?: string
+}
+
 interface Casino {
   id: string
   name: string
@@ -475,6 +504,48 @@ export default function ManagerCardsPage() {
     return false
   }
 
+  // Функция для создания отдельных записей назначений карт
+  function expandCardAssignments(cards: Card[]): CardAssignment[] {
+    const assignments: CardAssignment[] = []
+    
+    cards.forEach(card => {
+      if (!card.assigned_to) return
+      
+      // Если есть назначения на казино через новую систему
+      if (card.casino_assignments && card.casino_assignments.length > 0) {
+        card.casino_assignments.forEach(casinoAssignment => {
+          if (casinoAssignment.status === 'active') {
+            assignments.push({
+              id: `${card.id}-${casinoAssignment.casino_id}`,
+              card,
+              casino_assignment: casinoAssignment,
+              casino: {
+                id: casinoAssignment.casino_id,
+                name: casinoAssignment.casino_name,
+                company: casinoAssignment.casino_company || '',
+                currency: casinoAssignment.casino_currency || 'USD'
+              },
+              assigned_user: card.assigned_user,
+              assigned_at: card.created_at
+            })
+          }
+        })
+      } else {
+        // Если только общее назначение без конкретного казино
+        assignments.push({
+          id: card.id,
+          card,
+          casino_assignment: null,
+          casino: null,
+          assigned_user: card.assigned_user,
+          assigned_at: card.created_at
+        })
+      }
+    })
+    
+    return assignments
+  }
+
   // Интерактивная статистика в зависимости от вкладки
   function calculateStats() {
     if (activeTab === 'assigned') {
@@ -618,6 +689,37 @@ export default function ManagerCardsPage() {
     return Array.from(uniqueCasinos.values())
   }
 
+  // Функция отзыва карты для конкретного казино
+  async function handleUnassignFromCasino(cardId: string, casinoId: string) {
+    try {
+      const response = await fetch('/api/manager/cards/unassign-from-casino', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ card_id: cardId, casino_id: casinoId })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Ошибка отзыва карты')
+      }
+
+      const result = await response.json()
+      addToast({
+        type: 'success',
+        title: 'Карта отозвана',
+        description: result.message
+      })
+
+      await loadCards()
+    } catch (error: any) {
+      addToast({
+        type: 'error',
+        title: 'Ошибка отзыва карты',
+        description: error.message
+      })
+    }
+  }
+
   const columns: Column<Card>[] = [
     {
       key: 'select',
@@ -649,17 +751,17 @@ export default function ManagerCardsPage() {
         const isAssignedToCasino = selectedCasinoFilter ? isCardAssignedToCasino(card, selectedCasinoFilter) : false
         
         return (
-          <div>
+        <div>
             <div className="font-mono font-medium text-gray-900">{card.card_number_mask}</div>
-            <div className="text-sm text-gray-500">
+          <div className="text-sm text-gray-500">
               BIN: <span className={binMatches && selectedCasinoFilter ? 'text-success-600 font-medium' : ''}>{cardBin}</span>
               {binMatches && selectedCasinoFilter && !isAssignedToCasino && <span className="text-success-600 ml-1">✅</span>}
               {selectedCasinoFilter && !binMatches && selectedCasino?.allowed_bins && selectedCasino.allowed_bins.length > 0 && <span className="text-danger-600 ml-1">❌ BIN</span>}
               {isAssignedToCasino && <span className="text-warning-600 ml-1">🔒 Занята</span>}
               <span className="ml-2">• {card.card_type === 'gold' ? '🟡 Gold' : card.card_type === 'platinum' ? '⚪ Platinum' : card.card_type === 'black' ? '⚫ Black' : '⚫ Grey'}</span>
-            </div>
           </div>
-        )
+        </div>
+      )
       }
     },
     {
@@ -755,9 +857,119 @@ export default function ManagerCardsPage() {
           <span className={`text-sm ${isExpiring ? 'text-warning-600 font-medium' : 'text-gray-600'}`}>
             {card.exp_month.toString().padStart(2, '0')}/{card.exp_year}
             {isExpiring && <div className="text-xs text-warning-600">⚠️ Скоро истекает</div>}
-          </span>
-        )
+        </span>
+      )
       }
+    }
+  ]
+
+  // Колонки для назначенных карт (отдельные записи для каждого казино)
+  const assignedColumns: Column<CardAssignment>[] = [
+    {
+      key: 'card_number_mask',
+      label: 'Номер карты',
+      render: (assignment) => (
+        <div className="flex items-center space-x-2">
+          <span className="font-mono text-sm">{assignment.card.card_number_mask}</span>
+          <span className="text-xs text-gray-500">BIN: {assignment.card.card_bin}</span>
+        </div>
+      )
+    },
+    {
+      key: 'casino',
+      label: 'Казино',
+      render: (assignment) => (
+        <div>
+          {assignment.casino ? (
+            <div>
+              <div className="font-medium">{assignment.casino.name}</div>
+              {assignment.casino.company && (
+                <div className="text-xs text-gray-500">{assignment.casino.company}</div>
+              )}
+            </div>
+          ) : (
+            <span className="text-gray-400">Не указано</span>
+          )}
+        </div>
+      )
+    },
+    {
+      key: 'assigned_user',
+      label: 'Назначено',
+      render: (assignment) => (
+        <div>
+          {assignment.assigned_user ? (
+            <div>
+              <div className="font-medium">
+                {assignment.assigned_user.first_name} {assignment.assigned_user.last_name}
+              </div>
+              <div className="text-xs text-gray-500">{assignment.assigned_user.email}</div>
+            </div>
+          ) : (
+            <span className="text-gray-400">Не назначено</span>
+          )}
+        </div>
+      )
+    },
+    {
+      key: 'bank',
+      label: 'Банк',
+      render: (assignment) => (
+        <div>
+          <div className="font-medium">{assignment.card.bank_account?.bank?.name}</div>
+          <div className="text-xs text-gray-500">{assignment.card.bank_account?.holder_name}</div>
+        </div>
+      )
+    },
+    {
+      key: 'balance',
+      label: 'Баланс',
+      align: 'right',
+      render: (assignment) => (
+        <div className="text-right">
+          <div className="font-medium text-green-600">
+            {getCurrencySymbol(assignment.card.bank_account?.currency || 'USD')}
+            {(assignment.card.bank_account?.balance || 0).toFixed(2)}
+          </div>
+        </div>
+      )
+    },
+    {
+      key: 'status',
+      label: 'Статус',
+      align: 'center',
+      render: (assignment) => (
+        <StatusBadge 
+          status={assignment.casino_assignment?.status || 'active'} 
+        />
+      )
+    },
+    {
+      key: 'actions',
+      label: 'Действия',
+      align: 'center',
+      render: (assignment) => (
+        <div className="flex space-x-2">
+          {assignment.casino && (
+            <button
+              onClick={() => handleUnassignFromCasino(assignment.card.id, assignment.casino!.id)}
+              className="btn-secondary text-xs"
+              title="Отозвать с этого казино"
+            >
+              🚫 Отозвать
+            </button>
+          )}
+          <button
+            onClick={() => {
+              setSelectedCard(assignment.card)
+              setShowDetailsModal(true)
+            }}
+            className="btn-secondary text-xs"
+          >
+            👁️ Детали
+          </button>
+        </div>
+      )
     }
   ]
 
@@ -781,10 +993,10 @@ export default function ManagerCardsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Управление картами</h1>
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Управление картами</h1>
         <p className="text-gray-600">Назначение карт Junior'ам для работы с казино</p>
-      </div>
+        </div>
 
       {/* Вкладки */}
       <div className="border-b border-gray-200">
@@ -831,25 +1043,25 @@ export default function ManagerCardsPage() {
       {activeTab === 'free' ? (
         // Детальная статистика для свободных карт
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-          <KPICard
+        <KPICard
             title={selectedCasinoFilter ? 'Карты с подходящим BIN' : 'Всего активных карт'}
             value={dynamicStats.cardsWithMatchingBin || dynamicStats.totalCards || 0}
-            icon={<CreditCardIcon className="h-6 w-6" />}
-            color="primary"
-          />
-          <KPICard
+          icon={<CreditCardIcon className="h-6 w-6" />}
+          color="primary"
+        />
+        <KPICard
             title="Доступно для назначения"
             value={dynamicStats.availableForAssignment || 0}
-            icon={<CheckCircleIcon className="h-6 w-6" />}
-            color="success"
-          />
-          <KPICard
+          icon={<CheckCircleIcon className="h-6 w-6" />}
+          color="success"
+        />
+        <KPICard
             title="Назначено Junior'ам"
             value={dynamicStats.assignedToJuniors || 0}
             icon={<UsersIcon className="h-6 w-6" />}
-            color="warning"
-          />
-          <KPICard
+          color="warning"
+        />
+        <KPICard
             title="В работе"
             value={dynamicStats.inWork || 0}
             icon={<CogIcon className="h-6 w-6" />}
@@ -886,10 +1098,10 @@ export default function ManagerCardsPage() {
           <KPICard
             title="Заблокированных"
             value={dynamicStats.blockedCards || 0}
-            icon={<XCircleIcon className="h-6 w-6" />}
-            color="danger"
-          />
-        </div>
+          icon={<XCircleIcon className="h-6 w-6" />}
+          color="danger"
+        />
+      </div>
       )}
 
       {/* Фильтры - только для свободных карт */}
@@ -1242,7 +1454,7 @@ export default function ManagerCardsPage() {
       <div className="card">
         <div className="card-header">
           <div className="flex justify-between items-center">
-            <h3 className="text-lg font-semibold text-gray-900">
+          <h3 className="text-lg font-semibold text-gray-900">
               {activeTab === 'free' ? 'Свободные карты' : 'Назначенные карты'} 
               ({cards.filter(card => {
                 if (activeTab === 'free') {
@@ -1311,16 +1523,16 @@ export default function ManagerCardsPage() {
                 }
               }).length}) 
               {selectedCards.size > 0 && `• Выбрано: ${selectedCards.size}`}
-            </h3>
+          </h3>
             <div className="flex items-center space-x-2">
               {/* Кнопка очистки уже есть в фильтрах выше, убираем дублирование */}
             </div>
           </div>
         </div>
         
+        {activeTab === 'free' ? (
         <DataTable
-          data={cards.filter(card => {
-            if (activeTab === 'free') {
+            data={cards.filter(card => {
               // Базовая фильтрация для свободных карт
               let baseFilter = card.status === 'active' && (card.bank_account?.balance || 0) >= 10
               
@@ -1359,54 +1571,44 @@ export default function ManagerCardsPage() {
               }
               
               return true
-            } else {
-              // Фильтрация для назначенных карт
-              let baseFilter = !!card.assigned_to
-              
-              if (!baseFilter) return false
-              
-              // Фильтр по пользователю
-              if (assignedUserFilter && card.assigned_user?.id !== assignedUserFilter) {
-                return false
-              }
-              
-              // Фильтр по банку
-              if (assignedBankFilter && (card.bank_account?.bank as any)?.id !== assignedBankFilter) {
-                return false
-              }
-              
-              // Фильтр по казино
-              if (assignedCasinoFilter) {
-                let hasMatchingCasino = false
-                
-                // Проверяем новую систему назначений
-                if (card.casino_assignments && card.casino_assignments.length > 0) {
-                  hasMatchingCasino = card.casino_assignments.some(assignment => 
-                    assignment.casino_id === assignedCasinoFilter
-                  )
-                }
-                
-                // Проверяем старую систему
-                if (!hasMatchingCasino && card.assigned_casino_id === assignedCasinoFilter) {
-                  hasMatchingCasino = true
-                }
-                
-                if (!hasMatchingCasino) {
-                  return false
-                }
-              }
-              
-              return true
-            }
-          })}
+            })}
           columns={columns}
           actions={actions}
           loading={loading}
           pagination={{ pageSize: 20 }}
           filtering={true}
           exportable={true}
-          emptyMessage={activeTab === 'free' ? "Нет доступных карт для назначения" : "Нет назначенных карт"}
-        />
+            emptyMessage="Нет доступных карт для назначения"
+          />
+        ) : (
+          <DataTable
+            data={expandCardAssignments(cards).filter(assignment => {
+              // Фильтр по пользователю
+              if (assignedUserFilter && assignment.assigned_user?.id !== assignedUserFilter) {
+                return false
+              }
+              
+              // Фильтр по банку
+              if (assignedBankFilter && (assignment.card.bank_account?.bank as any)?.id !== assignedBankFilter) {
+                return false
+              }
+              
+              // Фильтр по казино
+              if (assignedCasinoFilter && assignment.casino?.id !== assignedCasinoFilter) {
+                return false
+              }
+              
+              return true
+            })}
+            columns={assignedColumns}
+            actions={[]}
+            loading={loading}
+            pagination={{ pageSize: 20 }}
+            filtering={true}
+            exportable={true}
+            emptyMessage="Нет назначенных карт"
+          />
+        )}
       </div>
 
       {/* Modal деталей карты */}
@@ -1419,7 +1621,7 @@ export default function ManagerCardsPage() {
         title="Детали карты"
         size="lg"
       >
-        {selectedCard && (
+          {selectedCard && (
           <div className="space-y-6">
             {/* Основная информация */}
             <div className="bg-gray-50 rounded-lg p-4">
@@ -1428,11 +1630,11 @@ export default function ManagerCardsPage() {
                 <div>
                   <span className="font-medium text-gray-700">Номер карты:</span>
                   <div className="font-mono text-lg text-gray-900">{selectedCard.card_number_mask}</div>
-                </div>
+              </div>
                 <div>
                   <span className="font-medium text-gray-700">BIN код:</span>
                   <div className="font-mono text-gray-900">{selectedCard.card_bin}</div>
-                </div>
+            </div>
                 <div>
                   <span className="font-medium text-gray-700">Срок действия:</span>
                   <div className="font-mono text-gray-900">
@@ -1456,7 +1658,7 @@ export default function ManagerCardsPage() {
             <div className="bg-blue-50 rounded-lg p-4">
               <h4 className="font-medium text-blue-900 mb-3">🏦 Банковский аккаунт</h4>
               <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
+          <div>
                   <span className="font-medium text-blue-700">Банк:</span>
                   <div className="text-blue-900">{selectedCard.bank_account?.bank?.name || 'Неизвестно'}</div>
                 </div>
@@ -1475,17 +1677,17 @@ export default function ManagerCardsPage() {
                   <div><StatusBadge status={selectedCard.status} size="sm" /></div>
                 </div>
               </div>
-            </div>
+          </div>
 
             {/* Назначение */}
             {selectedCard.assigned_user && (
               <div className="bg-green-50 rounded-lg p-4">
                 <h4 className="font-medium text-green-900 mb-3">👤 Назначение</h4>
                 <div className="flex justify-between items-center p-2 bg-white rounded border">
-                  <div>
+          <div>
                     <div className="font-medium text-gray-900">
                       {selectedCard.assigned_user.first_name} {selectedCard.assigned_user.last_name}
-                    </div>
+          </div>
                     <div className="text-xs text-gray-500">
                       📧 {selectedCard.assigned_user.email} • 👤 {selectedCard.assigned_user.role}
                     </div>
@@ -1496,29 +1698,29 @@ export default function ManagerCardsPage() {
 
             {/* Кнопки действий */}
             <div className="flex justify-end space-x-3">
-              <button
-                onClick={() => {
+            <button
+              onClick={() => {
                   setShowDetailsModal(false)
-                  setSelectedCard(null)
-                }}
-                className="btn-secondary"
-              >
+                setSelectedCard(null)
+              }}
+              className="btn-secondary"
+            >
                 Закрыть
-              </button>
+            </button>
               {selectedCard.status === 'active' && !selectedCard.assigned_to && (
-                <button
+            <button
                   onClick={() => {
                     setShowDetailsModal(false)
                     setSelectedCards(new Set([selectedCard.id]))
                   }}
-                  className="btn-primary"
+              className="btn-primary"
                   disabled={!selectedJuniorFilter}
-                >
+            >
                   {selectedJuniorFilter ? 'Выбрать для назначения' : 'Сначала выберите Junior\'а'}
-                </button>
+            </button>
               )}
-            </div>
           </div>
+        </div>
         )}
       </Modal>
 
