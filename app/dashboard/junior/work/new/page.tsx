@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useToast } from '@/components/ui/Toast'
 import Modal from '@/components/ui/Modal'
 import { 
@@ -26,13 +26,34 @@ interface Card {
   card_number_mask: string
   card_bin: string
   card_type: string
-  bank_name: string
-  bank_balance: number
-  is_available: boolean
+  status: string
+  account_balance: number
+  account_currency: string
+  bank_account: {
+    id: string
+    holder_name: string
+    currency: string
+    bank: {
+      name: string
+      country: string
+    } | null
+  }
+  casino_assignments: Array<{
+    assignment_id: string
+    casino_id: string
+    casino_name: string
+    casino_company?: string
+    casino_currency?: string
+    assignment_type: string
+    status: string
+    deposit_amount?: number
+    has_deposit: boolean
+  }>
 }
 
 export default function NewWorkPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { addToast } = useToast()
   const [casinos, setCasinos] = useState<Casino[]>([])
   const [cards, setCards] = useState<Card[]>([])
@@ -58,6 +79,9 @@ export default function NewWorkPage() {
 
   async function loadData() {
     try {
+      // Получаем card_id из URL параметров
+      const preselectedCardId = searchParams.get('card_id')
+
       // Загружаем доступные казино
       const casinosResponse = await fetch('/api/casinos?status=approved')
       if (casinosResponse.ok) {
@@ -69,7 +93,18 @@ export default function NewWorkPage() {
       const cardsResponse = await fetch('/api/cards')
       if (cardsResponse.ok) {
         const { cards: cardsData } = await cardsResponse.json()
-        setCards(cardsData.filter((c: Card) => c.is_available))
+        const availableCards = cardsData.filter((c: Card) => c.status === 'active')
+        setCards(availableCards)
+
+        // Предзаполняем карту из URL параметра
+        if (preselectedCardId && availableCards.find((c: Card) => c.id === preselectedCardId)) {
+          setWorkForm(prev => ({ ...prev, card_id: preselectedCardId }))
+          addToast({
+            type: 'success',
+            title: 'Карта выбрана',
+            description: 'Карта автоматически выбрана из ссылки'
+          })
+        }
       }
 
     } catch (error: any) {
@@ -203,7 +238,6 @@ export default function NewWorkPage() {
               {getSelectedCasino() && (
                 <div className="mt-2 text-sm text-gray-600">
                   <div>URL: <a href={getSelectedCasino()!.url} target="_blank" className="text-primary-600 hover:underline">{getSelectedCasino()!.url}</a></div>
-                  <div>Лимит автоодобрения: ${getSelectedCasino()!.auto_approve_limit}</div>
                 </div>
               )}
             </div>
@@ -219,14 +253,15 @@ export default function NewWorkPage() {
                 <option value="">Выберите карту</option>
                 {cards.map(card => (
                   <option key={card.id} value={card.id}>
-                    {card.card_number_mask} - {card.bank_name} (${card.bank_balance})
+                    {card.card_number_mask} - {card.bank_account?.bank?.name || 'Неизвестный банк'} ({card.account_currency === 'USD' ? '$' : card.account_currency}{card.account_balance})
                   </option>
                 ))}
               </select>
               {getSelectedCard() && (
                 <div className="mt-2 text-sm text-gray-600">
                   <div>BIN: {getSelectedCard()!.card_bin} • Тип: {getSelectedCard()!.card_type}</div>
-                  <div>Баланс банка: ${getSelectedCard()!.bank_balance}</div>
+                  <div>Баланс: {getSelectedCard()!.account_currency === 'USD' ? '$' : getSelectedCard()!.account_currency}{getSelectedCard()!.account_balance}</div>
+                  <div>Банк: {getSelectedCard()!.bank_account?.bank?.name || 'Неизвестный банк'}</div>
                 </div>
               )}
             </div>
@@ -294,8 +329,20 @@ export default function NewWorkPage() {
                 <div className="text-sm text-primary-800">
                   <div className="font-medium">{getSelectedCasino()!.name}</div>
                   <div className="text-primary-600 break-all">{getSelectedCasino()!.url}</div>
-                  <div className="text-xs mt-1">Лимит: ${getSelectedCasino()!.auto_approve_limit}</div>
                 </div>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(getSelectedCasino()!.url)
+                    addToast({
+                      type: 'success',
+                      title: 'Скопировано!',
+                      description: 'URL казино скопирован в буфер обмена'
+                    })
+                  }}
+                  className="mt-2 btn-secondary text-xs"
+                >
+                  📋 Скопировать промо
+                </button>
               </div>
             )}
 
@@ -304,8 +351,18 @@ export default function NewWorkPage() {
                 <h4 className="font-medium text-success-900 mb-2">🃏 Карта</h4>
                 <div className="text-sm text-success-800">
                   <div className="font-mono font-medium">{getSelectedCard()!.card_number_mask}</div>
-                  <div>{getSelectedCard()!.bank_name}</div>
-                  <div>Баланс: <span className="font-medium">${getSelectedCard()!.bank_balance}</span></div>
+                  <div>{getSelectedCard()!.bank_account?.bank?.name || 'Неизвестный банк'}</div>
+                  <div>Баланс: <span className="font-medium">{getSelectedCard()!.account_currency === 'USD' ? '$' : getSelectedCard()!.account_currency}{getSelectedCard()!.account_balance}</span></div>
+                  {getSelectedCard()!.casino_assignments.length > 0 && (
+                    <div className="mt-2">
+                      <div className="text-xs text-success-700">Назначения:</div>
+                      {getSelectedCard()!.casino_assignments.map((assignment, index) => (
+                        <div key={assignment.assignment_id} className="text-xs">
+                          • {assignment.casino_name} ({assignment.assignment_type === 'junior_work' ? 'Работа' : 'Тест'})
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <button
                   onClick={() => {
