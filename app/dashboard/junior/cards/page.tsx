@@ -11,7 +11,8 @@ import {
   EyeIcon,
   ClockIcon,
   CheckCircleIcon,
-  ExclamationTriangleIcon
+  ExclamationTriangleIcon,
+  PlusIcon
 } from '@heroicons/react/24/outline'
 
 interface Card {
@@ -22,12 +23,29 @@ interface Card {
   exp_month: number
   exp_year: number
   status: string
-  bank_balance: number
-  account_holder: string
-  bank_name: string
-  bank_country: string
-  is_available: boolean
+  account_balance: number
+  account_currency: string
   daily_limit: number | null
+  bank_account: {
+    id: string
+    holder_name: string
+    currency: string
+    bank: {
+      name: string
+      country: string
+    } | null
+  }
+  casino_assignments: Array<{
+    assignment_id: string
+    casino_id: string
+    casino_name: string
+    casino_company?: string
+    casino_currency?: string
+    assignment_type: string
+    status: string
+    deposit_amount?: number
+    has_deposit: boolean
+  }>
 }
 
 interface CardRevealData {
@@ -176,24 +194,50 @@ export default function JuniorCardsPage() {
       )
     },
     {
-      key: 'bank_name',
+      key: 'bank_account',
       label: 'Банк',
       render: (card) => (
         <div>
-          <div className="font-medium text-gray-900">{card.bank_name}</div>
-          <div className="text-sm text-gray-500">{card.account_holder}</div>
+          <div className="font-medium text-gray-900">{card.bank_account?.bank?.name || 'Неизвестный банк'}</div>
+          <div className="text-sm text-gray-500">{card.bank_account?.holder_name}</div>
+          <div className="text-xs text-gray-400">{card.bank_account?.bank?.country}</div>
         </div>
       )
     },
     {
-      key: 'bank_balance',
+      key: 'account_balance',
       label: 'Баланс',
       align: 'right',
       render: (card) => (
         <div className="text-right">
-          <div className={`font-mono font-medium ${card.bank_balance >= 10 ? 'text-success-600' : 'text-danger-600'}`}>
-            ${card.bank_balance.toFixed(2)}
+          <div className={`font-mono font-medium ${card.account_balance >= 10 ? 'text-success-600' : 'text-danger-600'}`}>
+            {card.account_currency === 'USD' ? '$' : card.account_currency}{card.account_balance.toFixed(2)}
           </div>
+        </div>
+      )
+    },
+    {
+      key: 'casino_assignments',
+      label: 'Назначения',
+      render: (card) => (
+        <div>
+          {card.casino_assignments.length > 0 ? (
+            <div className="space-y-1">
+              {card.casino_assignments.map((assignment, index) => (
+                <div key={assignment.assignment_id} className="text-sm">
+                  <div className="font-medium text-primary-600">
+                    {assignment.casino_name}
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    {assignment.assignment_type === 'junior_work' ? '🎯 Работа' : '🧪 Тест'}
+                    {assignment.has_deposit && ` • $${assignment.deposit_amount}`}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <span className="text-sm text-gray-400">Нет назначений</span>
+          )}
         </div>
       )
     },
@@ -221,12 +265,22 @@ export default function JuniorCardsPage() {
         setShowRevealModal(true)
       },
       variant: 'primary',
-      condition: (card) => card.is_available
+      condition: (card) => card.status === 'active'
+    },
+    {
+      label: 'Создать работу',
+      action: (card) => {
+        // Перенаправляем на страницу создания работы с предзаполненной картой
+        window.location.href = `/dashboard/junior/work/new?card_id=${card.id}`
+      },
+      variant: 'secondary',
+      condition: (card) => card.status === 'active' && card.casino_assignments.length > 0
     }
   ]
 
-  const availableCards = cards.filter(c => c.is_available).length
-  const totalBalance = cards.reduce((sum, c) => sum + c.bank_balance, 0)
+  const activeCards = cards.filter(c => c.status === 'active').length
+  const cardsWithAssignments = cards.filter(c => c.casino_assignments.length > 0).length
+  const totalBalance = cards.reduce((sum, c) => sum + c.account_balance, 0)
 
   return (
     <div className="space-y-6">
@@ -236,7 +290,7 @@ export default function JuniorCardsPage() {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <KPICard
           title="Всего карт"
           value={cards.length}
@@ -244,10 +298,16 @@ export default function JuniorCardsPage() {
           color="primary"
         />
         <KPICard
-          title="Доступные"
-          value={availableCards}
+          title="Активные"
+          value={activeCards}
           icon={<CheckCircleIcon className="h-6 w-6" />}
           color="success"
+        />
+        <KPICard
+          title="С назначениями"
+          value={cardsWithAssignments}
+          icon={<span className="text-xl">🎯</span>}
+          color="primary"
         />
         <KPICard
           title="Общий баланс"
@@ -274,6 +334,33 @@ export default function JuniorCardsPage() {
           emptyMessage="У вас нет назначенных карт"
         />
       </div>
+
+      {/* Информационное сообщение для новых пользователей */}
+      {!loading && cards.length === 0 && (
+        <div className="card text-center py-12">
+          <CreditCardIcon className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">Нет назначенных карт</h3>
+          <p className="text-gray-600 mb-4">
+            Менеджер еще не назначил вам банковские карты для работы.
+          </p>
+          <p className="text-sm text-gray-500">
+            Обратитесь к менеджеру для получения карт или ожидайте назначения.
+          </p>
+        </div>
+      )}
+
+      {/* Подсказка для пользователей с картами без назначений */}
+      {!loading && cards.length > 0 && cardsWithAssignments === 0 && (
+        <div className="bg-info-50 border border-info-200 rounded-lg p-4">
+          <div className="flex items-start">
+            <ExclamationTriangleIcon className="h-5 w-5 text-info-600 mr-2 mt-0.5" />
+            <div className="text-sm text-info-800">
+              <p className="font-medium">Карты без назначений</p>
+              <p>У вас есть карты, но они не назначены на конкретные казино. Обратитесь к менеджеру для назначения работ.</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal показа секретов карты */}
       <Modal
