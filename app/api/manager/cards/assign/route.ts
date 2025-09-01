@@ -29,6 +29,14 @@ export async function POST(request: Request) {
 
     // Поддерживаем как одиночное назначение (card_id), так и массовое (card_ids)
     const cardIds = card_ids || (body.card_id ? [body.card_id] : [])
+    
+    console.log('🎯 Запрос на назначение карт:', {
+      cardIds,
+      user_id,
+      casino_id,
+      notes,
+      manager_id: userData.id
+    })
 
     if (!cardIds || cardIds.length === 0 || !user_id) {
       return NextResponse.json({ error: 'Card IDs and User ID are required' }, { status: 400 })
@@ -86,6 +94,19 @@ export async function POST(request: Request) {
     const availableCards = cards.filter(card => {
       const bankAccount = card.bank_account as any
       
+      // Отладочная информация
+      if (card.card_number_mask.includes('1234')) {
+        console.log('🔍 Проверка карты для назначения', card.card_number_mask, {
+          status: card.status,
+          assigned_to: card.assigned_to,
+          assigned_casino_id: card.assigned_casino_id,
+          balance: bankAccount?.balance,
+          is_active: bankAccount?.is_active,
+          casino_id,
+          existingAssignments: existingAssignments.filter(a => a.card_id === card.id)
+        })
+      }
+      
       // Базовые проверки
       if (!(
         card.status === 'active' &&
@@ -97,12 +118,7 @@ export async function POST(request: Request) {
       
       // Проверяем, не назначена ли карта уже на это конкретное казино
       if (casino_id) {
-        // Проверяем старую систему
-        if (card.assigned_casino_id === casino_id) {
-          return false
-        }
-        
-        // Проверяем новую систему
+        // Проверяем только новую систему (card_casino_assignments)
         if (existingAssignments.some(assignment => assignment.card_id === card.id)) {
           return false
         }
