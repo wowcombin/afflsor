@@ -447,16 +447,11 @@ export default function ManagerCardsPage() {
 
   // Проверяем, назначена ли карта уже на это казино ЛЮБЫМ пользователем
   function isCardAssignedToCasino(card: Card, casinoId: string): boolean {
-    // Проверяем новую систему назначений (casino_assignments)
+    // Проверяем только новую систему назначений (casino_assignments)
     if (card.casino_assignments && card.casino_assignments.length > 0) {
       return card.casino_assignments.some(assignment =>
         assignment.casino_id === casinoId && assignment.status === 'active'
       )
-    }
-
-    // Проверяем старую систему (assigned_casino_id)
-    if (card.assigned_casino_id === casinoId) {
-      return true
     }
 
     return false
@@ -470,16 +465,11 @@ export default function ManagerCardsPage() {
     // Если карта назначена другому пользователю, то недоступна
     if (userId && card.assigned_to !== userId) return false
     
-    // Проверяем новую систему назначений (casino_assignments)
+    // Проверяем только новую систему назначений (casino_assignments)
     if (card.casino_assignments && card.casino_assignments.length > 0) {
       return card.casino_assignments.some(assignment =>
         assignment.casino_id === casinoId && assignment.status === 'active'
       )
-    }
-
-    // Проверяем старую систему (assigned_casino_id)
-    if (card.assigned_casino_id === casinoId) {
-      return true
     }
 
     return false
