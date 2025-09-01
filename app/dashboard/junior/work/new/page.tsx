@@ -138,10 +138,10 @@ function CardDetailsModal({ card, onClose }: { card: Card, onClose: () => void }
     <div className="space-y-4">
       {!revealedData ? (
         <>
-          <div className="bg-info-50 border border-info-200 rounded-lg p-4">
-            <div className="text-sm text-info-800">
-              <p className="font-medium">Информация о карте</p>
-              <div className="mt-2 space-y-1">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="text-sm text-blue-800">
+              <p className="font-medium text-blue-900">Информация о карте</p>
+              <div className="mt-2 space-y-1 text-blue-700">
                 <p>Номер: {card.card_number_mask}</p>
                 <p>Тип: {card.card_type}</p>
                 <p>Банк: {card.bank_account?.bank?.name}</p>
@@ -189,9 +189,9 @@ function CardDetailsModal({ card, onClose }: { card: Card, onClose: () => void }
 
             <div className="space-y-3">
               <div>
-                <label className="text-xs font-medium text-success-800">Номер карты</label>
+                <label className="text-xs font-medium text-green-800">Номер карты</label>
                 <div className="flex items-center space-x-2">
-                  <code className="bg-white px-3 py-2 rounded border font-mono text-lg">
+                  <code className="bg-white px-3 py-2 rounded border font-mono text-lg text-gray-900">
                     {revealedData.pan}
                   </code>
                   <button
@@ -205,9 +205,9 @@ function CardDetailsModal({ card, onClose }: { card: Card, onClose: () => void }
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs font-medium text-success-800">CVV</label>
+                  <label className="text-xs font-medium text-green-800">CVV</label>
                   <div className="flex items-center space-x-2">
-                    <code className="bg-white px-3 py-2 rounded border font-mono">
+                    <code className="bg-white px-3 py-2 rounded border font-mono text-gray-900">
                       {revealedData.cvv}
                     </code>
                     <button
@@ -220,15 +220,15 @@ function CardDetailsModal({ card, onClose }: { card: Card, onClose: () => void }
                 </div>
 
                 <div>
-                  <label className="text-xs font-medium text-success-800">Срок действия</label>
-                  <div className="bg-white px-3 py-2 rounded border font-mono">
+                  <label className="text-xs font-medium text-green-800">Срок действия</label>
+                  <div className="bg-white px-3 py-2 rounded border font-mono text-gray-900">
                     {String(revealedData.exp_month).padStart(2, '0')}/{revealedData.exp_year}
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="mt-4 text-xs text-success-700">
+            <div className="mt-4 text-xs text-green-700">
               ⚠️ Данные автоматически скроются через {timeLeft} секунд
             </div>
           </div>
