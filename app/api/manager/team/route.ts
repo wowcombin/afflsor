@@ -127,7 +127,7 @@ export async function GET() {
             .eq('withdrawal_status', 'approved')
             .gte('updated_at', startOfMonth.toISOString())
 
-          const totalProfit = (monthlyWithdrawals || []).reduce((sum, w) => {
+          const totalProfit = (monthlyWithdrawals || []).reduce((sum: number, w: any) => {
             return sum + ((w.withdrawal_amount || 0) - (w.work?.deposit_amount || 0))
           }, 0)
 

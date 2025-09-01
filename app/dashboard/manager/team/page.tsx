@@ -38,7 +38,7 @@ export default function TeamManagement() {
       if (data.success) {
         setJuniors(data.data)
       } else {
-        addToast('error', 'Ошибка', data.error || 'Не удалось загрузить данные команды')
+        addToast({ type: 'error', title: 'Ошибка', description: data.error || 'Не удалось загрузить данные команды' })
       }
     } catch (error) {
       addToast({ type: 'error', title: 'Ошибка', description: 'Ошибка сети' })
@@ -347,15 +347,6 @@ export default function TeamManagement() {
         columns={columns}
         actions={actions}
         loading={loading}
-        filters={[
-          { key: 'status', label: 'Статус', type: 'select', options: [
-            { value: 'active', label: 'Активный' },
-            { value: 'inactive', label: 'Неактивный' },
-            { value: 'terminated', label: 'Уволен' }
-          ]},
-          { key: 'stats.success_rate', label: 'Успешность', type: 'range', min: 0, max: 100 },
-          { key: 'stats.monthly_tests', label: 'Тесты за месяц', type: 'range', min: 0, max: 100 }
-        ]}
       />
     </div>
   )

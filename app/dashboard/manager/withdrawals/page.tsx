@@ -36,7 +36,7 @@ export default function WithdrawalsQueue() {
       if (data.success) {
         setWithdrawals(data.data)
       } else {
-        addToast('error', 'Ошибка', data.error || 'Не удалось загрузить выводы')
+        addToast({ type: 'error', title: 'Ошибка', description: data.error || 'Не удалось загрузить выводы' })
       }
     } catch (error) {
       addToast({ type: 'error', title: 'Ошибка', description: 'Ошибка сети' })
@@ -57,11 +57,11 @@ export default function WithdrawalsQueue() {
       const data = await response.json()
       
       if (data.success) {
-        addToast('success', 'Успешно', `Вывод ${action === 'approve' ? 'одобрен' : 'отклонен'}`)
+        addToast({ type: 'success', title: 'Успешно', description: `Вывод ${action === 'approve' ? 'одобрен' : 'отклонен'}` })
         setSelectedWithdrawal(null)
         fetchWithdrawals()
       } else {
-        addToast('error', 'Ошибка', data.error || 'Не удалось обновить статус')
+        addToast({ type: 'error', title: 'Ошибка', description: data.error || 'Не удалось обновить статус' })
       }
     } catch (error) {
       addToast({ type: 'error', title: 'Ошибка', description: 'Ошибка сети' })
@@ -220,15 +220,6 @@ export default function WithdrawalsQueue() {
         columns={columns}
         actions={actions}
         loading={loading}
-        filters={[
-          { key: 'withdrawal_status', label: 'Статус', type: 'select', options: [
-            { value: 'pending', label: 'Ожидает' },
-            { value: 'approved', label: 'Одобрено' },
-            { value: 'rejected', label: 'Отклонено' }
-          ]},
-          { key: 'work.casino.name', label: 'Казино', type: 'text' },
-          { key: 'work.tester.first_name', label: 'Junior', type: 'text' }
-        ]}
       />
 
       {/* Модальное окно проверки вывода */}
@@ -249,12 +240,12 @@ export default function WithdrawalsQueue() {
     )
     
     if (smallWithdrawals.length === 0) {
-      addToast('info', 'Информация', 'Нет выводов менее $200 для одобрения')
+      addToast({ type: 'info', title: 'Информация', description: 'Нет выводов менее $200 для одобрения' })
       return
     }
 
     // Здесь будет API для массового одобрения
-    addToast('info', 'В разработке', 'Функция массового одобрения будет добавлена')
+    addToast({ type: 'info', title: 'В разработке', description: 'Функция массового одобрения будет добавлена' })
   }
 }
 

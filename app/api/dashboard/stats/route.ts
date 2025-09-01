@@ -167,7 +167,7 @@ async function getManagerStats(supabase: any) {
       .eq('withdrawal_status', 'approved')
       .gte('updated_at', startOfMonth.toISOString())
 
-    const teamProfit = (monthlyWithdrawals || []).reduce((sum, w) => {
+    const teamProfit = (monthlyWithdrawals || []).reduce((sum: number, w: any) => {
       return sum + ((w.withdrawal_amount || 0) - (w.work?.deposit_amount || 0))
     }, 0)
 
@@ -188,7 +188,7 @@ async function getManagerStats(supabase: any) {
       `)
       .eq('tester.role', 'junior')
 
-    const successfulTests = (allTests || []).filter(t => t.test_result === 'passed').length
+    const successfulTests = (allTests || []).filter((t: any) => t.test_result === 'passed').length
     const totalTests = (allTests || []).length
     const avgSuccessRate = totalTests > 0 ? Math.round((successfulTests / totalTests) * 100) : 0
 

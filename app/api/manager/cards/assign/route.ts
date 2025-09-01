@@ -58,11 +58,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Card is not active' }, { status: 400 })
     }
 
-    if (!card.bank_account?.is_active || (card.bank_account?.balance || 0) < 10) {
+    const bankAccount = card.bank_account as any
+    if (!bankAccount?.is_active || (bankAccount?.balance || 0) < 10) {
       return NextResponse.json({ 
         error: 'Insufficient balance or inactive bank account',
         required_balance: 10,
-        current_balance: card.bank_account?.balance || 0
+        current_balance: bankAccount?.balance || 0
       }, { status: 400 })
     }
 

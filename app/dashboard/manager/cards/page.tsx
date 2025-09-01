@@ -79,12 +79,12 @@ export default function CardsManagement() {
       const data = await response.json()
       
       if (data.success) {
-        addToast('success', 'Успешно', 'Карта назначена')
+        addToast({ type: 'success', title: 'Успешно', description: 'Карта назначена' })
         setShowAssignModal(false)
         setSelectedCards([])
         fetchCards()
       } else {
-        addToast('error', 'Ошибка', data.error || 'Не удалось назначить карту')
+        addToast({ type: 'error', title: 'Ошибка', description: data.error || 'Не удалось назначить карту' })
       }
     } catch (error) {
       addToast({ type: 'error', title: 'Ошибка', description: 'Ошибка сети' })
@@ -95,7 +95,7 @@ export default function CardsManagement() {
 
   const handleBulkAction = async (action: 'block' | 'unblock' | 'unassign') => {
     if (selectedCards.length === 0) {
-      addToast('warning', 'Внимание', 'Выберите карты для действия')
+      addToast({ type: 'warning', title: 'Внимание', description: 'Выберите карты для действия' })
       return
     }
 
@@ -110,11 +110,11 @@ export default function CardsManagement() {
       const data = await response.json()
       
       if (data.success) {
-        addToast('success', 'Успешно', `${selectedCards.length} карт обновлено`)
+        addToast({ type: 'success', title: 'Успешно', description: `${selectedCards.length} карт обновлено` })
         setSelectedCards([])
         fetchCards()
       } else {
-        addToast('error', 'Ошибка', data.error || 'Не удалось выполнить действие')
+        addToast({ type: 'error', title: 'Ошибка', description: data.error || 'Не удалось выполнить действие' })
       }
     } catch (error) {
       addToast({ type: 'error', title: 'Ошибка', description: 'Ошибка сети' })
@@ -352,26 +352,6 @@ export default function CardsManagement() {
               columns={columns}
               actions={actions}
               loading={loading}
-              selectable={true}
-              selectedItems={selectedCards}
-              onSelectionChange={setSelectedCards}
-              filters={[
-                { key: 'status', label: 'Статус', type: 'select', options: [
-                  { value: 'active', label: 'Активна' },
-                  { value: 'blocked', label: 'Заблокирована' },
-                  { value: 'expired', label: 'Просрочена' }
-                ]},
-                { key: 'card_type', label: 'Тип', type: 'select', options: [
-                  { value: 'grey', label: 'Grey' },
-                  { value: 'gold', label: 'Gold' },
-                  { value: 'platinum', label: 'Platinum' },
-                  { value: 'black', label: 'Black' }
-                ]},
-                { key: 'assigned_to', label: 'Назначение', type: 'select', options: [
-                  { value: 'assigned', label: 'Назначена' },
-                  { value: 'unassigned', label: 'Не назначена' }
-                ]}
-              ]}
             />
           </div>
         ))}
