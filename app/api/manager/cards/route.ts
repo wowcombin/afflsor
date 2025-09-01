@@ -24,7 +24,7 @@ export async function GET() {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 })
     }
 
-    // Получаем все карты с полной информацией
+    // Получаем все карты с полной информацией включая назначения на казино
     const { data: cards, error } = await supabase
       .from('cards')
       .select(`
@@ -59,22 +59,66 @@ export async function GET() {
       return NextResponse.json({ error: 'Database error' }, { status: 500 })
     }
 
+    // Получаем назначения карт на казино для всех карт
+    const cardIds = cards?.map(card => card.id) || []
+    const { data: casinoAssignments } = await supabase
+      .from('card_casino_assignments')
+      .select(`
+        card_id,
+        casino_id,
+        assignment_type,
+        status,
+        deposit_amount,
+        deposit_date,
+        withdrawal_amount,
+        withdrawal_date,
+        casino:casinos (
+          id,
+          name,
+          company,
+          currency
+        )
+      `)
+      .in('card_id', cardIds)
+      .eq('status', 'active')
+
+    // Добавляем информацию о назначениях к картам
+    const cardsWithAssignments = cards?.map(card => ({
+      ...card,
+      casino_assignments: casinoAssignments?.filter(assignment => 
+        assignment.card_id === card.id
+      ).map(assignment => {
+        const casino = Array.isArray(assignment.casino) ? assignment.casino[0] : assignment.casino
+        return {
+          assignment_id: assignment.card_id + '_' + assignment.casino_id,
+          casino_id: assignment.casino_id,
+          casino_name: casino?.name || 'Unknown',
+          casino_company: casino?.company,
+          casino_currency: casino?.currency,
+          assignment_type: assignment.assignment_type,
+          status: assignment.status,
+          deposit_amount: assignment.deposit_amount,
+          has_deposit: !!assignment.deposit_amount
+        }
+      }) || []
+    })) || []
+
     // Группируем статистику
     const stats = {
-      total_cards: cards?.length || 0,
-      available_cards: cards?.filter(c => 
+      total_cards: cardsWithAssignments?.length || 0,
+      available_cards: cardsWithAssignments?.filter(c => 
         !c.assigned_to && 
         c.status === 'active' && 
         (c.bank_account?.balance || 0) >= 10
       ).length || 0,
-      assigned_cards: cards?.filter(c => c.assigned_to).length || 0,
-      blocked_cards: cards?.filter(c => c.status === 'blocked').length || 0,
-      total_balance: cards?.reduce((sum, c) => sum + (c.bank_account?.balance || 0), 0) || 0
+      assigned_cards: cardsWithAssignments?.filter(c => c.assigned_to).length || 0,
+      blocked_cards: cardsWithAssignments?.filter(c => c.status === 'blocked').length || 0,
+      total_balance: cardsWithAssignments?.reduce((sum, c) => sum + (c.bank_account?.balance || 0), 0) || 0
     }
 
     return NextResponse.json({ 
       success: true, 
-      data: cards || [],
+      data: cardsWithAssignments || [],
       stats
     })
 

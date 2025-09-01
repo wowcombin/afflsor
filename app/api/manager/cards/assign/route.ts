@@ -49,13 +49,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'User must be an active junior' }, { status: 400 })
     }
 
-    // Проверяем все карты
+    // Проверяем все карты с информацией о назначениях
     const { data: cards, error: cardsError } = await supabase
       .from('cards')
       .select(`
         id,
         status,
         assigned_to,
+        assigned_casino_id,
         card_number_mask,
         bank_account:bank_accounts (
           balance,
@@ -68,15 +69,47 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Failed to fetch cards' }, { status: 500 })
     }
 
+    // Проверяем существующие назначения карт на это казино (если казино указано)
+    let existingAssignments: any[] = []
+    if (casino_id) {
+      const { data: assignments } = await supabase
+        .from('card_casino_assignments')
+        .select('card_id')
+        .eq('casino_id', casino_id)
+        .eq('status', 'active')
+        .in('card_id', cardIds)
+      
+      existingAssignments = assignments || []
+    }
+
     // Фильтруем доступные карты
     const availableCards = cards.filter(card => {
       const bankAccount = card.bank_account as any
-      return (
+      
+      // Базовые проверки
+      if (!(
         card.status === 'active' &&
         !card.assigned_to &&
         bankAccount?.is_active &&
         (bankAccount?.balance || 0) >= 10
-      )
+      )) {
+        return false
+      }
+      
+      // Проверяем, не назначена ли карта уже на это казино
+      if (casino_id) {
+        // Проверяем старую систему
+        if (card.assigned_casino_id === casino_id) {
+          return false
+        }
+        
+        // Проверяем новую систему
+        if (existingAssignments.some(assignment => assignment.card_id === card.id)) {
+          return false
+        }
+      }
+      
+      return true
     })
 
     if (availableCards.length === 0) {

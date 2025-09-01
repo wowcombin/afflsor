@@ -242,31 +242,35 @@ export default function ManagerCardsPage() {
 
   function selectAllCards() {
     let availableCards = cards.filter(card => {
-      let baseFilter = false
-      
       if (activeTab === 'free') {
-        // Свободные карты
-        baseFilter = card.status === 'active' && !card.assigned_to
-      } else {
-        // Назначенные карты
-        baseFilter = !!card.assigned_to
-      }
-      
-      if (!baseFilter) return false
-      
-      // Фильтрация для свободных карт по выбранному Junior'у
-      if (selectedJuniorFilter && activeTab === 'free') {
-        // Проверяем BIN коды если выбрано казино
+        // Базовая фильтрация для свободных карт
+        let baseFilter = card.status === 'active' && !card.assigned_to && (card.bank_account?.balance || 0) >= 10
+        
+        if (!baseFilter) return false
+        
+        // Дополнительная фильтрация если выбрано казино
         if (selectedCasinoFilter) {
           const selectedCasino = casinos.find(c => c.id === selectedCasinoFilter)
+          
+          // Проверяем BIN коды
           if (selectedCasino?.allowed_bins && selectedCasino.allowed_bins.length > 0) {
             const cardBin = card.card_bin.substring(0, 6)
-            return selectedCasino.allowed_bins.includes(cardBin)
+            if (!selectedCasino.allowed_bins.includes(cardBin)) {
+              return false
+            }
+          }
+          
+          // Проверяем, не назначена ли карта уже на это казино
+          if (isCardAssignedToCasino(card, selectedCasinoFilter)) {
+            return false
           }
         }
+        
+        return true
+      } else {
+        // Назначенные карты
+        return !!card.assigned_to
       }
-      
-      return true
     })
     
     const availableCardIds = availableCards.map(card => card.id)
@@ -366,6 +370,23 @@ export default function ManagerCardsPage() {
     return symbols[currency as keyof typeof symbols] || currency
   }
 
+  // Проверяем, назначена ли карта уже на это казино (любым работником)
+  function isCardAssignedToCasino(card: Card, casinoId: string): boolean {
+    // Проверяем новую систему назначений (casino_assignments)
+    if (card.casino_assignments && card.casino_assignments.length > 0) {
+      return card.casino_assignments.some(assignment => 
+        assignment.casino_id === casinoId && assignment.status === 'active'
+      )
+    }
+    
+    // Проверяем старую систему (assigned_casino_id)
+    if (card.assigned_casino_id === casinoId) {
+      return true
+    }
+    
+    return false
+  }
+
   // Интерактивная статистика в зависимости от вкладки
   function calculateStats() {
     if (activeTab === 'assigned') {
@@ -380,26 +401,35 @@ export default function ManagerCardsPage() {
       }
     } else {
       // Статистика для свободных карт
-      let filteredCards = cards
+      let baseCards = cards.filter(c => c.status === 'active' && !c.assigned_to && (c.bank_account?.balance || 0) >= 10)
 
-      // Если выбрано казино, фильтруем по BIN кодам
+      // Если выбрано казино, применяем дополнительную фильтрацию
       if (selectedCasinoFilter) {
         const selectedCasino = casinos.find(c => c.id === selectedCasinoFilter)
-        if (selectedCasino?.allowed_bins && selectedCasino.allowed_bins.length > 0) {
-          filteredCards = cards.filter(card => {
+        
+        baseCards = baseCards.filter(card => {
+          // Проверяем BIN коды
+          if (selectedCasino?.allowed_bins && selectedCasino.allowed_bins.length > 0) {
             const cardBin = card.card_bin.substring(0, 6)
-            return selectedCasino.allowed_bins.includes(cardBin)
-          })
-        }
+            if (!selectedCasino.allowed_bins.includes(cardBin)) {
+              return false
+            }
+          }
+          
+          // Проверяем, не назначена ли карта уже на это казино
+          if (isCardAssignedToCasino(card, selectedCasinoFilter)) {
+            return false
+          }
+          
+          return true
+        })
       }
 
       return {
-        totalCards: filteredCards.length,
-        availableCards: filteredCards.filter(c => {
-          return c.status === 'active' && !c.assigned_to && (c.bank_account?.balance || 0) >= 10
-        }).length,
-        assignedCards: filteredCards.filter(c => !!c.assigned_to).length,
-        blockedCards: filteredCards.filter(c => c.status === 'blocked').length
+        totalCards: selectedCasinoFilter ? baseCards.length : cards.filter(c => c.status === 'active' && !c.assigned_to).length,
+        availableCards: baseCards.length,
+        assignedCards: cards.filter(c => !!c.assigned_to).length,
+        blockedCards: cards.filter(c => c.status === 'blocked').length
       }
     }
   }
@@ -430,14 +460,16 @@ export default function ManagerCardsPage() {
         const cardBin = card.card_bin.substring(0, 6)
         const selectedCasino = casinos.find(c => c.id === selectedCasinoFilter)
         const binMatches = selectedCasino?.allowed_bins?.includes(cardBin)
+        const isAssignedToCasino = selectedCasinoFilter ? isCardAssignedToCasino(card, selectedCasinoFilter) : false
         
         return (
           <div>
             <div className="font-mono font-medium text-gray-900">{card.card_number_mask}</div>
             <div className="text-sm text-gray-500">
               BIN: <span className={binMatches && selectedCasinoFilter ? 'text-success-600 font-medium' : ''}>{cardBin}</span>
-              {binMatches && selectedCasinoFilter && <span className="text-success-600 ml-1">✅</span>}
-              {selectedCasinoFilter && !binMatches && selectedCasino?.allowed_bins && selectedCasino.allowed_bins.length > 0 && <span className="text-danger-600 ml-1">❌</span>}
+              {binMatches && selectedCasinoFilter && !isAssignedToCasino && <span className="text-success-600 ml-1">✅</span>}
+              {selectedCasinoFilter && !binMatches && selectedCasino?.allowed_bins && selectedCasino.allowed_bins.length > 0 && <span className="text-danger-600 ml-1">❌ BIN</span>}
+              {isAssignedToCasino && <span className="text-warning-600 ml-1">🔒 Занята</span>}
               <span className="ml-2">• {card.card_type === 'gold' ? '🟡 Gold' : card.card_type === 'platinum' ? '⚪ Platinum' : card.card_type === 'black' ? '⚫ Black' : '⚫ Grey'}</span>
             </div>
           </div>
@@ -787,7 +819,30 @@ export default function ManagerCardsPage() {
               {activeTab === 'free' ? 'Свободные карты' : 'Назначенные карты'} 
               ({cards.filter(card => {
                 if (activeTab === 'free') {
-                  return card.status === 'active' && !card.assigned_to
+                  // Базовая фильтрация для свободных карт
+                  let baseFilter = card.status === 'active' && !card.assigned_to && (card.bank_account?.balance || 0) >= 10
+                  
+                  if (!baseFilter) return false
+                  
+                  // Дополнительная фильтрация если выбрано казино
+                  if (selectedCasinoFilter) {
+                    const selectedCasino = casinos.find(c => c.id === selectedCasinoFilter)
+                    
+                    // Проверяем BIN коды
+                    if (selectedCasino?.allowed_bins && selectedCasino.allowed_bins.length > 0) {
+                      const cardBin = card.card_bin.substring(0, 6)
+                      if (!selectedCasino.allowed_bins.includes(cardBin)) {
+                        return false
+                      }
+                    }
+                    
+                    // Проверяем, не назначена ли карта уже на это казино
+                    if (isCardAssignedToCasino(card, selectedCasinoFilter)) {
+                      return false
+                    }
+                  }
+                  
+                  return true
                 } else {
                   return !!card.assigned_to
                 }
@@ -803,20 +858,30 @@ export default function ManagerCardsPage() {
         <DataTable
           data={cards.filter(card => {
             if (activeTab === 'free') {
-              let baseFilter = card.status === 'active' && !card.assigned_to
+              // Базовая фильтрация для свободных карт
+              let baseFilter = card.status === 'active' && !card.assigned_to && (card.bank_account?.balance || 0) >= 10
               
               if (!baseFilter) return false
               
-              // Дополнительная фильтрация по BIN кодам если выбрано казино
+              // Дополнительная фильтрация если выбрано казино
               if (selectedCasinoFilter) {
                 const selectedCasino = casinos.find(c => c.id === selectedCasinoFilter)
+                
+                // Проверяем BIN коды
                 if (selectedCasino?.allowed_bins && selectedCasino.allowed_bins.length > 0) {
                   const cardBin = card.card_bin.substring(0, 6)
-                  return selectedCasino.allowed_bins.includes(cardBin)
+                  if (!selectedCasino.allowed_bins.includes(cardBin)) {
+                    return false
+                  }
+                }
+                
+                // Проверяем, не назначена ли карта уже на это казино
+                if (isCardAssignedToCasino(card, selectedCasinoFilter)) {
+                  return false
                 }
               }
               
-              return baseFilter
+              return true
             } else {
               return !!card.assigned_to
             }
