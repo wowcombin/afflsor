@@ -77,11 +77,21 @@ export async function POST(request: Request) {
 
     // Если отзываем карты, обновляем статус назначений
     if (action === 'unassign') {
+      // Обновляем card_assignments
       await supabase
         .from('card_assignments')
         .update({
           status: 'completed',
           completed_at: new Date().toISOString()
+        })
+        .in('card_id', card_ids)
+        .eq('status', 'active')
+
+      // Обновляем card_casino_assignments
+      await supabase
+        .from('card_casino_assignments')
+        .update({
+          status: 'completed'
         })
         .in('card_id', card_ids)
         .eq('status', 'active')

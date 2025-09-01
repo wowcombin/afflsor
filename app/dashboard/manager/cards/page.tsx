@@ -12,7 +12,8 @@ import {
   CheckCircleIcon,
   XCircleIcon,
   EyeIcon,
-  UsersIcon
+  UsersIcon,
+  CogIcon
 } from '@heroicons/react/24/outline'
 
 interface Card {
@@ -266,7 +267,7 @@ export default function ManagerCardsPage() {
           }
           
           // Проверяем, не назначена ли карта уже на это казино
-          if (isCardAssignedToCasino(card, selectedCasinoFilter)) {
+          if (isCardAssignedToCasinoByUser(card, selectedCasinoFilter)) {
             return false
           }
         }
@@ -336,6 +337,60 @@ export default function ManagerCardsPage() {
     }
   }
 
+  async function handleMassUnassignCards() {
+    if (selectedCards.size === 0) {
+      addToast({ type: 'error', title: 'Выберите карты для отзывания' })
+      return
+    }
+
+    const selectedCardsList = Array.from(selectedCards)
+    const assignedCards = cards.filter(card => 
+      selectedCardsList.includes(card.id) && card.assigned_to
+    )
+
+    if (assignedCards.length === 0) {
+      addToast({ type: 'error', title: 'Среди выбранных карт нет назначенных' })
+      return
+    }
+
+    setAssigning(true)
+
+    try {
+      const response = await fetch('/api/manager/cards/bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          card_ids: assignedCards.map(card => card.id),
+          action: 'unassign'
+        })
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error)
+      }
+
+      addToast({
+        type: 'success',
+        title: 'Карты отозваны',
+        description: `${assignedCards.length} карт отозвано`
+      })
+
+      setSelectedCards(new Set())
+      await loadCards()
+
+    } catch (error: any) {
+      addToast({
+        type: 'error',
+        title: 'Ошибка отзывания карт',
+        description: error.message
+      })
+    } finally {
+      setAssigning(false)
+    }
+  }
+
   async function handleUnassignCard(card: Card) {
     try {
       const response = await fetch('/api/manager/cards/bulk', {
@@ -375,20 +430,26 @@ export default function ManagerCardsPage() {
     return symbols[currency as keyof typeof symbols] || currency
   }
 
-  // Проверяем, назначена ли карта уже на это казино (любым работником)
-  function isCardAssignedToCasino(card: Card, casinoId: string): boolean {
+    // Проверяем, назначена ли карта уже на это казино ЭТИМ ЖЕ пользователем
+  function isCardAssignedToCasinoByUser(card: Card, casinoId: string, userId?: string): boolean {
+    // Если карта не назначена никому, то она доступна
+    if (!card.assigned_to) return false
+    
+    // Если карта назначена другому пользователю, то недоступна
+    if (userId && card.assigned_to !== userId) return false
+    
     // Проверяем новую систему назначений (casino_assignments)
     if (card.casino_assignments && card.casino_assignments.length > 0) {
-      return card.casino_assignments.some(assignment => 
+      return card.casino_assignments.some(assignment =>
         assignment.casino_id === casinoId && assignment.status === 'active'
       )
     }
-    
+
     // Проверяем старую систему (assigned_casino_id)
     if (card.assigned_casino_id === casinoId) {
       return true
     }
-    
+
     return false
   }
 
@@ -405,35 +466,74 @@ export default function ManagerCardsPage() {
         blockedCards: assignedCards.filter(c => c.status === 'blocked').length
       }
     } else {
-      // Статистика для свободных карт
-      let baseCards = cards.filter(c => c.status === 'active' && !c.assigned_to && (c.bank_account?.balance || 0) >= 10)
-
-      // Если выбрано казино, применяем дополнительную фильтрацию
-      if (selectedCasinoFilter) {
-        const selectedCasino = casinos.find(c => c.id === selectedCasinoFilter)
-        
-        baseCards = baseCards.filter(card => {
-          // Проверяем BIN коды
-          if (selectedCasino?.allowed_bins && selectedCasino.allowed_bins.length > 0) {
-            const cardBin = card.card_bin.substring(0, 6)
-            if (!selectedCasino.allowed_bins.includes(cardBin)) {
-              return false
-            }
-          }
-          
-          // Проверяем, не назначена ли карта уже на это казино
-          if (isCardAssignedToCasino(card, selectedCasinoFilter)) {
-            return false
-          }
-          
-          return true
+      // Детальная статистика для свободных карт
+      const allActiveCards = cards.filter(c => c.status === 'active')
+      const selectedCasino = casinos.find(c => c.id === selectedCasinoFilter)
+      
+      // 1. Карты с подходящим BIN (если выбрано казино)
+      let cardsWithMatchingBin = allActiveCards
+      if (selectedCasino?.allowed_bins && selectedCasino.allowed_bins.length > 0) {
+        cardsWithMatchingBin = allActiveCards.filter(card => {
+          const cardBin = card.card_bin.substring(0, 6)
+          return selectedCasino.allowed_bins.includes(cardBin)
         })
       }
+      
+      // 2. Доступно для назначения (свободные + достаточный баланс + не назначены на это казино)
+      const availableForAssignment = cardsWithMatchingBin.filter(card => {
+        // Должна быть свободна
+        if (card.assigned_to) return false
+        
+        // Должен быть достаточный баланс
+        if ((card.bank_account?.balance || 0) < 10) return false
+        
+        // Не должна быть назначена на выбранное казино этим же пользователем
+        if (selectedCasinoFilter && isCardAssignedToCasinoByUser(card, selectedCasinoFilter)) {
+          return false
+        }
+        
+        return true
+      })
+      
+      // 3. Назначено Junior'ам (карты назначенные пользователям с ролью junior)
+      const assignedToJuniors = allActiveCards.filter(card => {
+        return card.assigned_to && card.assigned_user?.role === 'junior'
+      })
+      
+      // 4. В работе (карты с активными тестами/назначениями на казино)
+      const inWork = allActiveCards.filter(card => {
+        // Проверяем активные назначения на казино
+        if (card.casino_assignments && card.casino_assignments.length > 0) {
+          return card.casino_assignments.some(assignment => assignment.status === 'active')
+        }
+        
+        // Проверяем старую систему
+        if (card.assigned_casino_id) {
+          return true
+        }
+        
+        return false
+      })
+      
+      // 5. Отработанные (карты с завершенными тестами)
+      const completed = allActiveCards.filter(card => {
+        // Проверяем завершенные назначения на казино
+        if (card.casino_assignments && card.casino_assignments.length > 0) {
+          return card.casino_assignments.some(assignment => 
+            assignment.status === 'completed' || assignment.has_deposit
+          )
+        }
+        
+        return false
+      })
 
       return {
-        totalCards: selectedCasinoFilter ? baseCards.length : cards.filter(c => c.status === 'active' && !c.assigned_to).length,
-        availableCards: baseCards.length,
-        assignedCards: cards.filter(c => !!c.assigned_to).length,
+        totalCards: selectedCasinoFilter ? cardsWithMatchingBin.length : allActiveCards.length,
+        cardsWithMatchingBin: cardsWithMatchingBin.length,
+        availableForAssignment: availableForAssignment.length,
+        assignedToJuniors: assignedToJuniors.length,
+        inWork: inWork.length,
+        completed: completed.length,
         blockedCards: cards.filter(c => c.status === 'blocked').length
       }
     }
@@ -523,7 +623,7 @@ export default function ManagerCardsPage() {
         const cardBin = card.card_bin.substring(0, 6)
         const selectedCasino = casinos.find(c => c.id === selectedCasinoFilter)
         const binMatches = selectedCasino?.allowed_bins?.includes(cardBin)
-        const isAssignedToCasino = selectedCasinoFilter ? isCardAssignedToCasino(card, selectedCasinoFilter) : false
+        const isAssignedToCasino = selectedCasinoFilter ? isCardAssignedToCasinoByUser(card, selectedCasinoFilter) : false
         
         return (
           <div>
@@ -705,32 +805,69 @@ export default function ManagerCardsPage() {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <KPICard
-          title={activeTab === 'assigned' ? "Назначенных карт" : (selectedCasinoFilter ? "Карт с подходящим BIN" : "Всего карт")}
-          value={dynamicStats.totalCards}
-          icon={<CreditCardIcon className="h-6 w-6" />}
-          color="primary"
-        />
-        <KPICard
-          title={activeTab === 'assigned' ? "Активных карт" : "Доступно для назначения"}
-          value={dynamicStats.availableCards}
-          icon={<CheckCircleIcon className="h-6 w-6" />}
-          color="success"
-        />
-        <KPICard
-          title="Назначено Junior'ам"
-          value={dynamicStats.assignedCards}
-          icon={<UsersIcon className="h-6 w-6" />}
-          color="primary"
-        />
-        <KPICard
-          title="Заблокированных"
-          value={dynamicStats.blockedCards}
-          icon={<XCircleIcon className="h-6 w-6" />}
-          color="danger"
-        />
-      </div>
+      {activeTab === 'free' ? (
+        // Детальная статистика для свободных карт
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          <KPICard
+            title={selectedCasinoFilter ? 'Карты с подходящим BIN' : 'Всего активных карт'}
+            value={dynamicStats.cardsWithMatchingBin || dynamicStats.totalCards || 0}
+            icon={<CreditCardIcon className="h-6 w-6" />}
+            color="primary"
+          />
+          <KPICard
+            title="Доступно для назначения"
+            value={dynamicStats.availableForAssignment || 0}
+            icon={<CheckCircleIcon className="h-6 w-6" />}
+            color="success"
+          />
+          <KPICard
+            title="Назначено Junior'ам"
+            value={dynamicStats.assignedToJuniors || 0}
+            icon={<UsersIcon className="h-6 w-6" />}
+            color="warning"
+          />
+          <KPICard
+            title="В работе"
+            value={dynamicStats.inWork || 0}
+            icon={<CogIcon className="h-6 w-6" />}
+            color="primary"
+          />
+          <KPICard
+            title="Отработанные"
+            value={dynamicStats.completed || 0}
+            icon={<CheckCircleIcon className="h-6 w-6" />}
+            color="gray"
+          />
+        </div>
+      ) : (
+        // Стандартная статистика для назначенных карт
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <KPICard
+            title="Назначенных карт"
+            value={dynamicStats.totalCards || 0}
+            icon={<CreditCardIcon className="h-6 w-6" />}
+            color="primary"
+          />
+          <KPICard
+            title="Активных карт"
+            value={dynamicStats.availableCards || 0}
+            icon={<CheckCircleIcon className="h-6 w-6" />}
+            color="success"
+          />
+          <KPICard
+            title="Назначено Junior'ам"
+            value={dynamicStats.assignedCards || 0}
+            icon={<UsersIcon className="h-6 w-6" />}
+            color="primary"
+          />
+          <KPICard
+            title="Заблокированных"
+            value={dynamicStats.blockedCards || 0}
+            icon={<XCircleIcon className="h-6 w-6" />}
+            color="danger"
+          />
+        </div>
+      )}
 
       {/* Фильтры - только для свободных карт */}
       {activeTab === 'free' && (
@@ -1056,6 +1193,13 @@ export default function ManagerCardsPage() {
                   Очистить выбор
                 </button>
                 <button
+                  onClick={handleMassUnassignCards}
+                  className="btn-danger text-xs"
+                  disabled={selectedCards.size === 0}
+                >
+                  🔄 Отозвать выбранные ({selectedCards.size})
+                </button>
+                <button
                   onClick={() => {
                     setAssignedUserFilter('')
                     setAssignedBankFilter('')
@@ -1097,7 +1241,7 @@ export default function ManagerCardsPage() {
                     }
                     
                     // Проверяем, не назначена ли карта уже на это казино
-                    if (isCardAssignedToCasino(card, selectedCasinoFilter)) {
+                    if (isCardAssignedToCasinoByUser(card, selectedCasinoFilter)) {
                       return false
                     }
                   }
@@ -1172,7 +1316,7 @@ export default function ManagerCardsPage() {
                 }
                 
                 // Проверяем, не назначена ли карта уже на это казино
-                if (isCardAssignedToCasino(card, selectedCasinoFilter)) {
+                if (isCardAssignedToCasinoByUser(card, selectedCasinoFilter)) {
                   return false
                 }
               }
