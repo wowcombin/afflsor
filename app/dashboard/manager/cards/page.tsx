@@ -250,7 +250,7 @@ export default function ManagerCardsPage() {
     let availableCards = cards.filter(card => {
       if (activeTab === 'free') {
         // Базовая фильтрация для свободных карт
-        let baseFilter = card.status === 'active' && !card.assigned_to && (card.bank_account?.balance || 0) >= 10
+        let baseFilter = card.status === 'active' && (card.bank_account?.balance || 0) >= 10
         
         if (!baseFilter) return false
         
@@ -266,7 +266,7 @@ export default function ManagerCardsPage() {
             }
           }
           
-          // Проверяем, не назначена ли карта уже на это казино
+          // Проверяем, не назначена ли карта уже на это конкретное казино
           if (isCardAssignedToCasino(card, selectedCasinoFilter)) {
             return false
           }
@@ -496,11 +496,8 @@ export default function ManagerCardsPage() {
         })
       }
       
-      // 2. Доступно для назначения (свободные + достаточный баланс + не назначены на это казино)
+      // 2. Доступно для назначения (достаточный баланс + не назначены на это конкретное казино)
       const availableForAssignment = cardsWithMatchingBin.filter(card => {
-        // Должна быть свободна
-        if (card.assigned_to) return false
-        
         // Должен быть достаточный баланс
         if ((card.bank_account?.balance || 0) < 10) return false
         
@@ -1241,7 +1238,7 @@ export default function ManagerCardsPage() {
               ({cards.filter(card => {
                 if (activeTab === 'free') {
                   // Базовая фильтрация для свободных карт
-                  let baseFilter = card.status === 'active' && !card.assigned_to && (card.bank_account?.balance || 0) >= 10
+                  let baseFilter = card.status === 'active' && (card.bank_account?.balance || 0) >= 10
                   
                   if (!baseFilter) return false
                   
@@ -1257,7 +1254,7 @@ export default function ManagerCardsPage() {
                       }
                     }
                     
-                    // Проверяем, не назначена ли карта уже на это казино
+                    // Проверяем, не назначена ли карта уже на это конкретное казино
                     if (isCardAssignedToCasino(card, selectedCasinoFilter)) {
                       return false
                     }
@@ -1316,7 +1313,7 @@ export default function ManagerCardsPage() {
           data={cards.filter(card => {
             if (activeTab === 'free') {
               // Базовая фильтрация для свободных карт
-              let baseFilter = card.status === 'active' && !card.assigned_to && (card.bank_account?.balance || 0) >= 10
+              let baseFilter = card.status === 'active' && (card.bank_account?.balance || 0) >= 10
               
               if (!baseFilter) return false
               
@@ -1332,7 +1329,7 @@ export default function ManagerCardsPage() {
                   }
                 }
                 
-                // Проверяем, не назначена ли карта уже на это казино
+                // Проверяем, не назначена ли карта уже на это конкретное казино
                 if (isCardAssignedToCasino(card, selectedCasinoFilter)) {
                   return false
                 }

@@ -89,14 +89,13 @@ export async function POST(request: Request) {
       // Базовые проверки
       if (!(
         card.status === 'active' &&
-        !card.assigned_to &&
         bankAccount?.is_active &&
         (bankAccount?.balance || 0) >= 10
       )) {
         return false
       }
       
-      // Проверяем, не назначена ли карта уже на это казино
+      // Проверяем, не назначена ли карта уже на это конкретное казино
       if (casino_id) {
         // Проверяем старую систему
         if (card.assigned_casino_id === casino_id) {
