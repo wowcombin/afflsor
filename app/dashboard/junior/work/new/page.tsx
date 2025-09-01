@@ -17,6 +17,7 @@ interface Casino {
   name: string
   url: string
   promo?: string
+  currency: string
   status: string
   allowed_bins: string[]
   auto_approve_limit: number
@@ -213,7 +214,7 @@ export default function NewWorkPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="max-w-2xl">
         {/* Форма создания */}
         <div className="card">
           <div className="card-header">
@@ -237,8 +238,23 @@ export default function NewWorkPage() {
                 ))}
               </select>
               {getSelectedCasino() && (
-                <div className="mt-2 text-sm text-gray-600">
-                  <div>URL: <a href={getSelectedCasino()!.url} target="_blank" className="text-primary-600 hover:underline">{getSelectedCasino()!.url}</a></div>
+                <div className="mt-2">
+                  <button
+                    onClick={() => {
+                      const casino = getSelectedCasino()!
+                      const promoText = casino.promo || 'Промо-код не указан'
+                      navigator.clipboard.writeText(promoText)
+                      addToast({
+                        type: 'success',
+                        title: 'Скопировано!',
+                        description: casino.promo ? 'Промо-код скопирован в буфер обмена' : 'Промо-код не найден'
+                      })
+                    }}
+                    className="btn-secondary text-xs"
+                    disabled={!getSelectedCasino()?.promo}
+                  >
+                    📋 Скопировать промо
+                  </button>
                 </div>
               )}
             </div>
@@ -254,7 +270,7 @@ export default function NewWorkPage() {
                 <option value="">Выберите карту</option>
                 {cards.map(card => (
                   <option key={card.id} value={card.id}>
-                    {card.card_number_mask} - {card.bank_account?.bank?.name || 'Неизвестный банк'} ({card.account_currency === 'USD' ? '$' : card.account_currency}{card.account_balance})
+                    {card.card_number_mask} - {card.bank_account?.bank?.name || 'Неизвестный банк'}
                   </option>
                 ))}
               </select>
@@ -267,7 +283,9 @@ export default function NewWorkPage() {
             </div>
 
             <div>
-              <label className="form-label">Сумма депозита ($) *</label>
+              <label className="form-label">
+                Сумма депозита ({getSelectedCasino()?.currency || '$'}) *
+              </label>
               <input
                 type="number"
                 value={workForm.deposit_amount}
@@ -313,89 +331,6 @@ export default function NewWorkPage() {
                 placeholder="Особенности, заметки по работе..."
               />
             </div>
-          </div>
-        </div>
-
-        {/* Предпросмотр */}
-        <div className="card">
-          <div className="card-header">
-            <h3 className="text-lg font-semibold text-gray-900">Предпросмотр</h3>
-          </div>
-
-          <div className="space-y-4">
-            {getSelectedCasino() && (
-              <div className="info-block">
-                <h4 className="font-medium text-primary-900 mb-2">🎰 Казино</h4>
-                <div className="text-sm text-primary-800">
-                  <div className="font-medium">{getSelectedCasino()!.name}</div>
-                  <div className="text-primary-600 break-all">{getSelectedCasino()!.url}</div>
-                  {getSelectedCasino()!.promo && (
-                    <div className="text-primary-700 mt-1">
-                      Промо: <span className="font-mono bg-primary-100 px-1 rounded">{getSelectedCasino()!.promo}</span>
-                    </div>
-                  )}
-                </div>
-                <button
-                  onClick={() => {
-                    const casino = getSelectedCasino()!
-                    const promoText = casino.promo || 'Промо-код не указан'
-                    navigator.clipboard.writeText(promoText)
-                    addToast({
-                      type: 'success',
-                      title: 'Скопировано!',
-                      description: casino.promo ? 'Промо-код скопирован в буфер обмена' : 'Промо-код не найден'
-                    })
-                  }}
-                  className="mt-2 btn-secondary text-xs"
-                  disabled={!getSelectedCasino()?.promo}
-                >
-                  📋 Скопировать промо
-                </button>
-              </div>
-            )}
-
-            {getSelectedCard() && (
-              <div className="success-block">
-                <h4 className="font-medium text-success-900 mb-2">🃏 Карта</h4>
-                <div className="text-sm text-success-800">
-                  <div className="font-mono font-medium">{getSelectedCard()!.card_number_mask}</div>
-                  <div>{getSelectedCard()!.bank_account?.bank?.name || 'Неизвестный банк'}</div>
-                  <div>Баланс: <span className="font-medium">{getSelectedCard()!.account_currency === 'USD' ? '$' : getSelectedCard()!.account_currency}{getSelectedCard()!.account_balance}</span></div>
-                  {getSelectedCard()!.casino_assignments.length > 0 && (
-                    <div className="mt-2">
-                      <div className="text-xs text-success-700">Назначения:</div>
-                      {getSelectedCard()!.casino_assignments.map((assignment, index) => (
-                        <div key={assignment.assignment_id} className="text-xs">
-                          • {assignment.casino_name} ({assignment.assignment_type === 'junior_work' ? 'Работа' : 'Тест'})
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                <button
-                  onClick={() => {
-                    setSelectedCard(getSelectedCard()!)
-                    setShowCardModal(true)
-                  }}
-                  className="mt-3 btn-primary text-xs"
-                >
-                  <EyeIcon className="h-3 w-3 mr-1" />
-                  Показать секреты
-                </button>
-              </div>
-            )}
-
-            {workForm.deposit_amount > 0 && (
-              <div className="warning-block">
-                <h4 className="font-medium text-warning-900 mb-2">💰 Депозит</h4>
-                <div className="text-2xl font-bold text-warning-800">
-                  ${workForm.deposit_amount.toFixed(2)}
-                </div>
-                <div className="text-xs text-warning-700 mt-1">
-                  Убедитесь, что сумма корректна
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </div>
