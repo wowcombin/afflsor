@@ -147,9 +147,24 @@ export default function ManagerCardsPage() {
           id: cardsData[0].id,
           mask: cardsData[0].card_number_mask,
           status: cardsData[0].status,
-          assigned_to: cardsData[0].assigned_to
+          assigned_to: cardsData[0].assigned_to,
+          assigned_casino_id: cardsData[0].assigned_casino_id,
+          casino_assignments: cardsData[0].casino_assignments
         } : null
       })
+      
+      // Отладочная информация для карт с 1234
+      const debugCards = (cardsData || []).filter((card: any) => card.card_number_mask.includes('1234'))
+      if (debugCards.length > 0) {
+        console.log('🔍 Карты с 1234 в loadCards:', debugCards.map((card: any) => ({
+          mask: card.card_number_mask,
+          status: card.status,
+          assigned_to: card.assigned_to,
+          assigned_casino_id: card.assigned_casino_id,
+          casino_assignments: card.casino_assignments,
+          balance: card.bank_account?.balance
+        })))
+      }
       
       setCards(cardsData || [])
 
@@ -1314,6 +1329,20 @@ export default function ManagerCardsPage() {
             if (activeTab === 'free') {
               // Базовая фильтрация для свободных карт
               let baseFilter = card.status === 'active' && (card.bank_account?.balance || 0) >= 10
+              
+              // Отладочная информация
+              if (card.card_number_mask.includes('1234')) {
+                console.log('🔍 Отладка карты', card.card_number_mask, {
+                  status: card.status,
+                  balance: card.bank_account?.balance,
+                  assigned_to: card.assigned_to,
+                  assigned_casino_id: card.assigned_casino_id,
+                  casino_assignments: card.casino_assignments,
+                  selectedCasinoFilter,
+                  baseFilter,
+                  isAssignedToCasino: selectedCasinoFilter ? isCardAssignedToCasino(card, selectedCasinoFilter) : false
+                })
+              }
               
               if (!baseFilter) return false
               
