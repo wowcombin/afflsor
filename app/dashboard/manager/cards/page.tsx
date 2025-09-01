@@ -267,7 +267,7 @@ export default function ManagerCardsPage() {
           }
           
           // Проверяем, не назначена ли карта уже на это казино
-          if (isCardAssignedToCasinoByUser(card, selectedCasinoFilter)) {
+          if (isCardAssignedToCasino(card, selectedCasinoFilter)) {
             return false
           }
         }
@@ -430,7 +430,24 @@ export default function ManagerCardsPage() {
     return symbols[currency as keyof typeof symbols] || currency
   }
 
-    // Проверяем, назначена ли карта уже на это казино ЭТИМ ЖЕ пользователем
+  // Проверяем, назначена ли карта уже на это казино ЛЮБЫМ пользователем
+  function isCardAssignedToCasino(card: Card, casinoId: string): boolean {
+    // Проверяем новую систему назначений (casino_assignments)
+    if (card.casino_assignments && card.casino_assignments.length > 0) {
+      return card.casino_assignments.some(assignment =>
+        assignment.casino_id === casinoId && assignment.status === 'active'
+      )
+    }
+
+    // Проверяем старую систему (assigned_casino_id)
+    if (card.assigned_casino_id === casinoId) {
+      return true
+    }
+
+    return false
+  }
+
+  // Проверяем, назначена ли карта уже на это казино ЭТИМ ЖЕ пользователем
   function isCardAssignedToCasinoByUser(card: Card, casinoId: string, userId?: string): boolean {
     // Если карта не назначена никому, то она доступна
     if (!card.assigned_to) return false
@@ -487,8 +504,8 @@ export default function ManagerCardsPage() {
         // Должен быть достаточный баланс
         if ((card.bank_account?.balance || 0) < 10) return false
         
-        // Не должна быть назначена на выбранное казино этим же пользователем
-        if (selectedCasinoFilter && isCardAssignedToCasinoByUser(card, selectedCasinoFilter)) {
+        // Не должна быть назначена на выбранное казино ЛЮБЫМ пользователем
+        if (selectedCasinoFilter && isCardAssignedToCasino(card, selectedCasinoFilter)) {
           return false
         }
         
@@ -623,7 +640,7 @@ export default function ManagerCardsPage() {
         const cardBin = card.card_bin.substring(0, 6)
         const selectedCasino = casinos.find(c => c.id === selectedCasinoFilter)
         const binMatches = selectedCasino?.allowed_bins?.includes(cardBin)
-        const isAssignedToCasino = selectedCasinoFilter ? isCardAssignedToCasinoByUser(card, selectedCasinoFilter) : false
+        const isAssignedToCasino = selectedCasinoFilter ? isCardAssignedToCasino(card, selectedCasinoFilter) : false
         
         return (
           <div>
@@ -1241,7 +1258,7 @@ export default function ManagerCardsPage() {
                     }
                     
                     // Проверяем, не назначена ли карта уже на это казино
-                    if (isCardAssignedToCasinoByUser(card, selectedCasinoFilter)) {
+                    if (isCardAssignedToCasino(card, selectedCasinoFilter)) {
                       return false
                     }
                   }
@@ -1316,7 +1333,7 @@ export default function ManagerCardsPage() {
                 }
                 
                 // Проверяем, не назначена ли карта уже на это казино
-                if (isCardAssignedToCasinoByUser(card, selectedCasinoFilter)) {
+                if (isCardAssignedToCasino(card, selectedCasinoFilter)) {
                   return false
                 }
               }

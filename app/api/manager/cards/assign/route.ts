@@ -69,20 +69,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Failed to fetch cards' }, { status: 500 })
     }
 
-    // Проверяем существующие назначения карт на это казино ЭТИМ ЖЕ пользователем (если казино указано)
+    // Проверяем существующие назначения карт на это казино ЛЮБЫМ пользователем (если казино указано)
     let existingAssignments: any[] = []
     if (casino_id) {
       const { data: assignments } = await supabase
         .from('card_casino_assignments')
-        .select('card_id, assigned_by')
+        .select('card_id')
         .eq('casino_id', casino_id)
         .eq('status', 'active')
         .in('card_id', cardIds)
       
-      // Фильтруем только назначения этим же пользователем
-      existingAssignments = (assignments || []).filter(assignment => 
-        assignment.assigned_by === user.id
-      )
+      existingAssignments = assignments || []
     }
 
     // Фильтруем доступные карты
