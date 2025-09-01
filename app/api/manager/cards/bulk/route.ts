@@ -46,7 +46,6 @@ export async function POST(request: Request) {
       case 'unassign':
         updateData.assigned_to = null
         updateData.assigned_at = null
-        updateData.assigned_casino_id = null
         actionDescription = 'Unassigned cards'
         break
       default:

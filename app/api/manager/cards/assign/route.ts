@@ -124,13 +124,12 @@ export async function POST(request: Request) {
     // Назначаем каждую доступную карту
     for (const card of availableCards) {
       try {
-        // Назначаем карту
+        // Назначаем карту (БЕЗ assigned_casino_id - используем только card_casino_assignments)
         const { error: assignError } = await supabase
           .from('cards')
           .update({
             assigned_to: user_id,
             assigned_at: new Date().toISOString(),
-            assigned_casino_id: casino_id || null,
             notes: notes || null,
             updated_at: new Date().toISOString()
           })
@@ -156,6 +155,24 @@ export async function POST(request: Request) {
         if (assignmentError) {
           console.error('Assignment record error for card', card.id, ':', assignmentError)
           // Не критично, продолжаем
+        }
+
+        // Если указано казино, создаем запись в card_casino_assignments
+        if (casino_id) {
+          const { error: casinoAssignmentError } = await supabase
+            .from('card_casino_assignments')
+            .insert({
+              card_id: card.id,
+              casino_id,
+              assigned_by: userData.id,
+              assignment_type: 'junior_work',
+              status: 'active'
+            })
+
+          if (casinoAssignmentError) {
+            console.error('Casino assignment record error for card', card.id, ':', casinoAssignmentError)
+            // Не критично, продолжаем
+          }
         }
 
         // Логируем действие
