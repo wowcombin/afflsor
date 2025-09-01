@@ -117,6 +117,11 @@ export default function ManagerCardsPage() {
   const [assigning, setAssigning] = useState(false)
   const [activeTab, setActiveTab] = useState<'free' | 'assigned'>('free')
   const [expandedAssignments, setExpandedAssignments] = useState<Set<string>>(new Set())
+  
+  // Фильтры для назначенных карт
+  const [assignedUserFilter, setAssignedUserFilter] = useState('')
+  const [assignedBankFilter, setAssignedBankFilter] = useState('')
+  const [assignedCasinoFilter, setAssignedCasinoFilter] = useState('')
 
   useEffect(() => {
     loadCards()
@@ -436,6 +441,64 @@ export default function ManagerCardsPage() {
 
   const dynamicStats = calculateStats()
 
+  // Получаем уникальные значения для фильтров
+  const getUniqueAssignedUsers = () => {
+    const assignedCards = cards.filter(c => !!c.assigned_user)
+    const uniqueUsers = new Map()
+    
+    assignedCards.forEach(card => {
+      if (card.assigned_user && !uniqueUsers.has(card.assigned_user.id)) {
+        uniqueUsers.set(card.assigned_user.id, card.assigned_user)
+      }
+    })
+    
+    return Array.from(uniqueUsers.values())
+  }
+
+  const getUniqueBanks = () => {
+    const uniqueBanks = new Map()
+    
+    cards.forEach(card => {
+      if (card.bank_account?.bank) {
+        const bank = card.bank_account.bank as any // Приводим к any для доступа к id
+        if (bank.id && !uniqueBanks.has(bank.id)) {
+          uniqueBanks.set(bank.id, bank)
+        }
+      }
+    })
+    
+    return Array.from(uniqueBanks.values())
+  }
+
+  const getUniqueAssignedCasinos = () => {
+    const uniqueCasinos = new Map()
+    
+    cards.forEach(card => {
+      // Проверяем новую систему назначений
+      if (card.casino_assignments && card.casino_assignments.length > 0) {
+        card.casino_assignments.forEach(assignment => {
+          if (!uniqueCasinos.has(assignment.casino_id)) {
+            uniqueCasinos.set(assignment.casino_id, {
+              id: assignment.casino_id,
+              name: assignment.casino_name,
+              company: assignment.casino_company
+            })
+          }
+        })
+      }
+      
+      // Проверяем старую систему
+      if (card.assigned_casino_id) {
+        const casino = casinos.find(c => c.id === card.assigned_casino_id)
+        if (casino && !uniqueCasinos.has(casino.id)) {
+          uniqueCasinos.set(casino.id, casino)
+        }
+      }
+    })
+    
+    return Array.from(uniqueCasinos.values())
+  }
+
   const columns: Column<Card>[] = [
     {
       key: 'select',
@@ -516,12 +579,39 @@ export default function ManagerCardsPage() {
       label: 'Назначение',
       render: (card) => {
         if (card.assigned_user) {
+          // Находим казино для этой карты
+          let assignedCasino = null
+          
+          // Проверяем новую систему назначений
+          if (card.casino_assignments && card.casino_assignments.length > 0) {
+            assignedCasino = card.casino_assignments[0] // Берем первое назначение
+          }
+          
+          // Проверяем старую систему
+          if (!assignedCasino && card.assigned_casino_id) {
+            const casino = casinos.find(c => c.id === card.assigned_casino_id)
+            if (casino) {
+              assignedCasino = {
+                casino_name: casino.name,
+                casino_company: casino.company
+              }
+            }
+          }
+          
           return (
             <div>
               <div className="font-medium text-primary-600">
-                {card.assigned_user.first_name} {card.assigned_user.last_name}
+                👤 {card.assigned_user.first_name} {card.assigned_user.last_name}
               </div>
-              <div className="text-xs text-gray-500">👤 {card.assigned_user.email}</div>
+              <div className="text-xs text-gray-500">{card.assigned_user.email}</div>
+              {assignedCasino && (
+                <div className="text-xs text-blue-600 mt-1">
+                  🎰 {assignedCasino.casino_name}
+                  {assignedCasino.casino_company && (
+                    <span className="text-gray-400"> • {assignedCasino.casino_company}</span>
+                  )}
+                </div>
+              )}
             </div>
           )
         }
@@ -580,6 +670,10 @@ export default function ManagerCardsPage() {
             onClick={() => {
               setActiveTab('free')
               setSelectedCards(new Set())
+              // Очищаем фильтры для назначенных карт
+              setAssignedUserFilter('')
+              setAssignedBankFilter('')
+              setAssignedCasinoFilter('')
             }}
             className={`py-2 px-1 border-b-2 font-medium text-sm ${
               activeTab === 'free'
@@ -593,6 +687,11 @@ export default function ManagerCardsPage() {
             onClick={() => {
               setActiveTab('assigned')
               setSelectedCards(new Set())
+              // Очищаем фильтры для свободных карт
+              setSelectedJuniorFilter('')
+              setSelectedCasinoFilter('')
+              setJuniorSearchTerm('')
+              setCasinoSearchTerm('')
             }}
             className={`py-2 px-1 border-b-2 font-medium text-sm ${
               activeTab === 'assigned'
@@ -811,6 +910,167 @@ export default function ManagerCardsPage() {
         </div>
       )}
 
+      {/* Фильтры для назначенных карт */}
+      {activeTab === 'assigned' && (
+        <div className="card">
+          <div className="card-header">
+            <h3 className="text-lg font-semibold text-gray-900">Фильтры для назначенных карт</h3>
+          </div>
+          <div className="p-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Фильтр по пользователю */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Назначено пользователю:
+                </label>
+                <select
+                  value={assignedUserFilter}
+                  onChange={(e) => setAssignedUserFilter(e.target.value)}
+                  className="form-select w-full"
+                >
+                  <option value="">Все пользователи</option>
+                  {getUniqueAssignedUsers().map(user => (
+                    <option key={user.id} value={user.id}>
+                      {user.first_name} {user.last_name} ({user.email})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Фильтр по банку */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Банк:
+                </label>
+                <select
+                  value={assignedBankFilter}
+                  onChange={(e) => setAssignedBankFilter(e.target.value)}
+                  className="form-select w-full"
+                >
+                  <option value="">Все банки</option>
+                  {getUniqueBanks().map(bank => (
+                    <option key={bank.id} value={bank.id}>
+                      {bank.name} {bank.country && `(${bank.country})`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Фильтр по казино */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Казино:
+                </label>
+                <select
+                  value={assignedCasinoFilter}
+                  onChange={(e) => setAssignedCasinoFilter(e.target.value)}
+                  className="form-select w-full"
+                >
+                  <option value="">Все казино</option>
+                  {getUniqueAssignedCasinos().map(casino => (
+                    <option key={casino.id} value={casino.id}>
+                      {casino.name} {casino.company && `(${casino.company})`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Кнопки действий для фильтров */}
+            <div className="flex items-center justify-between mt-4 p-3 bg-gray-50 rounded-lg">
+              <div className="text-sm text-gray-700">
+                {(assignedUserFilter || assignedBankFilter || assignedCasinoFilter) ? (
+                  <div>
+                    Применены фильтры:
+                    {assignedUserFilter && (
+                      <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">
+                        👤 {getUniqueAssignedUsers().find(u => u.id === assignedUserFilter)?.first_name}
+                      </span>
+                    )}
+                    {assignedBankFilter && (
+                      <span className="ml-2 px-2 py-1 bg-green-100 text-green-800 rounded text-xs">
+                        🏦 {getUniqueBanks().find(b => b.id === assignedBankFilter)?.name}
+                      </span>
+                    )}
+                    {assignedCasinoFilter && (
+                      <span className="ml-2 px-2 py-1 bg-purple-100 text-purple-800 rounded text-xs">
+                        🎰 {getUniqueAssignedCasinos().find(c => c.id === assignedCasinoFilter)?.name}
+                      </span>
+                    )}
+                  </div>
+                ) : (
+                  <span>Фильтры не применены</span>
+                )}
+              </div>
+              <div className="flex space-x-2">
+                <button
+                  onClick={() => {
+                    // Выбираем все карты с учетом фильтров
+                    const filteredCards = cards.filter(card => {
+                      let baseFilter = !!card.assigned_to
+                      
+                      if (!baseFilter) return false
+                      
+                      // Применяем те же фильтры что и в таблице
+                      if (assignedUserFilter && card.assigned_user?.id !== assignedUserFilter) {
+                        return false
+                      }
+                      
+                      if (assignedBankFilter && (card.bank_account?.bank as any)?.id !== assignedBankFilter) {
+                        return false
+                      }
+                      
+                      if (assignedCasinoFilter) {
+                        let hasMatchingCasino = false
+                        
+                        if (card.casino_assignments && card.casino_assignments.length > 0) {
+                          hasMatchingCasino = card.casino_assignments.some(assignment => 
+                            assignment.casino_id === assignedCasinoFilter
+                          )
+                        }
+                        
+                        if (!hasMatchingCasino && card.assigned_casino_id === assignedCasinoFilter) {
+                          hasMatchingCasino = true
+                        }
+                        
+                        if (!hasMatchingCasino) {
+                          return false
+                        }
+                      }
+                      
+                      return true
+                    })
+                    
+                    setSelectedCards(new Set(filteredCards.map(card => card.id)))
+                  }}
+                  className="btn-info text-xs"
+                  disabled={cards.filter(c => !!c.assigned_to).length === 0}
+                >
+                  ☑️ Выбрать все по фильтру
+                </button>
+                <button
+                  onClick={clearSelection}
+                  className="btn-secondary text-xs"
+                  disabled={selectedCards.size === 0}
+                >
+                  Очистить выбор
+                </button>
+                <button
+                  onClick={() => {
+                    setAssignedUserFilter('')
+                    setAssignedBankFilter('')
+                    setAssignedCasinoFilter('')
+                  }}
+                  className="btn-secondary text-xs"
+                >
+                  ✕ Сбросить фильтры
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Таблица карт */}
       <div className="card">
         <div className="card-header">
@@ -844,7 +1104,43 @@ export default function ManagerCardsPage() {
                   
                   return true
                 } else {
-                  return !!card.assigned_to
+                  // Фильтрация для назначенных карт с учетом фильтров
+                  let baseFilter = !!card.assigned_to
+                  
+                  if (!baseFilter) return false
+                  
+                  // Фильтр по пользователю
+                  if (assignedUserFilter && card.assigned_user?.id !== assignedUserFilter) {
+                    return false
+                  }
+                  
+                  // Фильтр по банку
+                  if (assignedBankFilter && (card.bank_account?.bank as any)?.id !== assignedBankFilter) {
+                    return false
+                  }
+                  
+                  // Фильтр по казино
+                  if (assignedCasinoFilter) {
+                    let hasMatchingCasino = false
+                    
+                    // Проверяем новую систему назначений
+                    if (card.casino_assignments && card.casino_assignments.length > 0) {
+                      hasMatchingCasino = card.casino_assignments.some(assignment => 
+                        assignment.casino_id === assignedCasinoFilter
+                      )
+                    }
+                    
+                    // Проверяем старую систему
+                    if (!hasMatchingCasino && card.assigned_casino_id === assignedCasinoFilter) {
+                      hasMatchingCasino = true
+                    }
+                    
+                    if (!hasMatchingCasino) {
+                      return false
+                    }
+                  }
+                  
+                  return true
                 }
               }).length}) 
               {selectedCards.size > 0 && `• Выбрано: ${selectedCards.size}`}
@@ -883,7 +1179,43 @@ export default function ManagerCardsPage() {
               
               return true
             } else {
-              return !!card.assigned_to
+              // Фильтрация для назначенных карт
+              let baseFilter = !!card.assigned_to
+              
+              if (!baseFilter) return false
+              
+              // Фильтр по пользователю
+              if (assignedUserFilter && card.assigned_user?.id !== assignedUserFilter) {
+                return false
+              }
+              
+              // Фильтр по банку
+              if (assignedBankFilter && (card.bank_account?.bank as any)?.id !== assignedBankFilter) {
+                return false
+              }
+              
+              // Фильтр по казино
+              if (assignedCasinoFilter) {
+                let hasMatchingCasino = false
+                
+                // Проверяем новую систему назначений
+                if (card.casino_assignments && card.casino_assignments.length > 0) {
+                  hasMatchingCasino = card.casino_assignments.some(assignment => 
+                    assignment.casino_id === assignedCasinoFilter
+                  )
+                }
+                
+                // Проверяем старую систему
+                if (!hasMatchingCasino && card.assigned_casino_id === assignedCasinoFilter) {
+                  hasMatchingCasino = true
+                }
+                
+                if (!hasMatchingCasino) {
+                  return false
+                }
+              }
+              
+              return true
             }
           })}
           columns={columns}
