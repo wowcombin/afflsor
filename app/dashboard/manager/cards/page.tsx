@@ -170,10 +170,26 @@ export default function ManagerCardsPage() {
 
       const { data: teamData } = await response.json()
       const juniorsData = teamData.filter((user: any) => user.role === 'junior')
+      
+      console.log('🔍 Загружены Junior\'ы:', {
+        totalTeam: teamData?.length || 0,
+        juniors: juniorsData?.length || 0,
+        firstJunior: juniorsData?.[0] ? {
+          id: juniorsData[0].id,
+          name: `${juniorsData[0].first_name} ${juniorsData[0].last_name}`,
+          email: juniorsData[0].email
+        } : null
+      })
+      
       setJuniors(juniorsData || [])
 
     } catch (error: any) {
       console.error('Ошибка загрузки Junior\'ов:', error)
+      addToast({
+        type: 'error',
+        title: 'Ошибка загрузки команды',
+        description: error.message
+      })
     }
   }
 
@@ -587,13 +603,18 @@ export default function ManagerCardsPage() {
               />
               {juniorSearchTerm && (
                 <div className="absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-md mt-1 max-h-48 overflow-y-auto z-10 shadow-lg">
-                  {juniors
-                    .filter(junior => 
-                      junior.first_name.toLowerCase().includes(juniorSearchTerm.toLowerCase()) ||
-                      junior.last_name.toLowerCase().includes(juniorSearchTerm.toLowerCase()) ||
-                      junior.email.toLowerCase().includes(juniorSearchTerm.toLowerCase())
-                    )
-                    .map(junior => (
+                  {juniors.length === 0 ? (
+                    <div className="px-4 py-2 text-gray-500 text-sm">
+                      Junior'ы не загружены. Всего в команде: {juniors.length}
+                    </div>
+                  ) : (
+                    juniors
+                      .filter(junior => 
+                        (junior.first_name || '').toLowerCase().includes(juniorSearchTerm.toLowerCase()) ||
+                        (junior.last_name || '').toLowerCase().includes(juniorSearchTerm.toLowerCase()) ||
+                        (junior.email || '').toLowerCase().includes(juniorSearchTerm.toLowerCase())
+                      )
+                      .map(junior => (
                       <button
                         key={junior.id}
                         onClick={() => {
@@ -616,13 +637,14 @@ export default function ManagerCardsPage() {
                           </div>
                         </div>
                       </button>
-                    ))}
-                  {juniors.filter(junior => 
-                    junior.first_name.toLowerCase().includes(juniorSearchTerm.toLowerCase()) ||
-                    junior.last_name.toLowerCase().includes(juniorSearchTerm.toLowerCase()) ||
-                    junior.email.toLowerCase().includes(juniorSearchTerm.toLowerCase())
+                    ))
+                  )}
+                  {juniors.length > 0 && juniors.filter(junior => 
+                    (junior.first_name || '').toLowerCase().includes(juniorSearchTerm.toLowerCase()) ||
+                    (junior.last_name || '').toLowerCase().includes(juniorSearchTerm.toLowerCase()) ||
+                    (junior.email || '').toLowerCase().includes(juniorSearchTerm.toLowerCase())
                   ).length === 0 && (
-                    <div className="px-4 py-2 text-gray-500 text-sm">Junior'ы не найдены</div>
+                    <div className="px-4 py-2 text-gray-500 text-sm">Junior'ы не найдены по запросу "{juniorSearchTerm}"</div>
                   )}
                 </div>
               )}
@@ -681,10 +703,20 @@ export default function ManagerCardsPage() {
               <div className="flex items-center justify-between p-3 bg-primary-50 rounded-lg">
                 <div className="text-sm text-primary-800">
                   {selectedJuniorFilter && (
-                    <div>👤 Junior: <strong>{juniors.find(j => j.id === selectedJuniorFilter)?.first_name} {juniors.find(j => j.id === selectedJuniorFilter)?.last_name}</strong></div>
+                    <div>👤 Junior: <strong>
+                      {(() => {
+                        const selectedJunior = juniors.find(j => j.id === selectedJuniorFilter)
+                        return selectedJunior ? 
+                          `${selectedJunior.first_name} ${selectedJunior.last_name}` : 
+                          `ID: ${selectedJuniorFilter} (не найден)`
+                      })()}
+                    </strong></div>
                   )}
                   {selectedCasinoFilter && (
                     <div>🎰 Казино: <strong>{casinos.find(c => c.id === selectedCasinoFilter)?.name}</strong></div>
+                  )}
+                  {juniors.length === 0 && (
+                    <div className="text-warning-600">⚠️ Junior'ы не загружены</div>
                   )}
                 </div>
                 <div className="flex space-x-2">
@@ -743,14 +775,7 @@ export default function ManagerCardsPage() {
               {selectedCards.size > 0 && `• Выбрано: ${selectedCards.size}`}
             </h3>
             <div className="flex items-center space-x-2">
-              {selectedCards.size > 0 && (
-                <button
-                  onClick={clearSelection}
-                  className="btn-secondary text-xs"
-                >
-                  ❌ Очистить выбор ({selectedCards.size})
-                </button>
-              )}
+              {/* Кнопка очистки уже есть в фильтрах выше, убираем дублирование */}
             </div>
           </div>
         </div>
@@ -760,8 +785,10 @@ export default function ManagerCardsPage() {
             if (activeTab === 'free') {
               let baseFilter = card.status === 'active' && !card.assigned_to
               
+              if (!baseFilter) return false
+              
               // Дополнительная фильтрация по BIN кодам если выбрано казино
-              if (selectedCasinoFilter && baseFilter) {
+              if (selectedCasinoFilter) {
                 const selectedCasino = casinos.find(c => c.id === selectedCasinoFilter)
                 if (selectedCasino?.allowed_bins && selectedCasino.allowed_bins.length > 0) {
                   const cardBin = card.card_bin.substring(0, 6)
