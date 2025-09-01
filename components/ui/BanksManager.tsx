@@ -5,7 +5,7 @@ import { useToast } from '@/components/ui/Toast'
 import KPICard from '@/components/ui/KPICard'
 import StatusBadge from '@/components/ui/StatusBadge'
 import Modal from '@/components/ui/Modal'
-import AddCardForm from '@/components/ui/AddCardForm'
+
 import { 
   BuildingLibraryIcon,
   CreditCardIcon,
@@ -410,18 +410,10 @@ export default function BanksManager({ userRole }: BanksManagerProps) {
         }}
         title="Добавить новую карту"
       >
-        <AddCardForm
-          accountId={selectedAccountForCard}
-          onSuccess={() => {
-            setShowAddCardModal(false)
-            setSelectedAccountForCard(null)
-            loadBanks()
-          }}
-          onCancel={() => {
-            setShowAddCardModal(false)
-            setSelectedAccountForCard(null)
-          }}
-        />
+        <div className="p-4 text-center text-gray-500">
+          <p>Функция добавления карт временно недоступна.</p>
+          <p className="text-sm mt-2">Обратитесь к менеджеру для добавления карт.</p>
+        </div>
       </Modal>
     </div>
   )
