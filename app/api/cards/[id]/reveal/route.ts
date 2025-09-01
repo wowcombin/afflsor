@@ -31,8 +31,8 @@ export async function POST(
     const body = await request.json()
     const { context, pin_code } = body
 
-    // Для CFO, Admin и Tester используем специальный PIN, для Junior - обычный
-    const expectedPin = ['cfo', 'admin', 'tester'].includes(userData.role) ? '0000' : '1234'
+    // Для CFO, Admin, Manager и Tester используем специальный PIN, для Junior - обычный
+    const expectedPin = ['cfo', 'admin', 'manager', 'tester'].includes(userData.role) ? '0000' : '1234'
     
     if (!pin_code || pin_code !== expectedPin) {
       // Логируем неудачную попытку
