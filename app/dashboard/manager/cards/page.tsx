@@ -150,7 +150,7 @@ export default function ManagerCardsPage() {
   
   // Фильтры для назначенных карт
   const [assignedUserFilter, setAssignedUserFilter] = useState('')
-  const [assignedBankFilter, setAssignedBankFilter] = useState('')
+  const [assignedAccountFilter, setAssignedAccountFilter] = useState('')
   const [assignedCasinoFilter, setAssignedCasinoFilter] = useState('')
 
   useEffect(() => {
@@ -645,19 +645,25 @@ export default function ManagerCardsPage() {
     return Array.from(uniqueUsers.values())
   }
 
-  const getUniqueBanks = () => {
-    const uniqueBanks = new Map()
+  const getUniqueAccounts = () => {
+    const uniqueAccounts = new Map()
     
     cards.forEach(card => {
-      if (card.bank_account?.bank) {
-        const bank = card.bank_account.bank as any // Приводим к any для доступа к id
-        if (bank.id && !uniqueBanks.has(bank.id)) {
-          uniqueBanks.set(bank.id, bank)
+      if (card.bank_account) {
+        const account = card.bank_account
+        if (account.id && !uniqueAccounts.has(account.id)) {
+          uniqueAccounts.set(account.id, {
+            id: account.id,
+            holder_name: account.holder_name,
+            bank_name: account.bank?.name || 'Неизвестный банк',
+            currency: account.currency,
+            balance: account.balance
+          })
         }
       }
     })
     
-    return Array.from(uniqueBanks.values())
+    return Array.from(uniqueAccounts.values())
   }
 
   const getUniqueAssignedCasinos = () => {
@@ -1007,7 +1013,7 @@ export default function ManagerCardsPage() {
               setSelectedCards(new Set())
               // Очищаем фильтры для назначенных карт
               setAssignedUserFilter('')
-              setAssignedBankFilter('')
+              setAssignedAccountFilter('')
               setAssignedCasinoFilter('')
             }}
             className={`py-2 px-1 border-b-2 font-medium text-sm ${
@@ -1312,17 +1318,17 @@ export default function ManagerCardsPage() {
               {/* Фильтр по банку */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Банк:
+                  Аккаунт:
                 </label>
                 <select
-                  value={assignedBankFilter}
-                  onChange={(e) => setAssignedBankFilter(e.target.value)}
+                  value={assignedAccountFilter}
+                  onChange={(e) => setAssignedAccountFilter(e.target.value)}
                   className="form-select w-full"
                 >
-                  <option value="">Все банки</option>
-                  {getUniqueBanks().map(bank => (
-                    <option key={bank.id} value={bank.id}>
-                      {bank.name} {bank.country && `(${bank.country})`}
+                  <option value="">Все аккаунты</option>
+                  {getUniqueAccounts().map(account => (
+                    <option key={account.id} value={account.id}>
+                      {account.holder_name} - {account.bank_name} ({account.currency})
                     </option>
                   ))}
                 </select>
@@ -1351,7 +1357,7 @@ export default function ManagerCardsPage() {
             {/* Кнопки действий для фильтров */}
             <div className="flex items-center justify-between mt-4 p-3 bg-gray-50 rounded-lg">
               <div className="text-sm text-gray-700">
-                {(assignedUserFilter || assignedBankFilter || assignedCasinoFilter) ? (
+                {(assignedUserFilter || assignedAccountFilter || assignedCasinoFilter) ? (
                   <div>
                     Применены фильтры:
                     {assignedUserFilter && (
@@ -1359,9 +1365,9 @@ export default function ManagerCardsPage() {
                         👤 {getUniqueAssignedUsers().find(u => u.id === assignedUserFilter)?.first_name}
                       </span>
                     )}
-                    {assignedBankFilter && (
+                    {assignedAccountFilter && (
                       <span className="ml-2 px-2 py-1 bg-green-100 text-green-800 rounded text-xs">
-                        🏦 {getUniqueBanks().find(b => b.id === assignedBankFilter)?.name}
+                        💳 {getUniqueAccounts().find(a => a.id === assignedAccountFilter)?.holder_name}
                       </span>
                     )}
                     {assignedCasinoFilter && (
@@ -1388,7 +1394,7 @@ export default function ManagerCardsPage() {
                         return false
                       }
                       
-                      if (assignedBankFilter && (card.bank_account?.bank as any)?.id !== assignedBankFilter) {
+                      if (assignedAccountFilter && card.bank_account?.id !== assignedAccountFilter) {
                         return false
                       }
                       
@@ -1437,7 +1443,7 @@ export default function ManagerCardsPage() {
                 <button
                   onClick={() => {
                     setAssignedUserFilter('')
-                    setAssignedBankFilter('')
+                    setAssignedAccountFilter('')
                     setAssignedCasinoFilter('')
                   }}
                   className="btn-secondary text-xs"
@@ -1493,8 +1499,8 @@ export default function ManagerCardsPage() {
                     return false
                   }
                   
-                  // Фильтр по банку
-                  if (assignedBankFilter && (card.bank_account?.bank as any)?.id !== assignedBankFilter) {
+                  // Фильтр по аккаунту
+                  if (assignedAccountFilter && card.bank_account?.id !== assignedAccountFilter) {
                     return false
                   }
                   
@@ -1588,8 +1594,8 @@ export default function ManagerCardsPage() {
                 return false
               }
               
-              // Фильтр по банку
-              if (assignedBankFilter && (assignment.card.bank_account?.bank as any)?.id !== assignedBankFilter) {
+              // Фильтр по аккаунту
+              if (assignedAccountFilter && assignment.card.bank_account?.id !== assignedAccountFilter) {
                 return false
               }
               
