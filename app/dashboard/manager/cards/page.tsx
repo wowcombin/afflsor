@@ -628,7 +628,11 @@ export default function ManagerCardsPage() {
           type="checkbox"
           checked={selectedCards.has(card.id)}
           onChange={() => toggleCardSelection(card.id)}
-          disabled={activeTab === 'free' ? (card.status !== 'active' || !!card.assigned_to) : false}
+          disabled={activeTab === 'free' ? (
+            card.status !== 'active' || 
+            (card.bank_account?.balance || 0) < 10 ||
+            (selectedCasinoFilter ? isCardAssignedToCasino(card, selectedCasinoFilter) : false)
+          ) : false}
           className="rounded"
         />
       )
