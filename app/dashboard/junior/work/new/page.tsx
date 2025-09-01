@@ -16,6 +16,7 @@ interface Casino {
   id: string
   name: string
   url: string
+  promo?: string
   status: string
   allowed_bins: string[]
   auto_approve_limit: number
@@ -259,9 +260,8 @@ export default function NewWorkPage() {
               </select>
               {getSelectedCard() && (
                 <div className="mt-2 text-sm text-gray-600">
-                  <div>BIN: {getSelectedCard()!.card_bin} • Тип: {getSelectedCard()!.card_type}</div>
-                  <div>Баланс: {getSelectedCard()!.account_currency === 'USD' ? '$' : getSelectedCard()!.account_currency}{getSelectedCard()!.account_balance}</div>
-                  <div>Банк: {getSelectedCard()!.bank_account?.bank?.name || 'Неизвестный банк'}</div>
+                  <div>Тип: {getSelectedCard()!.card_type}</div>
+                  <div>Аккаунт: {getSelectedCard()!.bank_account?.holder_name || 'Неизвестный аккаунт'}</div>
                 </div>
               )}
             </div>
@@ -329,17 +329,25 @@ export default function NewWorkPage() {
                 <div className="text-sm text-primary-800">
                   <div className="font-medium">{getSelectedCasino()!.name}</div>
                   <div className="text-primary-600 break-all">{getSelectedCasino()!.url}</div>
+                  {getSelectedCasino()!.promo && (
+                    <div className="text-primary-700 mt-1">
+                      Промо: <span className="font-mono bg-primary-100 px-1 rounded">{getSelectedCasino()!.promo}</span>
+                    </div>
+                  )}
                 </div>
                 <button
                   onClick={() => {
-                    navigator.clipboard.writeText(getSelectedCasino()!.url)
+                    const casino = getSelectedCasino()!
+                    const promoText = casino.promo || 'Промо-код не указан'
+                    navigator.clipboard.writeText(promoText)
                     addToast({
                       type: 'success',
                       title: 'Скопировано!',
-                      description: 'URL казино скопирован в буфер обмена'
+                      description: casino.promo ? 'Промо-код скопирован в буфер обмена' : 'Промо-код не найден'
                     })
                   }}
                   className="mt-2 btn-secondary text-xs"
+                  disabled={!getSelectedCasino()?.promo}
                 >
                   📋 Скопировать промо
                 </button>
