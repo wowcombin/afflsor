@@ -25,52 +25,19 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    const { card_id, user_id, casino_id, notes } = body
+    const { card_ids, user_id, casino_id, notes } = body
 
-    if (!card_id || !user_id) {
-      return NextResponse.json({ error: 'Card ID and User ID are required' }, { status: 400 })
-    }
+    // Поддерживаем как одиночное назначение (card_id), так и массовое (card_ids)
+    const cardIds = card_ids || (body.card_id ? [body.card_id] : [])
 
-    // Проверяем, что карта существует и доступна для назначения
-    const { data: card, error: cardError } = await supabase
-      .from('cards')
-      .select(`
-        id,
-        status,
-        assigned_to,
-        bank_account:bank_accounts (
-          balance,
-          is_active
-        )
-      `)
-      .eq('id', card_id)
-      .single()
-
-    if (cardError || !card) {
-      return NextResponse.json({ error: 'Card not found' }, { status: 404 })
-    }
-
-    if (card.assigned_to) {
-      return NextResponse.json({ error: 'Card is already assigned' }, { status: 400 })
-    }
-
-    if (card.status !== 'active') {
-      return NextResponse.json({ error: 'Card is not active' }, { status: 400 })
-    }
-
-    const bankAccount = card.bank_account as any
-    if (!bankAccount?.is_active || (bankAccount?.balance || 0) < 10) {
-      return NextResponse.json({ 
-        error: 'Insufficient balance or inactive bank account',
-        required_balance: 10,
-        current_balance: bankAccount?.balance || 0
-      }, { status: 400 })
+    if (!cardIds || cardIds.length === 0 || !user_id) {
+      return NextResponse.json({ error: 'Card IDs and User ID are required' }, { status: 400 })
     }
 
     // Проверяем, что пользователь существует и является junior'ом
     const { data: targetUser, error: userError } = await supabase
       .from('users')
-      .select('id, role, status')
+      .select('id, role, status, first_name, last_name')
       .eq('id', user_id)
       .single()
 
@@ -82,69 +49,128 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'User must be an active junior' }, { status: 400 })
     }
 
-    // Назначаем карту
-    const { error: assignError } = await supabase
+    // Проверяем все карты
+    const { data: cards, error: cardsError } = await supabase
       .from('cards')
-      .update({
-        assigned_to: user_id,
-        assigned_at: new Date().toISOString(),
-        assigned_casino_id: casino_id || null,
-        notes: notes || null,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', card_id)
+      .select(`
+        id,
+        status,
+        assigned_to,
+        card_number_mask,
+        bank_account:bank_accounts (
+          balance,
+          is_active
+        )
+      `)
+      .in('id', cardIds)
 
-    if (assignError) {
-      console.error('Assignment error:', assignError)
-      return NextResponse.json({ error: 'Failed to assign card' }, { status: 500 })
+    if (cardsError || !cards) {
+      return NextResponse.json({ error: 'Failed to fetch cards' }, { status: 500 })
     }
 
-    // Создаем запись в card_assignments
-    const { error: assignmentError } = await supabase
-      .from('card_assignments')
-      .insert({
-        card_id,
-        user_id,
-        assigned_by: userData.id,
-        status: 'active',
-        notes
-      })
-
-    if (assignmentError) {
-      console.error('Assignment record error:', assignmentError)
-      // Не критично, продолжаем
-    }
-
-    // Логируем действие
-    await supabase
-      .from('action_history')
-      .insert({
-        action_type: 'assign',
-        entity_type: 'card',
-        entity_id: card_id,
-        entity_name: `Card assignment to user ${user_id}`,
-        change_description: `Manager assigned card to junior${notes ? `: ${notes}` : ''}`,
-        performed_by: userData.id,
-        new_values: { 
-          assigned_to: user_id, 
-          assigned_casino_id: casino_id,
-          notes 
-        }
-      })
-
-    // Здесь можно добавить уведомление junior'у
-    // await sendNotificationToJunior(user_id, 'card_assigned', { card_id })
-
-    return NextResponse.json({ 
-      success: true, 
-      message: 'Card assigned successfully',
-      assignment: {
-        card_id,
-        user_id,
-        assigned_by: userData.id,
-        assigned_at: new Date().toISOString()
-      }
+    // Фильтруем доступные карты
+    const availableCards = cards.filter(card => {
+      const bankAccount = card.bank_account as any
+      return (
+        card.status === 'active' &&
+        !card.assigned_to &&
+        bankAccount?.is_active &&
+        (bankAccount?.balance || 0) >= 10
+      )
     })
+
+    if (availableCards.length === 0) {
+      return NextResponse.json({ 
+        error: 'No cards available for assignment',
+        details: 'All selected cards are either inactive, already assigned, or have insufficient balance'
+      }, { status: 400 })
+    }
+
+    const assignedCards = []
+    const failedCards = []
+
+    // Назначаем каждую доступную карту
+    for (const card of availableCards) {
+      try {
+        // Назначаем карту
+        const { error: assignError } = await supabase
+          .from('cards')
+          .update({
+            assigned_to: user_id,
+            assigned_at: new Date().toISOString(),
+            assigned_casino_id: casino_id || null,
+            notes: notes || null,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', card.id)
+
+        if (assignError) {
+          console.error('Assignment error for card', card.id, ':', assignError)
+          failedCards.push({ card_id: card.id, error: 'Failed to assign' })
+          continue
+        }
+
+        // Создаем запись в card_assignments
+        const { error: assignmentError } = await supabase
+          .from('card_assignments')
+          .insert({
+            card_id: card.id,
+            user_id,
+            assigned_by: userData.id,
+            status: 'active',
+            notes
+          })
+
+        if (assignmentError) {
+          console.error('Assignment record error for card', card.id, ':', assignmentError)
+          // Не критично, продолжаем
+        }
+
+        // Логируем действие
+        await supabase
+          .from('action_history')
+          .insert({
+            action_type: 'assign',
+            entity_type: 'card',
+            entity_id: card.id,
+            entity_name: `Card ${card.card_number_mask} assignment to ${targetUser.first_name} ${targetUser.last_name}`,
+            change_description: `Manager assigned card to junior${notes ? `: ${notes}` : ''}`,
+            performed_by: userData.id,
+            new_values: { 
+              assigned_to: user_id, 
+              assigned_casino_id: casino_id,
+              notes 
+            }
+          })
+
+        assignedCards.push({
+          card_id: card.id,
+          card_mask: card.card_number_mask
+        })
+
+      } catch (error) {
+        console.error('Error assigning card', card.id, ':', error)
+        failedCards.push({ card_id: card.id, error: 'Unexpected error' })
+      }
+    }
+
+    const response = {
+      success: true,
+      message: `${assignedCards.length} карт назначено Junior'у ${targetUser.first_name} ${targetUser.last_name}`,
+      assigned_count: assignedCards.length,
+      total_requested: cardIds.length,
+      assigned_cards: assignedCards,
+      failed_cards: failedCards,
+      assignment_details: {
+        user_id,
+        user_name: `${targetUser.first_name} ${targetUser.last_name}`,
+        assigned_by: userData.id,
+        assigned_at: new Date().toISOString(),
+        casino_id: casino_id || null
+      }
+    }
+
+    return NextResponse.json(response)
 
   } catch (error) {
     console.error('Card assignment error:', error)
