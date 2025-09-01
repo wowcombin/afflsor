@@ -5,6 +5,7 @@ import { useToast } from '@/components/ui/Toast'
 import KPICard from '@/components/ui/KPICard'
 import StatusBadge from '@/components/ui/StatusBadge'
 import Modal from '@/components/ui/Modal'
+import AddCardForm from '@/components/ui/AddCardForm'
 import { 
   BuildingLibraryIcon,
   CreditCardIcon,
@@ -26,6 +27,8 @@ export default function BanksManager({ userRole }: BanksManagerProps) {
   const [showBlockedAccounts, setShowBlockedAccounts] = useState(false)
   const [expandedAccounts, setExpandedAccounts] = useState<Set<string>>(new Set())
   const [exchangeRates, setExchangeRates] = useState<any>(null)
+  const [showAddCardModal, setShowAddCardModal] = useState(false)
+  const [selectedAccountForCard, setSelectedAccountForCard] = useState<string | null>(null)
 
   // Права по ролям
   const permissions = {
@@ -76,6 +79,11 @@ export default function BanksManager({ userRole }: BanksManagerProps) {
       newExpanded.add(accountId)
     }
     setExpandedAccounts(newExpanded)
+  }
+
+  function openAddCardModal(accountId: string) {
+    setSelectedAccountForCard(accountId)
+    setShowAddCardModal(true)
   }
 
   if (loading) {
@@ -248,7 +256,13 @@ export default function BanksManager({ userRole }: BanksManagerProps) {
                                 {account.is_active ? (
                                   <>
                                     {permissions.canCreateCard && (
-                                      <button className="btn-success text-xs px-2 py-1" title="Добавить карту">🃏+</button>
+                                      <button 
+                                        onClick={() => openAddCardModal(account.id)}
+                                        className="btn-success text-xs px-2 py-1" 
+                                        title="Добавить карту"
+                                      >
+                                        🃏+
+                                      </button>
                                     )}
                                     {permissions.canViewHistory && (
                                       <button className="btn-info text-xs px-2 py-1" title="История аккаунта">📊</button>
@@ -330,10 +344,10 @@ export default function BanksManager({ userRole }: BanksManagerProps) {
                               onClick={() => toggleAccountCards(account.id)}
                               className="text-xs text-primary-600 hover:text-primary-800"
                             >
-                              {expandedAccounts.has(account.id) ? '▼ Скрыть карты' : '▶ Показать карты'}
+                              {expandedAccounts.has(account.id) ? '▶ Показать карты' : '▼ Скрыть карты'}
                             </button>
                           </div>
-                          {expandedAccounts.has(account.id) && (
+                          {!expandedAccounts.has(account.id) && (
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                               {account.cards.map((card: any) => (
                                 <div key={card.id} className="bg-gray-50 rounded-lg p-3">
@@ -386,6 +400,29 @@ export default function BanksManager({ userRole }: BanksManagerProps) {
           </div>
         ))}
       </div>
+
+      {/* Модальное окно добавления карты */}
+      <Modal
+        isOpen={showAddCardModal}
+        onClose={() => {
+          setShowAddCardModal(false)
+          setSelectedAccountForCard(null)
+        }}
+        title="Добавить новую карту"
+      >
+        <AddCardForm
+          accountId={selectedAccountForCard}
+          onSuccess={() => {
+            setShowAddCardModal(false)
+            setSelectedAccountForCard(null)
+            loadBanks()
+          }}
+          onCancel={() => {
+            setShowAddCardModal(false)
+            setSelectedAccountForCard(null)
+          }}
+        />
+      </Modal>
     </div>
   )
 }
