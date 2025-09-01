@@ -169,7 +169,21 @@ export default function ManagerCardsPage() {
       }
 
       const { data: teamData } = await response.json()
+      
+      console.log('🔍 Вся команда:', {
+        totalTeam: teamData?.length || 0,
+        allUsers: teamData?.map((user: any) => ({
+          id: user.id,
+          name: `${user.first_name} ${user.last_name}`,
+          email: user.email,
+          role: user.role,
+          status: user.status
+        })) || []
+      })
+      
+      // Временно показываем всех пользователей для отладки
       const juniorsData = teamData.filter((user: any) => user.role === 'junior')
+      const allUsersForDebug = teamData || []
       
       console.log('🔍 Загружены Junior\'ы:', {
         totalTeam: teamData?.length || 0,
@@ -181,7 +195,13 @@ export default function ManagerCardsPage() {
         } : null
       })
       
-      setJuniors(juniorsData || [])
+      // Если нет Junior'ов, временно показываем всех пользователей для отладки
+      if (juniorsData.length === 0 && allUsersForDebug.length > 0) {
+        console.log('⚠️ Junior\'ы не найдены, показываем всех пользователей для отладки')
+        setJuniors(allUsersForDebug)
+      } else {
+        setJuniors(juniorsData || [])
+      }
 
     } catch (error: any) {
       console.error('Ошибка загрузки Junior\'ов:', error)

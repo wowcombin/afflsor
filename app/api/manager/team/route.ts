@@ -24,8 +24,8 @@ export async function GET() {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 })
     }
 
-    // Получаем всех junior'ов
-    const { data: juniors, error: juniorsError } = await supabase
+    // Получаем всех пользователей для отладки, потом отфильтруем junior'ов
+    const { data: allUsers, error: usersError } = await supabase
       .from('users')
       .select(`
         id,
@@ -33,19 +33,44 @@ export async function GET() {
         last_name,
         email,
         telegram_username,
+        role,
         status,
         salary_percentage,
         salary_bonus,
         created_at,
         updated_at
       `)
-      .eq('role', 'junior')
       .order('created_at', { ascending: false })
 
-    if (juniorsError) {
-      console.error('Juniors fetch error:', juniorsError)
-      return NextResponse.json({ error: 'Failed to fetch team data' }, { status: 500 })
+    if (usersError) {
+      console.error('Users fetch error:', usersError)
+      return NextResponse.json({ error: 'Failed to fetch users data' }, { status: 500 })
     }
+
+    console.log('🔍 Все пользователи в системе:', {
+      total: allUsers?.length || 0,
+      users: allUsers?.map(user => ({
+        id: user.id,
+        name: `${user.first_name} ${user.last_name}`,
+        email: user.email,
+        role: user.role,
+        status: user.status
+      })) || []
+    })
+
+    // Фильтруем только junior'ов
+    const juniors = allUsers?.filter(user => user.role === 'junior') || []
+    
+    console.log('🔍 Junior\'ы найдены:', {
+      total: juniors.length,
+      juniors: juniors.map(user => ({
+        id: user.id,
+        name: `${user.first_name} ${user.last_name}`,
+        role: user.role
+      }))
+    })
+
+
 
     // Для каждого junior'а получаем статистику
     const juniorsWithStats = await Promise.all(
