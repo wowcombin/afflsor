@@ -10,13 +10,14 @@
   --background-end-rgb: 255, 255, 255;
 }
 
-@media (prefers-color-scheme: dark) {
+/* Отключаем темную тему - принудительно светлая тема */
+/* @media (prefers-color-scheme: dark) {
   :root {
     --foreground-rgb: 255, 255, 255;
     --background-start-rgb: 0, 0, 0;
     --background-end-rgb: 0, 0, 0;
   }
-}
+} */
 
 body {
   color: rgb(var(--foreground-rgb));
@@ -247,4 +248,99 @@ textarea.form-input {
 
 .nav-item-inactive {
   @apply text-gray-700 hover:bg-gray-100 hover:text-gray-900;
+}
+
+/* ГЛОБАЛЬНЫЕ ИСПРАВЛЕНИЯ ЦВЕТОВ - ПРИНУДИТЕЛЬНО ТЕМНЫЙ ТЕКСТ */
+* {
+  color: inherit;
+}
+
+body {
+  color: #111827 !important; /* Принудительно темный цвет текста */
+}
+
+/* Исправления для всех текстовых классов */
+.text-gray-900, 
+.text-gray-800, 
+.text-gray-700, 
+.text-gray-600, 
+.text-gray-500 {
+  color: #111827 !important;
+}
+
+/* Исправления для всех информационных блоков */
+.text-info-800,
+.text-info-700,
+.text-info-600 {
+  color: #1e40af !important;
+}
+
+.text-success-800,
+.text-success-700,
+.text-success-600 {
+  color: #166534 !important;
+}
+
+.text-warning-800,
+.text-warning-700,
+.text-warning-600 {
+  color: #92400e !important;
+}
+
+.text-danger-800,
+.text-danger-700,
+.text-danger-600 {
+  color: #991b1b !important;
+}
+
+.text-primary-800,
+.text-primary-700,
+.text-primary-600 {
+  color: #1e40af !important;
+}
+
+/* Исправления для заголовков */
+h1, h2, h3, h4, h5, h6 {
+  color: #111827 !important;
+}
+
+/* Исправления для параграфов и текста */
+p, span, div, label {
+  color: #374151 !important;
+}
+
+/* Исправления для ссылок */
+a {
+  color: #2563eb !important;
+}
+
+/* Исправления для кнопок */
+button {
+  color: inherit !important;
+}
+
+/* Исправления для форм */
+input, select, textarea {
+  color: #111827 !important;
+  background-color: white !important;
+}
+
+/* Исправления для таблиц */
+table, th, td {
+  color: #111827 !important;
+}
+
+/* Исправления для модальных окон */
+.modal-content {
+  color: #111827 !important;
+}
+
+/* Исправления для карточек */
+.card {
+  color: #111827 !important;
+}
+
+/* Исправления для статусов */
+.status-badge {
+  color: #111827 !important;
 }
