@@ -187,6 +187,72 @@ export default function JuniorWithdrawalsPage() {
     }
   }
 
+  // Функция для удаления работы
+  async function deleteWork(workId: string, workName: string) {
+    if (!confirm(`Вы уверены, что хотите удалить работу с ${workName}? Это действие нельзя отменить.`)) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/works/${workId}`, {
+        method: 'DELETE'
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Ошибка удаления работы')
+      }
+
+      addToast({
+        type: 'success',
+        title: 'Работа удалена',
+        description: 'Работа успешно удалена'
+      })
+
+      // Перезагружаем данные
+      loadWorks()
+
+    } catch (error: any) {
+      addToast({
+        type: 'error',
+        title: 'Ошибка удаления работы',
+        description: error.message
+      })
+    }
+  }
+
+  // Функция для изменения статуса работы
+  async function updateWorkStatus(workId: string, newStatus: string, workName: string) {
+    try {
+      const response = await fetch(`/api/works/${workId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Ошибка изменения статуса')
+      }
+
+      addToast({
+        type: 'success',
+        title: 'Статус работы изменен',
+        description: `Статус работы с ${workName} изменен на "${newStatus}"`
+      })
+
+      // Перезагружаем данные
+      loadWorks()
+
+    } catch (error: any) {
+      addToast({
+        type: 'error',
+        title: 'Ошибка изменения статуса работы',
+        description: error.message
+      })
+    }
+  }
+
   // Функция для форматирования времени
   function formatTimeAgo(dateString: string) {
     const now = new Date()
@@ -296,6 +362,38 @@ export default function JuniorWithdrawalsPage() {
         if (amount && !isNaN(Number(amount)) && Number(amount) > 0) {
           createWithdrawal(work.id, Number(amount))
         }
+      }
+    },
+    {
+      label: 'Изменить статус',
+      variant: 'secondary',
+      condition: (work) => work.status !== 'completed',
+      action: (work) => {
+        const statuses = [
+          { value: 'active', label: 'Активная' },
+          { value: 'completed', label: 'Завершенная' },
+          { value: 'cancelled', label: 'Отмененная' },
+          { value: 'blocked', label: 'Заблокированная' }
+        ]
+        
+        const statusOptions = statuses
+          .filter(s => s.value !== work.status)
+          .map(s => `${s.value} - ${s.label}`)
+          .join('\n')
+        
+        const newStatus = prompt(`Выберите новый статус для работы с ${work.casino_name}:\n\n${statusOptions}\n\nВведите значение (active/completed/cancelled/blocked):`)
+        
+        if (newStatus && ['active', 'completed', 'cancelled', 'blocked'].includes(newStatus)) {
+          updateWorkStatus(work.id, newStatus, work.casino_name)
+        }
+      }
+    },
+    {
+      label: 'Удалить',
+      variant: 'danger',
+      condition: (work) => work.status !== 'completed' && work.withdrawals.every(w => !['received', 'waiting'].includes(w.status)),
+      action: (work) => {
+        deleteWork(work.id, work.casino_name)
       }
     }
   ]
