@@ -85,10 +85,39 @@ export default function JuniorWithdrawalsPage() {
   })
   const [loading, setLoading] = useState(true)
   const [openDropdown, setOpenDropdown] = useState<string | null>(null)
+  const [exchangeRates, setExchangeRates] = useState<any>(null)
 
   useEffect(() => {
+    loadExchangeRates()
     loadWorks()
   }, [])
+
+  // Загрузка курсов валют
+  async function loadExchangeRates() {
+    try {
+      const response = await fetch('/api/currency-rates')
+      if (response.ok) {
+        const data = await response.json()
+        setExchangeRates(data.rates)
+      }
+    } catch (error) {
+      console.error('Ошибка загрузки курсов валют:', error)
+      // Используем fallback курсы
+      setExchangeRates({
+        'USD': 1.0,
+        'EUR': 1.11,
+        'GBP': 1.31,
+        'CAD': 0.71
+      })
+    }
+  }
+
+  // Функция конвертации в USD
+  function convertToUSD(amount: number, currency: string): number {
+    if (!exchangeRates || currency === 'USD') return amount
+    const rate = exchangeRates[currency] || 1
+    return amount * rate
+  }
 
   // Закрываем dropdown при клике вне его
   useEffect(() => {
@@ -232,7 +261,13 @@ export default function JuniorWithdrawalsPage() {
       const totalWorks = formattedWorks.length
       const activeWorks = formattedWorks.filter((w: Work) => w.status === 'active').length
       const completedWorks = formattedWorks.filter((w: Work) => w.status === 'completed').length
-      const totalDeposits = formattedWorks.reduce((sum: number, w: Work) => sum + w.deposit_amount, 0)
+      
+      // Конвертируем все депозиты в USD по курсу Google -5%
+      const totalDeposits = formattedWorks.reduce((sum: number, w: Work) => {
+        const depositInUSD = convertToUSD(w.deposit_amount, w.casino_currency)
+        return sum + depositInUSD
+      }, 0)
+      
       const totalWithdrawals = formattedWorks.reduce((sum: number, w: Work) => 
         sum + w.withdrawals.filter((wd: WorkWithdrawal) => wd.status === 'received').length, 0)
 
@@ -491,7 +526,7 @@ export default function JuniorWithdrawalsPage() {
         </div>
       )
     },
-        {
+    {
       key: 'amount',
       label: 'Сумма',
       render: (row) => (
@@ -500,7 +535,7 @@ export default function JuniorWithdrawalsPage() {
             <div>
               <span className="text-red-600">
                 -{row.deposit_amount} {row.casino_currency}
-              </span>
+        </span>
               {row.withdrawal && (
                 <div className="text-green-600 text-sm">
                   +{row.withdrawal.withdrawal_amount} {row.casino_currency}
@@ -510,7 +545,7 @@ export default function JuniorWithdrawalsPage() {
           ) : (
             <span className="text-green-600">
               +{row.withdrawal?.withdrawal_amount || 0} {row.casino_currency}
-            </span>
+        </span>
           )}
         </div>
       )
@@ -765,7 +800,7 @@ export default function JuniorWithdrawalsPage() {
         />
         <KPICard
           title="Общий депозит"
-          value={`${stats.totalDeposits}`}
+          value={`$${stats.totalDeposits.toFixed(2)}`}
           icon={<BanknotesIcon className="h-6 w-6" />}
           color="primary"
         />
