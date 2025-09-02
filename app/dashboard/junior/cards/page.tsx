@@ -59,6 +59,7 @@ interface CardRevealData {
 export default function JuniorCardsPage() {
   const { addToast } = useToast()
   const [cards, setCards] = useState<Card[]>([])
+  const [allWorks, setAllWorks] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [showRevealModal, setShowRevealModal] = useState(false)
   const [selectedCard, setSelectedCard] = useState<Card | null>(null)
@@ -95,15 +96,39 @@ export default function JuniorCardsPage() {
     }
   }, [timeLeft])
 
+  // Функция для проверки, используется ли карта в работе
+  function isCardInUse(cardId: string): boolean {
+    return allWorks.some(work => {
+      if (work.card?.id !== cardId) return false
+      
+      // Если работа активна - карта используется
+      if (work.status === 'active') return true
+      
+      // Если есть активные выводы - карта используется
+      const hasActiveWithdrawals = work.withdrawals && work.withdrawals.some((w: any) => 
+        ['new', 'waiting', 'received'].includes(w.status)
+      )
+      
+      return hasActiveWithdrawals
+    })
+  }
+
   async function loadCards() {
     try {
-      const response = await fetch('/api/cards')
-      
-      if (!response.ok) {
+      // Загружаем карты
+      const cardsResponse = await fetch('/api/cards')
+      if (!cardsResponse.ok) {
         throw new Error('Ошибка загрузки карт')
       }
-
-      const { cards: cardsData } = await response.json()
+      const { cards: cardsData } = await cardsResponse.json()
+      
+      // Загружаем все работы для проверки используемых карт
+      const worksResponse = await fetch('/api/works')
+      if (worksResponse.ok) {
+        const { works: worksData } = await worksResponse.json()
+        setAllWorks(worksData || [])
+      }
+      
       setCards(cardsData)
 
     } catch (error: any) {
@@ -274,13 +299,15 @@ export default function JuniorCardsPage() {
         window.location.href = `/dashboard/junior/work/new?card_id=${card.id}`
       },
       variant: 'secondary',
-      condition: (card) => card.status === 'active' && card.casino_assignments.length > 0
+      condition: (card) => card.status === 'active' && card.casino_assignments.length > 0 && !isCardInUse(card.id)
     }
   ]
 
-  const activeCards = cards.filter(c => c.status === 'active').length
-  const cardsWithAssignments = cards.filter(c => c.casino_assignments.length > 0).length
-  const totalBalance = cards.reduce((sum, c) => sum + c.account_balance, 0)
+  // Фильтруем карты, исключая те, что находятся в работе
+  const availableCards = cards.filter(c => c.status === 'active' && !isCardInUse(c.id))
+  const activeCards = availableCards.length
+  const cardsWithAssignments = availableCards.filter(c => c.casino_assignments.length > 0).length
+  const totalBalance = availableCards.reduce((sum, c) => sum + c.account_balance, 0)
 
   return (
     <div className="space-y-6">
@@ -321,12 +348,12 @@ export default function JuniorCardsPage() {
       <div className="card">
         <div className="card-header">
           <h3 className="text-lg font-semibold text-gray-900">
-            Назначенные карты ({cards.length})
+            Назначенные карты ({availableCards.length})
           </h3>
         </div>
         
         <DataTable
-          data={cards}
+          data={availableCards}
           columns={columns}
           actions={actions}
           loading={loading}

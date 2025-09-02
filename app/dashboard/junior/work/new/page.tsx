@@ -319,12 +319,12 @@ export default function NewWorkPage() {
         }
       }
 
-      // Загружаем активные работы для проверки уже используемых карт
+      // Загружаем все работы для проверки уже используемых карт
       const worksResponse = await fetch('/api/works')
       if (worksResponse.ok) {
         const { works: worksData } = await worksResponse.json()
-        const activeWorksData = worksData.filter((w: any) => w.status === 'active')
-        setActiveWorks(activeWorksData)
+        // Теперь сохраняем все работы, не только активные
+        setActiveWorks(worksData)
       }
 
     } catch (error: any) {
@@ -445,9 +445,24 @@ export default function NewWorkPage() {
       )
     )
     
-    // Исключаем карты, которые уже используются в активных работах для этого казино
+    // Исключаем карты, которые уже используются в работах для этого казино
+    // Карта считается используемой если:
+    // 1. Работа активна (status === 'active')
+    // 2. Есть выводы в статусе 'new', 'waiting', 'received'
     const usedCardIds = activeWorks
-      .filter(work => work.casino?.id === workForm.casino_id)
+      .filter(work => {
+        if (work.casino?.id !== workForm.casino_id) return false
+        
+        // Если работа активна - карта используется
+        if (work.status === 'active') return true
+        
+        // Если есть активные выводы - карта используется
+        const hasActiveWithdrawals = work.withdrawals && work.withdrawals.some((w: any) => 
+          ['new', 'waiting', 'received'].includes(w.status)
+        )
+        
+        return hasActiveWithdrawals
+      })
       .map(work => work.card?.id)
     
     return assignedCards.filter(card => !usedCardIds.includes(card.id))
