@@ -10,95 +10,109 @@ import {
   BanknotesIcon,
   CheckCircleIcon,
   XCircleIcon,
-  ExclamationTriangleIcon
+  ExclamationTriangleIcon,
+  PlusIcon
 } from '@heroicons/react/24/outline'
 
-interface Withdrawal {
+interface Work {
   id: string
-  work_id: string
+  deposit_amount: number
+  status: string
+  created_at: string
+  casino_login: string
+  notes: string | null
+  work_date: string
+  casino_name: string
+  casino_currency: string
+  card_mask: string
+  card_type: string
+  bank_name: string
+  withdrawals: WorkWithdrawal[]
+}
+
+interface WorkWithdrawal {
+  id: string
   withdrawal_amount: number
   status: string
   created_at: string
   checked_at: string | null
-  alarm_message: string | null
-  casino_name: string
-  card_mask: string
-  deposit_amount: number
-  profit: number
 }
 
-interface WithdrawalStats {
+interface WorkStats {
+  totalWorks: number
+  activeWorks: number
+  completedWorks: number
+  totalDeposits: number
   totalWithdrawals: number
-  pendingWithdrawals: number
-  approvedWithdrawals: number
-  rejectedWithdrawals: number
-  totalProfit: number
 }
 
 export default function JuniorWithdrawalsPage() {
   const { addToast } = useToast()
-  const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([])
-  const [stats, setStats] = useState<WithdrawalStats>({
-    totalWithdrawals: 0,
-    pendingWithdrawals: 0,
-    approvedWithdrawals: 0,
-    rejectedWithdrawals: 0,
-    totalProfit: 0
+  const [works, setWorks] = useState<Work[]>([])
+  const [stats, setStats] = useState<WorkStats>({
+    totalWorks: 0,
+    activeWorks: 0,
+    completedWorks: 0,
+    totalDeposits: 0,
+    totalWithdrawals: 0
   })
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    loadWithdrawals()
+    loadWorks()
   }, [])
 
-  async function loadWithdrawals() {
+  async function loadWorks() {
     try {
-      const response = await fetch('/api/withdrawals')
+      const response = await fetch('/api/works')
       
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.error || 'Ошибка загрузки выводов')
+        throw new Error(errorData.error || 'Ошибка загрузки работ')
       }
 
-      const { withdrawals: withdrawalsData } = await response.json()
+      const { works: worksData } = await response.json()
       
       // Форматируем данные для интерфейса
-      const formattedWithdrawals = withdrawalsData.map((w: any) => ({
+      const formattedWorks = worksData.map((w: any) => ({
         id: w.id,
-        work_id: w.work_id,
-        withdrawal_amount: w.withdrawal_amount,
+        deposit_amount: w.deposit_amount,
         status: w.status,
         created_at: w.created_at,
-        checked_at: w.checked_at,
-        alarm_message: w.alarm_message,
-        casino_name: w.casino_name,
-        card_mask: w.card_number_mask,
-        deposit_amount: w.deposit_amount,
-        profit: w.profit || (w.withdrawal_amount - w.deposit_amount)
+        casino_login: w.casino_login,
+        notes: w.notes,
+        work_date: w.work_date,
+        casino_name: w.casinos?.name || 'Неизвестное казино',
+        casino_currency: w.casinos?.currency || 'USD',
+        card_mask: w.cards?.card_number_mask || 'Неизвестная карта',
+        card_type: w.cards?.card_type || 'Неизвестный тип',
+        bank_name: w.cards?.bank_account?.bank?.name || 'Неизвестный банк',
+        withdrawals: w.work_withdrawals || []
       }))
 
-      setWithdrawals(formattedWithdrawals)
+      setWorks(formattedWorks)
 
       // Рассчитываем статистику
-      const totalWithdrawals = formattedWithdrawals.length
-      const pendingWithdrawals = formattedWithdrawals.filter((w: Withdrawal) => ['new', 'waiting'].includes(w.status)).length
-      const approvedWithdrawals = formattedWithdrawals.filter((w: Withdrawal) => w.status === 'received').length
-      const rejectedWithdrawals = formattedWithdrawals.filter((w: Withdrawal) => ['problem', 'block'].includes(w.status)).length
-      const totalProfit = formattedWithdrawals.filter((w: Withdrawal) => w.status === 'received').reduce((sum: number, w: Withdrawal) => sum + w.profit, 0)
+      const totalWorks = formattedWorks.length
+      const activeWorks = formattedWorks.filter((w: Work) => w.status === 'active').length
+      const completedWorks = formattedWorks.filter((w: Work) => w.status === 'completed').length
+      const totalDeposits = formattedWorks.reduce((sum: number, w: Work) => sum + w.deposit_amount, 0)
+      const totalWithdrawals = formattedWorks.reduce((sum: number, w: Work) => 
+        sum + w.withdrawals.filter((wd: WorkWithdrawal) => wd.status === 'received').length, 0)
 
       setStats({
-        totalWithdrawals,
-        pendingWithdrawals,
-        approvedWithdrawals,
-        rejectedWithdrawals,
-        totalProfit
+        totalWorks,
+        activeWorks,
+        completedWorks,
+        totalDeposits,
+        totalWithdrawals
       })
 
     } catch (error: any) {
-      console.error('Ошибка загрузки выводов:', error)
+      console.error('Ошибка загрузки работ:', error)
       addToast({
         type: 'error',
-        title: 'Ошибка загрузки выводов',
+        title: 'Ошибка загрузки работ',
         description: error.message
       })
     } finally {
@@ -106,158 +120,258 @@ export default function JuniorWithdrawalsPage() {
     }
   }
 
-  const columns: Column<Withdrawal>[] = [
+  // Функция для создания вывода
+  async function createWithdrawal(workId: string, amount: number) {
+    try {
+      const response = await fetch('/api/work-withdrawals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          work_id: workId,
+          withdrawal_amount: amount
+        })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Ошибка создания вывода')
+      }
+
+      addToast({
+        type: 'success',
+        title: 'Вывод создан',
+        description: 'Вывод добавлен в очередь на проверку'
+      })
+
+      // Перезагружаем данные
+      loadWorks()
+
+    } catch (error: any) {
+      addToast({
+        type: 'error',
+        title: 'Ошибка создания вывода',
+        description: error.message
+      })
+    }
+  }
+
+  // Функция для изменения статуса вывода
+  async function updateWithdrawalStatus(withdrawalId: string, newStatus: string) {
+    try {
+      const response = await fetch(`/api/work-withdrawals/${withdrawalId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Ошибка изменения статуса')
+      }
+
+      addToast({
+        type: 'success',
+        title: 'Статус изменен',
+        description: `Статус вывода изменен на "${newStatus}"`
+      })
+
+      // Перезагружаем данные
+      loadWorks()
+
+    } catch (error: any) {
+      addToast({
+        type: 'error',
+        title: 'Ошибка изменения статуса',
+        description: error.message
+      })
+    }
+  }
+
+  // Функция для форматирования времени
+  function formatTimeAgo(dateString: string) {
+    const now = new Date()
+    const date = new Date(dateString)
+    const diffMs = now.getTime() - date.getTime()
+    const diffMinutes = Math.floor(diffMs / (1000 * 60))
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+    const diffWeeks = Math.floor(diffDays / 7)
+    const diffMonths = Math.floor(diffDays / 30)
+    const diffYears = Math.floor(diffDays / 365)
+
+    if (diffMinutes < 60) {
+      return `${diffMinutes} мин назад`
+    } else if (diffHours < 24) {
+      return `${diffHours} ч назад`
+    } else if (diffDays < 7) {
+      return `${diffDays} д назад`
+    } else if (diffWeeks < 4) {
+      return `${diffWeeks} нед назад`
+    } else if (diffMonths < 12) {
+      return `${diffMonths} мес назад`
+    } else {
+      return `${diffYears} г назад`
+    }
+  }
+
+  const columns: Column<Work>[] = [
     {
       key: 'created_at',
       label: 'Дата',
-      sortable: true,
-      render: (withdrawal) => (
-        <span className="text-sm text-gray-600">
-          {new Date(withdrawal.created_at).toLocaleDateString('ru-RU')}
-        </span>
+      render: (work) => (
+        <div>
+          <div className="font-medium">{new Date(work.created_at).toLocaleDateString('ru-RU')}</div>
+          <div className="text-sm text-gray-500">{formatTimeAgo(work.created_at)}</div>
+        </div>
       )
     },
     {
       key: 'casino_name',
       label: 'Казино',
-      sortable: true,
-      filterable: true,
-      render: (withdrawal) => (
+      render: (work) => (
         <div>
-          <div className="font-medium text-gray-900">{withdrawal.casino_name}</div>
-          <div className="text-sm text-gray-500 font-mono">{withdrawal.card_mask}</div>
+          <div className="font-medium">{work.casino_name}</div>
+          <div className="text-sm text-gray-500">Логин: {work.casino_login}</div>
         </div>
       )
     },
     {
       key: 'deposit_amount',
       label: 'Депозит',
-      align: 'right',
-      sortable: true,
-      render: (withdrawal) => (
-        <span className="font-mono text-gray-600">
-          ${withdrawal.deposit_amount.toFixed(2)}
-        </span>
+      render: (work) => (
+        <div className="font-medium text-blue-600">
+          {work.deposit_amount} {work.casino_currency}
+        </div>
       )
     },
     {
-      key: 'withdrawal_amount',
-      label: 'Вывод',
-      align: 'right',
-      sortable: true,
-      render: (withdrawal) => (
-        <span className="font-mono text-primary-600">
-          ${withdrawal.withdrawal_amount.toFixed(2)}
-        </span>
-      )
-    },
-    {
-      key: 'profit',
-      label: 'Профит',
-      align: 'right',
-      sortable: true,
-      render: (withdrawal) => (
-        <span className={`font-mono font-medium ${withdrawal.profit > 0 ? 'text-success-600' : 'text-danger-600'}`}>
-          ${withdrawal.profit.toFixed(2)}
-        </span>
+      key: 'card_info',
+      label: 'Карта',
+      render: (work) => (
+        <div>
+          <div className="font-medium">{work.card_mask}</div>
+          <div className="text-sm text-gray-500">{work.bank_name}</div>
+        </div>
       )
     },
     {
       key: 'status',
-      label: 'Статус',
-      sortable: true,
-      render: (withdrawal) => <StatusBadge status={withdrawal.status} />
-    }
-  ]
-
-  const actions: ActionButton<Withdrawal>[] = [
-    {
-      label: 'Отменить',
-      action: (withdrawal) => {
-        addToast({ type: 'info', title: 'Отмена вывода - в разработке' })
-      },
-      variant: 'warning',
-      condition: (withdrawal) => withdrawal.status === 'waiting'
+      label: 'Статус работы',
+      render: (work) => (
+        <StatusBadge status={work.status} />
+      )
     },
     {
-      label: 'Детали',
-      action: (withdrawal) => {
-        addToast({ type: 'info', title: 'Просмотр деталей - в разработке' })
-      },
-      variant: 'secondary'
+      key: 'withdrawals',
+      label: 'Выводы',
+      render: (work) => (
+        <div className="space-y-1">
+          {work.withdrawals.length === 0 ? (
+            <span className="text-sm text-gray-500">Нет выводов</span>
+          ) : (
+            work.withdrawals.map((withdrawal) => (
+              <div key={withdrawal.id} className="flex items-center space-x-2">
+                <span className="text-sm font-medium">
+                  {withdrawal.withdrawal_amount} {work.casino_currency}
+                </span>
+                <StatusBadge status={withdrawal.status} />
+                <span className="text-xs text-gray-500">
+                  {formatTimeAgo(withdrawal.created_at)}
+                </span>
+              </div>
+            ))
+          )}
+        </div>
+      )
     }
   ]
 
+  const actions: ActionButton<Work>[] = [
+    {
+      label: 'Создать вывод',
+      variant: 'primary',
+      condition: (work) => work.status === 'active',
+      action: (work) => {
+        const amount = prompt(`Введите сумму вывода для ${work.casino_name} (${work.casino_currency}):`)
+        if (amount && !isNaN(Number(amount)) && Number(amount) > 0) {
+          createWithdrawal(work.id, Number(amount))
+        }
+      }
+    }
+  ]
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="loading-spinner"></div>
+      </div>
+    )
+  }
+
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Мои выводы</h1>
-        <p className="text-gray-600">История и статус выводов средств</p>
+    <div className="container-main">
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Мои работы и выводы</h1>
+          <p className="text-gray-600">Управление депозитами и выводами средств</p>
+        </div>
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-6">
         <KPICard
-          title="Всего выводов"
-          value={stats.totalWithdrawals}
-          icon={<ClockIcon className="h-6 w-6" />}
+          title="Всего работ"
+          value={stats.totalWorks}
+          icon={<BanknotesIcon className="h-6 w-6" />}
           color="primary"
         />
         <KPICard
-          title="Ожидают"
-          value={stats.pendingWithdrawals}
+          title="Активные"
+          value={stats.activeWorks}
           icon={<ClockIcon className="h-6 w-6" />}
           color="warning"
         />
         <KPICard
-          title="Одобрены"
-          value={stats.approvedWithdrawals}
+          title="Завершенные"
+          value={stats.completedWorks}
           icon={<CheckCircleIcon className="h-6 w-6" />}
           color="success"
         />
         <KPICard
-          title="Отклонены"
-          value={stats.rejectedWithdrawals}
-          icon={<XCircleIcon className="h-6 w-6" />}
-          color="danger"
+          title="Общий депозит"
+          value={`${stats.totalDeposits}`}
+          icon={<BanknotesIcon className="h-6 w-6" />}
+          color="primary"
         />
         <KPICard
-          title="Общий профит"
-          value={`$${stats.totalProfit.toFixed(2)}`}
-          icon={<BanknotesIcon className="h-6 w-6" />}
+          title="Выводов получено"
+          value={stats.totalWithdrawals}
+          icon={<CheckCircleIcon className="h-6 w-6" />}
           color="success"
         />
       </div>
 
-      {/* Таблица выводов */}
+      {/* Works Table */}
       <div className="card">
         <div className="card-header">
-          <h3 className="text-lg font-semibold text-gray-900">
-            Выводы ({withdrawals.length})
-          </h3>
+          <h2 className="text-lg font-semibold text-gray-900">Список работ</h2>
         </div>
         
-        <DataTable
-          data={withdrawals}
-          columns={columns}
-          actions={actions}
-          loading={loading}
-          pagination={{ pageSize: 20 }}
-          filtering={true}
-          exportable={true}
-          emptyMessage="Выводы не найдены"
-        />
-      </div>
-
-      {/* Информация */}
-      <div className="bg-primary-50 border border-primary-200 rounded-lg p-6">
-        <h3 className="font-medium text-primary-900 mb-3">💡 Работа с выводами</h3>
-        <div className="text-sm text-primary-800 space-y-2">
-          <div>• <strong>Создавайте выводы</strong> только после успешного депозита</div>
-          <div>• <strong>Ожидайте проверки</strong> Manager в течение 15 минут</div>
-          <div>• <strong>Следите за статусом</strong> - waiting → received/problem/block</div>
-          <div>• <strong>Профит засчитывается</strong> только при статусе "received"</div>
-        </div>
+        {works.length === 0 ? (
+          <div className="text-center py-8">
+            <BanknotesIcon className="mx-auto h-12 w-12 text-gray-400" />
+            <h3 className="mt-2 text-sm font-medium text-gray-900">Нет работ</h3>
+            <p className="mt-1 text-sm text-gray-500">
+              Создайте первую работу, чтобы начать зарабатывать
+            </p>
+          </div>
+        ) : (
+          <DataTable
+            data={works}
+            columns={columns}
+            actions={actions}
+          />
+        )}
       </div>
     </div>
   )

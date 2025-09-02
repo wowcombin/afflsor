@@ -405,7 +405,21 @@ export default function NewWorkPage() {
 
   // Выбор казино из поиска
   function selectCasino(casino: Casino) {
-    setWorkForm({ ...workForm, casino_id: casino.id, card_id: '' }) // Сбрасываем выбранную карту
+    // Находим первую доступную карту для этого казино
+    const availableCards = cards.filter(card => 
+      card.casino_assignments.some(assignment => 
+        assignment.casino_id === casino.id && 
+        assignment.status === 'active'
+      )
+    )
+    
+    const firstCard = availableCards[0]
+    
+    setWorkForm({ 
+      ...workForm, 
+      casino_id: casino.id, 
+      card_id: firstCard ? firstCard.id : '' // Автоматически выбираем первую карту
+    })
     setCasinoSearch(casino.name)
     setShowCasinoDropdown(false)
   }
@@ -516,22 +530,39 @@ export default function NewWorkPage() {
 
             <div>
               <label className="form-label">Карта *</label>
-              <select
-                value={workForm.card_id}
-                onChange={(e) => setWorkForm({ ...workForm, card_id: e.target.value })}
-                className="form-input"
-                required
-                disabled={!workForm.casino_id}
-              >
-                <option value="">
-                  {!workForm.casino_id ? 'Сначала выберите казино' : 'Выберите карту'}
-                </option>
-                {getAvailableCards().map(card => (
-                  <option key={card.id} value={card.id}>
-                    {card.card_number_mask} - {card.bank_account?.bank?.name || 'Неизвестный банк'}
+              {workForm.card_id ? (
+                // Показываем выбранную карту как readonly
+                <div className="form-input bg-gray-50 flex items-center justify-between">
+                  <span>
+                    {getSelectedCard()?.card_number_mask} - {getSelectedCard()?.bank_account?.bank?.name || 'Неизвестный банк'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setWorkForm({ ...workForm, card_id: '' })}
+                    className="text-gray-400 hover:text-gray-600 text-sm"
+                  >
+                    Изменить
+                  </button>
+                </div>
+              ) : (
+                // Показываем select только если карта не выбрана
+                <select
+                  value={workForm.card_id}
+                  onChange={(e) => setWorkForm({ ...workForm, card_id: e.target.value })}
+                  className="form-input"
+                  required
+                  disabled={!workForm.casino_id}
+                >
+                  <option value="">
+                    {!workForm.casino_id ? 'Сначала выберите казино' : 'Выберите карту'}
                   </option>
-                ))}
-              </select>
+                  {getAvailableCards().map(card => (
+                    <option key={card.id} value={card.id}>
+                      {card.card_number_mask} - {card.bank_account?.bank?.name || 'Неизвестный банк'}
+                    </option>
+                  ))}
+                </select>
+              )}
               {getSelectedCard() && (
                 <div className="mt-2 flex items-center justify-between">
                   <div className="text-sm text-gray-600">
@@ -567,10 +598,10 @@ export default function NewWorkPage() {
               </label>
               <input
                 type="number"
-                value={workForm.deposit_amount}
+                value={workForm.deposit_amount || ''}
                 onChange={(e) => setWorkForm({ ...workForm, deposit_amount: parseFloat(e.target.value) || 0 })}
                 className="form-input"
-                placeholder="100.00"
+                placeholder="Введите сумму депозита"
                 min="1"
                 step="0.01"
                 required
