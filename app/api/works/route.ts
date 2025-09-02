@@ -195,10 +195,31 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
+    // Автоматически создаем вывод для этой работы
+    // Предполагаем профит 50% от депозита (можно настроить)
+    const withdrawalAmount = Number(deposit_amount) * 1.5 // депозит + 50% профит
+    
+    const { data: newWithdrawal, error: withdrawalError } = await supabase
+      .from('work_withdrawals')
+      .insert({
+        work_id: newWork.id,
+        withdrawal_amount: withdrawalAmount,
+        status: 'new' // Новый вывод ожидает проверки Manager
+      })
+      .select()
+      .single()
+
+    if (withdrawalError) {
+      console.error('Withdrawal creation error:', withdrawalError)
+      // Не возвращаем ошибку, так как работа уже создана
+      // Просто логируем проблему с выводом
+    }
+
     return NextResponse.json({
       success: true,
       work: newWork,
-      message: `Работа с ${casino.name} создана`
+      withdrawal: newWithdrawal || null,
+      message: `Работа с ${casino.name} создана${newWithdrawal ? ' и вывод добавлен в очередь' : ''}`
     })
 
   } catch (error) {
