@@ -44,7 +44,8 @@ export default function Navigation({ userRole }: NavigationProps) {
           { name: 'Новая работа', href: `${baseHref}/work/new`, icon: BriefcaseIcon },
           { name: 'Мои выводы', href: `${baseHref}/withdrawals`, icon: ClockIcon },
           { name: 'Мои карты', href: `${baseHref}/cards`, icon: CreditCardIcon },
-          { name: 'Статистика', href: `${baseHref}/stats`, icon: ChartBarIcon }
+          { name: 'Статистика', href: `${baseHref}/stats`, icon: ChartBarIcon },
+          { name: 'Настройки', href: `${baseHref}/settings`, icon: CogIcon }
         ]
 
       case 'manager':
@@ -54,7 +55,8 @@ export default function Navigation({ userRole }: NavigationProps) {
           { name: 'Команда', href: `${baseHref}/team`, icon: UsersIcon },
           { name: 'Карты', href: `${baseHref}/cards`, icon: CreditCardIcon },
           { name: 'Банки', href: `${baseHref}/banks`, icon: BuildingLibraryIcon },
-          { name: 'Аналитика', href: `${baseHref}/analytics`, icon: ChartBarIcon }
+          { name: 'Аналитика', href: `${baseHref}/analytics`, icon: ChartBarIcon },
+          { name: 'Настройки', href: `${baseHref}/settings`, icon: CogIcon }
         ]
 
       case 'tester':
@@ -66,7 +68,8 @@ export default function Navigation({ userRole }: NavigationProps) {
           { name: 'Мануалы', href: `${baseHref}/manuals`, icon: DocumentTextIcon },
           { name: 'Банки', href: `${baseHref}/banks`, icon: BuildingLibraryIcon },
           { name: 'История тестов', href: `${baseHref}/testing`, icon: ClockIcon },
-          { name: 'Отчеты', href: `${baseHref}/reports`, icon: ChartBarIcon }
+          { name: 'Отчеты', href: `${baseHref}/reports`, icon: ChartBarIcon },
+          { name: 'Настройки', href: `${baseHref}/settings`, icon: CogIcon }
         ]
 
       case 'hr':
@@ -75,7 +78,8 @@ export default function Navigation({ userRole }: NavigationProps) {
           { name: 'Сотрудники', href: `${baseHref}/users`, icon: UsersIcon },
           { name: 'Отчеты', href: `${baseHref}/reports`, icon: ChartBarIcon },
           { name: 'Комментарии', href: `${baseHref}/comments`, icon: DocumentTextIcon },
-          { name: 'Банки', href: `${baseHref}/banks`, icon: BuildingLibraryIcon }
+          { name: 'Банки', href: `${baseHref}/banks`, icon: BuildingLibraryIcon },
+          { name: 'Настройки', href: `${baseHref}/settings`, icon: CogIcon }
         ]
 
       case 'cfo':
@@ -85,7 +89,8 @@ export default function Navigation({ userRole }: NavigationProps) {
           { name: 'Переводы', href: `${baseHref}/transfers`, icon: ClockIcon },
           { name: 'Расходы', href: `${baseHref}/expenses`, icon: ChartBarIcon },
           { name: 'Банки', href: `${baseHref}/banks`, icon: BuildingLibraryIcon },
-          { name: 'Отчеты', href: `${baseHref}/reports`, icon: DocumentTextIcon }
+          { name: 'Отчеты', href: `${baseHref}/reports`, icon: DocumentTextIcon },
+          { name: 'Настройки', href: `${baseHref}/settings`, icon: CogIcon }
         ]
 
       case 'admin':
