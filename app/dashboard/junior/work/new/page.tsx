@@ -414,23 +414,55 @@ export default function NewWorkPage() {
 
   // Выбор казино из поиска
   function selectCasino(casino: Casino) {
-    // Находим первую доступную карту для этого казино
-    const availableCards = cards.filter(card => 
+    // Сначала устанавливаем казино
+    setWorkForm({ 
+      ...workForm, 
+      casino_id: casino.id, 
+      card_id: '' // Сбрасываем карту
+    })
+    setCasinoSearch(casino.name)
+    setShowCasinoDropdown(false)
+    
+    // Затем находим доступные карты для этого казино (не используемые)
+    const assignedCards = cards.filter(card => 
       card.casino_assignments.some(assignment => 
         assignment.casino_id === casino.id && 
         assignment.status === 'active'
       )
     )
     
-    const firstCard = availableCards[0]
+    // Исключаем карты, которые уже используются в работах для ЭТОГО КОНКРЕТНОГО казино
+    const usedCardIdsForThisCasino = activeWorks
+      .filter(work => {
+        // Проверяем только работы для выбранного казино
+        if (work.casino?.id !== casino.id) return false
+        
+        // Если работа активна - карта используется для этого казино
+        if (work.status === 'active') return true
+        
+        // Если есть активные выводы - карта используется для этого казино
+        const hasActiveWithdrawals = work.withdrawals && work.withdrawals.some((w: any) => 
+          ['new', 'waiting', 'received'].includes(w.status)
+        )
+        
+        return hasActiveWithdrawals
+      })
+      .map(work => work.card?.id)
     
-    setWorkForm({ 
-      ...workForm, 
-      casino_id: casino.id, 
-      card_id: firstCard ? firstCard.id : '' // Автоматически выбираем первую карту
-    })
-    setCasinoSearch(casino.name)
-    setShowCasinoDropdown(false)
+    const availableCards = assignedCards.filter(card => !usedCardIdsForThisCasino.includes(card.id))
+    
+    // Автоматически выбираем первую доступную карту
+    if (availableCards.length > 0) {
+      setWorkForm(prev => ({ 
+        ...prev, 
+        card_id: availableCards[0].id
+      }))
+      addToast({
+        type: 'success',
+        title: 'Карта выбрана',
+        description: `Автоматически выбрана карта ${availableCards[0].card_number_mask}`
+      })
+    }
   }
 
   // Получить карты, назначенные на выбранное казино и не используемые в активных работах для этого казино

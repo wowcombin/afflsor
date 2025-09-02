@@ -246,18 +246,7 @@ export default function JuniorCardsPage() {
         </div>
       )
     },
-    {
-      key: 'account_balance',
-      label: 'Баланс',
-      align: 'right',
-      render: (card) => (
-        <div className="text-right">
-          <div className={`font-mono font-medium ${card.account_balance >= 10 ? 'text-success-600' : 'text-danger-600'}`}>
-            {card.account_currency === 'USD' ? '$' : card.account_currency}{card.account_balance.toFixed(2)}
-          </div>
-        </div>
-      )
-    },
+
     {
       key: 'casino_assignments',
       label: 'Назначения',
@@ -337,17 +326,23 @@ export default function JuniorCardsPage() {
 
   // Показываем все активные карты
   const availableCards = cards.filter(c => c.status === 'active')
-  const activeCards = availableCards.length
   
-  // Считаем карты с доступными назначениями (не используемыми в работе)
+  // Считаем общее количество доступных работ (назначений)
+  // Каждое назначение карты на казино = потенциальная работа
+  const totalAvailableWorks = availableCards.reduce((total, card) => {
+    const availableAssignments = card.casino_assignments.filter(assignment => 
+      !isCardInUseForCasino(card.id, assignment.casino_id)
+    )
+    return total + availableAssignments.length
+  }, 0)
+  
+  // Считаем карты с доступными назначениями
   const cardsWithAvailableAssignments = availableCards.filter(c => {
     const availableAssignments = c.casino_assignments.filter(assignment => 
       !isCardInUseForCasino(c.id, assignment.casino_id)
     )
     return availableAssignments.length > 0
   }).length
-  
-  const totalBalance = availableCards.reduce((sum, c) => sum + c.account_balance, 0)
 
   return (
     <div className="space-y-6">
@@ -365,21 +360,15 @@ export default function JuniorCardsPage() {
           color="primary"
         />
         <KPICard
-          title="Активные"
-          value={activeCards}
-          icon={<CheckCircleIcon className="h-6 w-6" />}
-          color="success"
-        />
-        <KPICard
-          title="С назначениями"
-          value={cardsWithAvailableAssignments}
+          title="Доступные работы"
+          value={totalAvailableWorks}
           icon={<span className="text-xl">🎯</span>}
           color="primary"
         />
         <KPICard
-          title="Общий баланс"
-          value={`$${totalBalance.toFixed(2)}`}
-          icon={<span className="text-xl">💰</span>}
+          title="Активные карты"
+          value={cardsWithAvailableAssignments}
+          icon={<CheckCircleIcon className="h-6 w-6" />}
           color="success"
         />
       </div>

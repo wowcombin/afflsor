@@ -562,17 +562,7 @@ export default function JuniorWithdrawalsPage() {
                     }}>
                       Заблокирован
                     </a>
-                    {/* Добавляем возможность удалить первый вывод со статусом "new" */}
-                    {row.withdrawal.status === 'new' && (
-                      <a onClick={() => {
-                        if (confirm(`Удалить вывод на сумму ${row.withdrawal!.withdrawal_amount} ${row.casino_currency}?`)) {
-                          deleteWithdrawal(row.withdrawal!.id, row.casino_name)
-                          setOpenDropdown(null)
-                        }
-                      }} style={{ color: '#dc2626', borderTop: '1px solid #f3f4f6' }}>
-                        Удалить вывод
-                      </a>
-                    )}
+
                   </div>
                 )}
               </div>
@@ -635,17 +625,7 @@ export default function JuniorWithdrawalsPage() {
                   }}>
                     Заблокирован
                   </a>
-                  {/* Добавляем возможность удалить вывод со статусом "new" */}
-                  {row.withdrawal.status === 'new' && (
-                    <a onClick={() => {
-                      if (confirm(`Удалить вывод на сумму ${row.withdrawal!.withdrawal_amount} ${row.casino_currency}?`)) {
-                        deleteWithdrawal(row.withdrawal!.id, row.casino_name)
-                        setOpenDropdown(null)
-                      }
-                    }} style={{ color: '#dc2626', borderTop: '1px solid #f3f4f6' }}>
-                      Удалить вывод
-                    </a>
-                  )}
+
                 </div>
               )}
             </div>
