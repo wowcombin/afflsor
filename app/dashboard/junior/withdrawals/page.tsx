@@ -183,7 +183,12 @@ export default function JuniorWithdrawalsPage() {
       }
     })
     
-    return rows
+    // Сортируем строки по дате создания (новые сверху)
+    return rows.sort((a, b) => {
+      const dateA = new Date(a.created_at).getTime()
+      const dateB = new Date(b.created_at).getTime()
+      return dateB - dateA // Убывающий порядок (новые сверху)
+    })
   }
 
   async function loadWorks() {
@@ -486,26 +491,26 @@ export default function JuniorWithdrawalsPage() {
         </div>
       )
     },
-    {
+        {
       key: 'amount',
       label: 'Сумма',
       render: (row) => (
         <div className="deposit-amount">
           {row.is_deposit_row ? (
             <div>
-              <span className="text-blue-600">
-                +{row.deposit_amount} {row.casino_currency}
-        </span>
+              <span className="text-red-600">
+                -{row.deposit_amount} {row.casino_currency}
+              </span>
               {row.withdrawal && (
                 <div className="text-green-600 text-sm">
-                  -{row.withdrawal.withdrawal_amount} {row.casino_currency}
+                  +{row.withdrawal.withdrawal_amount} {row.casino_currency}
                 </div>
               )}
             </div>
           ) : (
             <span className="text-green-600">
-              -{row.withdrawal?.withdrawal_amount || 0} {row.casino_currency}
-        </span>
+              +{row.withdrawal?.withdrawal_amount || 0} {row.casino_currency}
+            </span>
           )}
         </div>
       )
@@ -557,6 +562,17 @@ export default function JuniorWithdrawalsPage() {
                     }}>
                       Заблокирован
                     </a>
+                    {/* Добавляем возможность удалить первый вывод со статусом "new" */}
+                    {row.withdrawal.status === 'new' && (
+                      <a onClick={() => {
+                        if (confirm(`Удалить вывод на сумму ${row.withdrawal!.withdrawal_amount} ${row.casino_currency}?`)) {
+                          deleteWithdrawal(row.withdrawal!.id, row.casino_name)
+                          setOpenDropdown(null)
+                        }
+                      }} style={{ color: '#dc2626', borderTop: '1px solid #f3f4f6' }}>
+                        Удалить вывод
+                      </a>
+                    )}
                   </div>
                 )}
               </div>
@@ -620,7 +636,7 @@ export default function JuniorWithdrawalsPage() {
                     Заблокирован
                   </a>
                   {/* Добавляем возможность удалить вывод со статусом "new" */}
-                  {row.withdrawal.status === 'new' && !row.is_deposit_row && (
+                  {row.withdrawal.status === 'new' && (
                     <a onClick={() => {
                       if (confirm(`Удалить вывод на сумму ${row.withdrawal!.withdrawal_amount} ${row.casino_currency}?`)) {
                         deleteWithdrawal(row.withdrawal!.id, row.casino_name)
