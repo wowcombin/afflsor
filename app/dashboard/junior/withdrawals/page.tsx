@@ -371,12 +371,8 @@ export default function JuniorWithdrawalsPage() {
       key: 'withdrawal_status',
       label: 'Статус вывода',
       render: (work) => {
-        // Берем последний (самый новый) вывод или показываем возможность создать
-        const latestWithdrawal = work.withdrawals.length > 0 
-          ? work.withdrawals[work.withdrawals.length - 1] 
-          : null
-
-        if (!latestWithdrawal) {
+        // Если нет выводов, показываем возможность создать
+        if (work.withdrawals.length === 0) {
           return (
             <div className="status-dropdown">
               <div 
@@ -402,36 +398,45 @@ export default function JuniorWithdrawalsPage() {
           )
         }
 
+        // Если есть выводы, показываем их все
         return (
-          <div className="status-dropdown">
-            <div 
-              onClick={() => setOpenDropdown(openDropdown === `withdrawal-${latestWithdrawal.id}` ? null : `withdrawal-${latestWithdrawal.id}`)}
-              style={{ cursor: 'pointer' }}
-            >
-              <StatusBadge status={latestWithdrawal.status} />
-            </div>
-            {openDropdown === `withdrawal-${latestWithdrawal.id}` && (
-              <div className="status-dropdown-content" style={{ display: 'block' }}>
-                <a onClick={() => {
-                  updateWithdrawalStatus(latestWithdrawal.id, 'new')
-                  setOpenDropdown(null)
-                }}>
-                  Новый
-                </a>
-                <a onClick={() => {
-                  updateWithdrawalStatus(latestWithdrawal.id, 'waiting')
-                  setOpenDropdown(null)
-                }}>
-                  В ожидании
-                </a>
-                <a onClick={() => {
-                  updateWithdrawalStatus(latestWithdrawal.id, 'block')
-                  setOpenDropdown(null)
-                }}>
-                  Заблокирован
-                </a>
+          <div className="space-y-1">
+            {work.withdrawals.map((withdrawal, index) => (
+              <div key={withdrawal.id} className="status-dropdown">
+                <div 
+                  onClick={() => setOpenDropdown(openDropdown === `withdrawal-${withdrawal.id}` ? null : `withdrawal-${withdrawal.id}`)}
+                  style={{ cursor: 'pointer' }}
+                  className="flex items-center space-x-2"
+                >
+                  <StatusBadge status={withdrawal.status} />
+                  <span className="text-xs text-gray-500">
+                    {withdrawal.withdrawal_amount} {work.casino_currency}
+                  </span>
+                </div>
+                {openDropdown === `withdrawal-${withdrawal.id}` && (
+                  <div className="status-dropdown-content" style={{ display: 'block' }}>
+                    <a onClick={() => {
+                      updateWithdrawalStatus(withdrawal.id, 'new')
+                      setOpenDropdown(null)
+                    }}>
+                      Новый
+                    </a>
+                    <a onClick={() => {
+                      updateWithdrawalStatus(withdrawal.id, 'waiting')
+                      setOpenDropdown(null)
+                    }}>
+                      В ожидании
+                    </a>
+                    <a onClick={() => {
+                      updateWithdrawalStatus(withdrawal.id, 'block')
+                      setOpenDropdown(null)
+                    }}>
+                      Заблокирован
+                    </a>
+                  </div>
+                )}
               </div>
-            )}
+            ))}
           </div>
         )
       }
@@ -454,6 +459,7 @@ export default function JuniorWithdrawalsPage() {
     label: 'Действия',
     render: (work) => (
       <div className="flex items-center space-x-2">
+        {/* Кнопка создания первого вывода */}
         {work.withdrawals.length === 0 && work.status === 'active' && (
           <CurrencyDollarIcon
             className="action-icon withdraw"
@@ -466,6 +472,24 @@ export default function JuniorWithdrawalsPage() {
             }}
           />
         )}
+        
+        {/* Кнопка создания дополнительного вывода */}
+        {work.withdrawals.length > 0 && work.status === 'active' && (
+          <div className="flex items-center">
+            <span className="text-xs text-gray-500 mr-1">+</span>
+            <CurrencyDollarIcon
+              className="action-icon withdraw"
+              title="Добавить еще один вывод"
+              onClick={() => {
+                const amount = prompt(`Введите сумму дополнительного вывода для ${work.casino_name} (${work.casino_currency}):`)
+                if (amount && !isNaN(Number(amount)) && Number(amount) > 0) {
+                  createWithdrawal(work.id, Number(amount))
+                }
+              }}
+            />
+          </div>
+        )}
+        
         {work.status !== 'completed' && work.withdrawals.every(w => !['received', 'waiting'].includes(w.status)) && (
           <TrashIcon
             className="action-icon delete"

@@ -244,6 +244,7 @@ export default function NewWorkPage() {
   const { addToast } = useToast()
   const [casinos, setCasinos] = useState<Casino[]>([])
   const [cards, setCards] = useState<Card[]>([])
+  const [activeWorks, setActiveWorks] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
   
@@ -316,6 +317,14 @@ export default function NewWorkPage() {
             description: 'Карта автоматически выбрана из ссылки'
           })
         }
+      }
+
+      // Загружаем активные работы для проверки уже используемых карт
+      const worksResponse = await fetch('/api/works')
+      if (worksResponse.ok) {
+        const { works: worksData } = await worksResponse.json()
+        const activeWorksData = worksData.filter((w: any) => w.status === 'active')
+        setActiveWorks(activeWorksData)
       }
 
     } catch (error: any) {
@@ -424,16 +433,24 @@ export default function NewWorkPage() {
     setShowCasinoDropdown(false)
   }
 
-  // Получить карты, назначенные на выбранное казино
+  // Получить карты, назначенные на выбранное казино и не используемые в активных работах
   function getAvailableCards() {
     if (!workForm.casino_id) return []
     
-    return cards.filter(card => 
+    // Получаем карты, назначенные на выбранное казино
+    const assignedCards = cards.filter(card => 
       card.casino_assignments.some(assignment => 
         assignment.casino_id === workForm.casino_id && 
         assignment.status === 'active'
       )
     )
+    
+    // Исключаем карты, которые уже используются в активных работах для этого казино
+    const usedCardIds = activeWorks
+      .filter(work => work.casino?.id === workForm.casino_id)
+      .map(work => work.card?.id)
+    
+    return assignedCards.filter(card => !usedCardIds.includes(card.id))
   }
 
   if (loading) {
