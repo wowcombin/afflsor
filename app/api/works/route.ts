@@ -34,11 +34,23 @@ export async function GET(request: Request) {
         deposit_amount,
         status,
         casino_login,
+        casino_password,
         notes,
         work_date,
         created_at,
-        casinos!inner(id, name, url, auto_approve_limit),
-        cards!inner(id, card_number_mask, card_bin, card_type),
+        casinos!inner(id, name, url, currency, promo, auto_approve_limit),
+        cards!inner(
+          id, 
+          card_number_mask, 
+          card_bin, 
+          card_type,
+          bank_account:bank_accounts(
+            id,
+            holder_name,
+            currency,
+            bank:banks(name, country)
+          )
+        ),
         users!inner(id, first_name, last_name, email),
         work_withdrawals(
           id,

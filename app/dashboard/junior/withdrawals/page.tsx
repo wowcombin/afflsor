@@ -11,7 +11,8 @@ import {
   CheckCircleIcon,
   XCircleIcon,
   ExclamationTriangleIcon,
-  PlusIcon
+  CurrencyDollarIcon,
+  TrashIcon
 } from '@heroicons/react/24/outline'
 
 interface Work {
@@ -20,13 +21,16 @@ interface Work {
   status: string
   created_at: string
   casino_login: string
+  casino_password: string
   notes: string | null
   work_date: string
   casino_name: string
   casino_currency: string
+  casino_promo: string | null
   card_mask: string
   card_type: string
   bank_name: string
+  bank_account_holder: string
   withdrawals: WorkWithdrawal[]
 }
 
@@ -80,13 +84,16 @@ export default function JuniorWithdrawalsPage() {
         status: w.status,
         created_at: w.created_at,
         casino_login: w.casino_login,
+        casino_password: w.casino_password,
         notes: w.notes,
         work_date: w.work_date,
         casino_name: w.casinos?.name || 'Неизвестное казино',
         casino_currency: w.casinos?.currency || 'USD',
+        casino_promo: w.casinos?.promo || null,
         card_mask: w.cards?.card_number_mask || 'Неизвестная карта',
         card_type: w.cards?.card_type || 'Неизвестный тип',
         bank_name: w.cards?.bank_account?.bank?.name || 'Неизвестный банк',
+        bank_account_holder: w.cards?.bank_account?.holder_name || 'Неизвестный аккаунт',
         withdrawals: w.work_withdrawals || []
       }))
 
@@ -253,6 +260,32 @@ export default function JuniorWithdrawalsPage() {
     }
   }
 
+  // Функция для копирования промо
+  function copyPromo(casinoName: string, promo: string | null) {
+    if (!promo) {
+      addToast({
+        type: 'warning',
+        title: 'Промо не найдено',
+        description: `У казино ${casinoName} нет промо-кода`
+      })
+      return
+    }
+
+    navigator.clipboard.writeText(promo).then(() => {
+      addToast({
+        type: 'success',
+        title: 'Промо скопировано',
+        description: `Промо-код ${promo} скопирован в буфер обмена`
+      })
+    }).catch(() => {
+      addToast({
+        type: 'error',
+        title: 'Ошибка копирования',
+        description: 'Не удалось скопировать промо-код'
+      })
+    })
+  }
+
   // Функция для форматирования времени
   function formatTimeAgo(dateString: string) {
     const now = new Date()
@@ -282,22 +315,20 @@ export default function JuniorWithdrawalsPage() {
 
   const columns: Column<Work>[] = [
     {
-      key: 'created_at',
-      label: 'Дата',
-      render: (work) => (
-        <div>
-          <div className="font-medium">{new Date(work.created_at).toLocaleDateString('ru-RU')}</div>
-          <div className="text-sm text-gray-500">{formatTimeAgo(work.created_at)}</div>
-        </div>
-      )
-    },
-    {
-      key: 'casino_name',
+      key: 'casino_info',
       label: 'Казино',
       render: (work) => (
         <div>
-          <div className="font-medium">{work.casino_name}</div>
-          <div className="text-sm text-gray-500">Логин: {work.casino_login}</div>
+          <div 
+            className="casino-name"
+            onClick={() => copyPromo(work.casino_name, work.casino_promo)}
+            title={work.casino_promo ? `Кликните для копирования промо: ${work.casino_promo}` : 'Промо не указано'}
+          >
+            {work.casino_name}
+          </div>
+          <div className="login-info">
+            Логин: {work.casino_login} | Пароль: {work.casino_password}
+          </div>
         </div>
       )
     },
@@ -305,7 +336,7 @@ export default function JuniorWithdrawalsPage() {
       key: 'deposit_amount',
       label: 'Депозит',
       render: (work) => (
-        <div className="font-medium text-blue-600">
+        <div className="deposit-amount text-blue-600">
           {work.deposit_amount} {work.casino_currency}
         </div>
       )
@@ -314,89 +345,101 @@ export default function JuniorWithdrawalsPage() {
       key: 'card_info',
       label: 'Карта',
       render: (work) => (
-        <div>
+        <div className="card-info">
           <div className="font-medium">{work.card_mask}</div>
           <div className="text-sm text-gray-500">{work.bank_name}</div>
+          <div className="bank-account">Аккаунт: {work.bank_account_holder}</div>
         </div>
       )
     },
     {
-      key: 'status',
-      label: 'Статус работы',
-      render: (work) => (
-        <StatusBadge status={work.status} />
-      )
+      key: 'withdrawal_status',
+      label: 'Статус вывода',
+      render: (work) => {
+        // Берем последний (самый новый) вывод или показываем возможность создать
+        const latestWithdrawal = work.withdrawals.length > 0 
+          ? work.withdrawals[work.withdrawals.length - 1] 
+          : null
+
+        if (!latestWithdrawal) {
+          return (
+            <div className="status-dropdown">
+              <StatusBadge status="new" />
+              <div className="status-dropdown-content">
+                <a onClick={() => {
+                  const amount = prompt(`Введите сумму вывода для ${work.casino_name} (${work.casino_currency}):`)
+                  if (amount && !isNaN(Number(amount)) && Number(amount) > 0) {
+                    createWithdrawal(work.id, Number(amount))
+                  }
+                }}>
+                  Создать вывод
+                </a>
+              </div>
+            </div>
+          )
+        }
+
+        return (
+          <div className="status-dropdown">
+            <StatusBadge status={latestWithdrawal.status} />
+            <div className="status-dropdown-content">
+              <a onClick={() => updateWithdrawalStatus(latestWithdrawal.id, 'new')}>
+                Новый
+              </a>
+              <a onClick={() => updateWithdrawalStatus(latestWithdrawal.id, 'waiting')}>
+                В ожидании
+              </a>
+              <a onClick={() => updateWithdrawalStatus(latestWithdrawal.id, 'block')}>
+                Заблокирован
+              </a>
+            </div>
+          </div>
+        )
+      }
     },
     {
-      key: 'withdrawals',
-      label: 'Выводы',
+      key: 'date_info',
+      label: 'Дата',
       render: (work) => (
-        <div className="space-y-1">
-          {work.withdrawals.length === 0 ? (
-            <span className="text-sm text-gray-500">Нет выводов</span>
-          ) : (
-            work.withdrawals.map((withdrawal) => (
-              <div key={withdrawal.id} className="flex items-center space-x-2">
-                <span className="text-sm font-medium">
-                  {withdrawal.withdrawal_amount} {work.casino_currency}
-                </span>
-                <StatusBadge status={withdrawal.status} />
-                <span className="text-xs text-gray-500">
-                  {formatTimeAgo(withdrawal.created_at)}
-                </span>
-              </div>
-            ))
-          )}
+        <div>
+          <div className="text-sm">{new Date(work.created_at).toLocaleDateString('ru-RU')}</div>
+          <div className="text-xs text-gray-500">{formatTimeAgo(work.created_at)}</div>
         </div>
       )
     }
   ]
 
-  const actions: ActionButton<Work>[] = [
-    {
-      label: 'Создать вывод',
-      variant: 'primary',
-      condition: (work) => work.status === 'active',
-      action: (work) => {
-        const amount = prompt(`Введите сумму вывода для ${work.casino_name} (${work.casino_currency}):`)
-        if (amount && !isNaN(Number(amount)) && Number(amount) > 0) {
-          createWithdrawal(work.id, Number(amount))
-        }
-      }
-    },
-    {
-      label: 'Изменить статус',
-      variant: 'secondary',
-      condition: (work) => work.status !== 'completed',
-      action: (work) => {
-        const statuses = [
-          { value: 'active', label: 'Активная' },
-          { value: 'completed', label: 'Завершенная' },
-          { value: 'cancelled', label: 'Отмененная' },
-          { value: 'blocked', label: 'Заблокированная' }
-        ]
-        
-        const statusOptions = statuses
-          .filter(s => s.value !== work.status)
-          .map(s => `${s.value} - ${s.label}`)
-          .join('\n')
-        
-        const newStatus = prompt(`Выберите новый статус для работы с ${work.casino_name}:\n\n${statusOptions}\n\nВведите значение (active/completed/cancelled/blocked):`)
-        
-        if (newStatus && ['active', 'completed', 'cancelled', 'blocked'].includes(newStatus)) {
-          updateWorkStatus(work.id, newStatus, work.casino_name)
-        }
-      }
-    },
-    {
-      label: 'Удалить',
-      variant: 'danger',
-      condition: (work) => work.status !== 'completed' && work.withdrawals.every(w => !['received', 'waiting'].includes(w.status)),
-      action: (work) => {
-        deleteWork(work.id, work.casino_name)
-      }
-    }
-  ]
+  // Добавляем колонку с действиями
+  const actionsColumn: Column<Work> = {
+    key: 'actions',
+    label: 'Действия',
+    render: (work) => (
+      <div className="flex items-center space-x-2">
+        {work.withdrawals.length === 0 && work.status === 'active' && (
+          <CurrencyDollarIcon
+            className="action-icon withdraw"
+            title="Создать вывод"
+            onClick={() => {
+              const amount = prompt(`Введите сумму вывода для ${work.casino_name} (${work.casino_currency}):`)
+              if (amount && !isNaN(Number(amount)) && Number(amount) > 0) {
+                createWithdrawal(work.id, Number(amount))
+              }
+            }}
+          />
+        )}
+        {work.status !== 'completed' && work.withdrawals.every(w => !['received', 'waiting'].includes(w.status)) && (
+          <TrashIcon
+            className="action-icon delete"
+            title="Удалить работу"
+            onClick={() => deleteWork(work.id, work.casino_name)}
+          />
+        )}
+      </div>
+    )
+  }
+
+  // Добавляем колонку действий к основным колонкам
+  const allColumns = [...columns, actionsColumn]
 
   if (loading) {
     return (
@@ -464,11 +507,12 @@ export default function JuniorWithdrawalsPage() {
             </p>
           </div>
         ) : (
-          <DataTable
-            data={works}
-            columns={columns}
-            actions={actions}
-          />
+          <div className="compact-table">
+            <DataTable
+              data={works}
+              columns={allColumns}
+            />
+          </div>
         )}
       </div>
     </div>
