@@ -109,32 +109,10 @@ export default function JuniorWithdrawalsPage() {
     const rows: WorkRow[] = []
     
     works.forEach(work => {
-      // Создаем строку для депозита
-      const depositRow: WorkRow = {
-        id: `${work.id}-deposit`,
-        work_id: work.id,
-        casino_name: work.casino_name,
-        casino_currency: work.casino_currency,
-        casino_promo: work.casino_promo,
-        casino_login: work.casino_login,
-        casino_password: work.casino_password,
-        notes: work.notes,
-        work_date: work.work_date,
-        created_at: work.created_at,
-        deposit_amount: work.deposit_amount,
-        work_status: work.status,
-        card_mask: work.card_mask,
-        card_type: work.card_type,
-        bank_name: work.bank_name,
-        bank_account_holder: work.bank_account_holder,
-        is_deposit_row: true
-      }
-      rows.push(depositRow)
-      
-      // Создаем строки для каждого вывода
-      work.withdrawals.forEach(withdrawal => {
-        const withdrawalRow: WorkRow = {
-          id: `${work.id}-withdrawal-${withdrawal.id}`,
+      if (work.withdrawals.length === 0) {
+        // Если нет выводов, создаем только строку депозита
+        const depositRow: WorkRow = {
+          id: `${work.id}-deposit`,
           work_id: work.id,
           casino_name: work.casino_name,
           casino_currency: work.casino_currency,
@@ -144,17 +122,65 @@ export default function JuniorWithdrawalsPage() {
           notes: work.notes,
           work_date: work.work_date,
           created_at: work.created_at,
-          deposit_amount: 0, // Для строк вывода депозит = 0
+          deposit_amount: work.deposit_amount,
           work_status: work.status,
           card_mask: work.card_mask,
           card_type: work.card_type,
           bank_name: work.bank_name,
           bank_account_holder: work.bank_account_holder,
-          withdrawal: withdrawal,
-          is_deposit_row: false
+          is_deposit_row: true
         }
-        rows.push(withdrawalRow)
-      })
+        rows.push(depositRow)
+      } else {
+        // Если есть выводы, первый вывод объединяем с депозитом
+        const firstWithdrawal = work.withdrawals[0]
+        const depositWithFirstWithdrawalRow: WorkRow = {
+          id: `${work.id}-deposit-with-first-withdrawal`,
+          work_id: work.id,
+          casino_name: work.casino_name,
+          casino_currency: work.casino_currency,
+          casino_promo: work.casino_promo,
+          casino_login: work.casino_login,
+          casino_password: work.casino_password,
+          notes: work.notes,
+          work_date: work.work_date,
+          created_at: work.created_at,
+          deposit_amount: work.deposit_amount,
+          work_status: work.status,
+          card_mask: work.card_mask,
+          card_type: work.card_type,
+          bank_name: work.bank_name,
+          bank_account_holder: work.bank_account_holder,
+          withdrawal: firstWithdrawal,
+          is_deposit_row: true // Остается строкой депозита, но с первым выводом
+        }
+        rows.push(depositWithFirstWithdrawalRow)
+        
+        // Создаем строки для дополнительных выводов (начиная со второго)
+        work.withdrawals.slice(1).forEach(withdrawal => {
+          const additionalWithdrawalRow: WorkRow = {
+            id: `${work.id}-additional-withdrawal-${withdrawal.id}`,
+            work_id: work.id,
+            casino_name: work.casino_name,
+            casino_currency: work.casino_currency,
+            casino_promo: work.casino_promo,
+            casino_login: work.casino_login,
+            casino_password: work.casino_password,
+            notes: work.notes,
+            work_date: work.work_date,
+            created_at: withdrawal.created_at, // Используем дату создания вывода
+            deposit_amount: 0, // Для дополнительных выводов депозит = 0
+            work_status: work.status,
+            card_mask: work.card_mask,
+            card_type: work.card_type,
+            bank_name: work.bank_name,
+            bank_account_holder: work.bank_account_holder,
+            withdrawal: withdrawal,
+            is_deposit_row: false
+          }
+          rows.push(additionalWithdrawalRow)
+        })
+      }
     })
     
     return rows
@@ -358,6 +384,36 @@ export default function JuniorWithdrawalsPage() {
     }
   }
 
+  // Функция для удаления вывода
+  async function deleteWithdrawal(withdrawalId: string, casinoName: string) {
+    try {
+      const response = await fetch(`/api/work-withdrawals/${withdrawalId}`, {
+        method: 'DELETE'
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Ошибка удаления вывода')
+      }
+
+      addToast({
+        type: 'success',
+        title: 'Вывод удален',
+        description: `Вывод для ${casinoName} успешно удален`
+      })
+
+      // Перезагружаем данные
+      loadWorks()
+
+    } catch (error: any) {
+      addToast({
+        type: 'error',
+        title: 'Ошибка удаления вывода',
+        description: error.message
+      })
+    }
+  }
+
   // Функция для копирования промо
   function copyPromo(casinoName: string, promo: string | null) {
     if (!promo) {
@@ -436,13 +492,20 @@ export default function JuniorWithdrawalsPage() {
       render: (row) => (
         <div className="deposit-amount">
           {row.is_deposit_row ? (
-            <span className="text-blue-600">
-              +{row.deposit_amount} {row.casino_currency}
-            </span>
+            <div>
+              <span className="text-blue-600">
+                +{row.deposit_amount} {row.casino_currency}
+        </span>
+              {row.withdrawal && (
+                <div className="text-green-600 text-sm">
+                  -{row.withdrawal.withdrawal_amount} {row.casino_currency}
+                </div>
+              )}
+            </div>
           ) : (
             <span className="text-green-600">
               -{row.withdrawal?.withdrawal_amount || 0} {row.casino_currency}
-            </span>
+        </span>
           )}
         </div>
       )
@@ -462,10 +525,44 @@ export default function JuniorWithdrawalsPage() {
       key: 'status',
       label: 'Статус',
       render: (row) => {
-        // Для строк депозита показываем возможность создать вывод или статус работы
+        // Для строк депозита
         if (row.is_deposit_row) {
-          const work = works.find(w => w.id === row.work_id)
-          if (!work || work.withdrawals.length === 0) {
+          // Если есть вывод в этой строке, показываем его статус
+          if (row.withdrawal) {
+            return (
+              <div className="status-dropdown">
+                <div 
+                  onClick={() => setOpenDropdown(openDropdown === `withdrawal-${row.withdrawal!.id}` ? null : `withdrawal-${row.withdrawal!.id}`)}
+                  style={{ cursor: 'pointer' }}
+                >
+                  <StatusBadge status={row.withdrawal.status} />
+                </div>
+                {openDropdown === `withdrawal-${row.withdrawal.id}` && (
+                  <div className="status-dropdown-content" style={{ display: 'block' }}>
+                    <a onClick={() => {
+                      updateWithdrawalStatus(row.withdrawal!.id, 'new')
+                      setOpenDropdown(null)
+                    }}>
+                      Новый
+                    </a>
+                    <a onClick={() => {
+                      updateWithdrawalStatus(row.withdrawal!.id, 'waiting')
+                      setOpenDropdown(null)
+                    }}>
+                      В ожидании
+                    </a>
+                    <a onClick={() => {
+                      updateWithdrawalStatus(row.withdrawal!.id, 'block')
+                      setOpenDropdown(null)
+                    }}>
+                      Заблокирован
+                    </a>
+                  </div>
+                )}
+              </div>
+            )
+          } else {
+            // Если нет вывода, показываем возможность создать
             return (
               <div className="status-dropdown">
                 <div 
@@ -489,12 +586,10 @@ export default function JuniorWithdrawalsPage() {
                 )}
               </div>
             )
-          } else {
-            return <StatusBadge status={row.work_status} />
           }
         }
 
-        // Для строк вывода показываем статус вывода
+        // Для строк дополнительных выводов показываем статус вывода
         if (row.withdrawal) {
           return (
             <div className="status-dropdown">
@@ -524,6 +619,17 @@ export default function JuniorWithdrawalsPage() {
                   }}>
                     Заблокирован
                   </a>
+                  {/* Добавляем возможность удалить вывод со статусом "new" */}
+                  {row.withdrawal.status === 'new' && !row.is_deposit_row && (
+                    <a onClick={() => {
+                      if (confirm(`Удалить вывод на сумму ${row.withdrawal!.withdrawal_amount} ${row.casino_currency}?`)) {
+                        deleteWithdrawal(row.withdrawal!.id, row.casino_name)
+                        setOpenDropdown(null)
+                      }
+                    }} style={{ color: '#dc2626', borderTop: '1px solid #f3f4f6' }}>
+                      Удалить вывод
+                    </a>
+                  )}
                 </div>
               )}
             </div>
@@ -617,7 +723,7 @@ export default function JuniorWithdrawalsPage() {
   return (
     <div className="container-main">
       <div className="flex justify-between items-center mb-6">
-        <div>
+      <div>
           <h1 className="text-2xl font-bold text-gray-900">Мои работы и выводы</h1>
           <p className="text-gray-600">Управление депозитами и выводами средств</p>
         </div>
@@ -673,7 +779,7 @@ export default function JuniorWithdrawalsPage() {
           </div>
         ) : (
                   <div className="compact-table">
-          <DataTable
+        <DataTable
             data={workRows}
             columns={allColumns}
           />

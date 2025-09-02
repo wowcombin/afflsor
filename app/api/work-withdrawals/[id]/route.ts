@@ -3,6 +3,75 @@ import { createClient } from '@/lib/supabase/server'
 
 export const dynamic = 'force-dynamic'
 
+// DELETE - Удалить вывод
+export async function DELETE(request: Request, { params }: { params: { id: string } }) {
+  try {
+    const supabase = await createClient()
+    const withdrawalId = params.id
+    
+    // Проверка аутентификации
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const { data: userData } = await supabase
+      .from('users')
+      .select('id, role, status')
+      .eq('auth_id', user.id)
+      .single()
+
+    if (!userData || userData.role !== 'junior') {
+      return NextResponse.json({ error: 'Forbidden - только Junior могут удалять выводы' }, { status: 403 })
+    }
+
+    // Получаем информацию о выводе
+    const { data: withdrawal, error: withdrawalError } = await supabase
+      .from('work_withdrawals')
+      .select(`
+        id,
+        status,
+        works!inner(junior_id)
+      `)
+      .eq('id', withdrawalId)
+      .single()
+
+    if (withdrawalError || !withdrawal) {
+      return NextResponse.json({ error: 'Вывод не найден' }, { status: 404 })
+    }
+
+    // Проверяем, что вывод принадлежит текущему пользователю
+    const work = Array.isArray(withdrawal.works) ? withdrawal.works[0] : withdrawal.works
+    if (work.junior_id !== userData.id) {
+      return NextResponse.json({ error: 'Вы можете удалять только свои выводы' }, { status: 403 })
+    }
+
+    // Проверяем, что статус вывода "new"
+    if (withdrawal.status !== 'new') {
+      return NextResponse.json({ error: 'Можно удалять только выводы со статусом "Новый"' }, { status: 400 })
+    }
+
+    // Удаляем вывод
+    const { error: deleteError } = await supabase
+      .from('work_withdrawals')
+      .delete()
+      .eq('id', withdrawalId)
+
+    if (deleteError) {
+      return NextResponse.json({ error: deleteError.message }, { status: 500 })
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: 'Вывод успешно удален'
+    })
+
+  } catch (error) {
+    console.error('Delete withdrawal error:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}
+
 // PATCH - Изменить статус вывода (только Junior может менять свои выводы)
 export async function PATCH(
   request: Request,

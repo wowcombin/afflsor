@@ -416,12 +416,11 @@ table, th, td {
   color: #111827 !important;
 }
 
-/* Исправляем z-index для таблицы и расширяем ее */
+/* Исправляем z-index для таблицы */
 .compact-table {
   position: relative;
   z-index: 1;
   width: 100%;
-  min-width: 1400px; /* Минимальная ширина для корректного отображения dropdown */
   overflow-x: auto;
 }
 
@@ -433,11 +432,10 @@ table, th, td {
 
 .compact-table td {
   position: relative;
-  white-space: nowrap;
 }
 
 .compact-table th {
-  white-space: nowrap;
+  position: relative;
 }
 
 /* Иконки действий */
