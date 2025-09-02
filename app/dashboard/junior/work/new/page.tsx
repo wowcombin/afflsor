@@ -381,7 +381,7 @@ export default function NewWorkPage() {
       })
 
       // Перенаправляем на дашборд
-      router.push('/dashboard/junior')
+      router.push('/dashboard/junior/withdrawals')
 
     } catch (error: any) {
       addToast({

@@ -88,9 +88,14 @@ export default function JuniorWithdrawalsPage() {
   const [exchangeRates, setExchangeRates] = useState<any>(null)
 
   useEffect(() => {
-    loadExchangeRates()
-    loadWorks()
+    loadData()
   }, [])
+
+  async function loadData() {
+    // Сначала загружаем курсы валют, затем работы
+    await loadExchangeRates()
+    await loadWorks()
+  }
 
   // Загрузка курсов валют
   async function loadExchangeRates() {
@@ -116,7 +121,18 @@ export default function JuniorWithdrawalsPage() {
   function convertToUSD(amount: number, currency: string): number {
     if (!exchangeRates || currency === 'USD') return amount
     const rate = exchangeRates[currency] || 1
-    return amount * rate
+    const convertedAmount = amount * rate
+    
+    // Отладочная информация
+    console.log(`Converting ${amount} ${currency} to USD:`, {
+      amount,
+      currency,
+      rate,
+      convertedAmount,
+      exchangeRates
+    })
+    
+    return convertedAmount
   }
 
   // Закрываем dropdown при клике вне его

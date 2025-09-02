@@ -16,7 +16,8 @@ import {
   BanknotesIcon,
   DocumentTextIcon,
   CogIcon,
-  ClipboardDocumentListIcon
+  ClipboardDocumentListIcon,
+  CommandLineIcon
 } from '@heroicons/react/24/outline'
 
 interface NavigationItem {
@@ -45,6 +46,7 @@ export default function Navigation({ userRole }: NavigationProps) {
           { name: 'Мои выводы', href: `${baseHref}/withdrawals`, icon: ClockIcon },
           { name: 'Мои карты', href: `${baseHref}/cards`, icon: CreditCardIcon },
           { name: 'Статистика', href: `${baseHref}/stats`, icon: ChartBarIcon },
+          { name: 'Генератор данных', href: `${baseHref}/generator`, icon: CommandLineIcon },
           { name: 'Настройки', href: `${baseHref}/settings`, icon: CogIcon }
         ]
 
