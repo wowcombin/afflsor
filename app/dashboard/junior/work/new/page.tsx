@@ -433,7 +433,7 @@ export default function NewWorkPage() {
     setShowCasinoDropdown(false)
   }
 
-  // Получить карты, назначенные на выбранное казино и не используемые в активных работах
+  // Получить карты, назначенные на выбранное казино и не используемые в активных работах для этого казино
   function getAvailableCards() {
     if (!workForm.casino_id) return []
     
@@ -445,18 +445,19 @@ export default function NewWorkPage() {
       )
     )
     
-    // Исключаем карты, которые уже используются в работах для этого казино
-    // Карта считается используемой если:
-    // 1. Работа активна (status === 'active')
-    // 2. Есть выводы в статусе 'new', 'waiting', 'received'
-    const usedCardIds = activeWorks
+    // Исключаем карты, которые уже используются в работах для ЭТОГО КОНКРЕТНОГО казино
+    // Карта считается используемой для казино если:
+    // 1. Есть активная работа для этого казино (status === 'active')
+    // 2. Есть работа для этого казино с выводами в статусе 'new', 'waiting', 'received'
+    const usedCardIdsForThisCasino = activeWorks
       .filter(work => {
+        // Проверяем только работы для выбранного казино
         if (work.casino?.id !== workForm.casino_id) return false
         
-        // Если работа активна - карта используется
+        // Если работа активна - карта используется для этого казино
         if (work.status === 'active') return true
         
-        // Если есть активные выводы - карта используется
+        // Если есть активные выводы - карта используется для этого казино
         const hasActiveWithdrawals = work.withdrawals && work.withdrawals.some((w: any) => 
           ['new', 'waiting', 'received'].includes(w.status)
         )
@@ -465,7 +466,7 @@ export default function NewWorkPage() {
       })
       .map(work => work.card?.id)
     
-    return assignedCards.filter(card => !usedCardIds.includes(card.id))
+    return assignedCards.filter(card => !usedCardIdsForThisCasino.includes(card.id))
   }
 
   if (loading) {

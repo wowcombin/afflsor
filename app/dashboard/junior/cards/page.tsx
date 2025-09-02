@@ -96,7 +96,24 @@ export default function JuniorCardsPage() {
     }
   }, [timeLeft])
 
-  // Функция для проверки, используется ли карта в работе
+  // Функция для проверки, используется ли карта в работе для конкретного казино
+  function isCardInUseForCasino(cardId: string, casinoId: string): boolean {
+    return allWorks.some(work => {
+      if (work.card?.id !== cardId || work.casino?.id !== casinoId) return false
+      
+      // Если работа активна - карта используется для этого казино
+      if (work.status === 'active') return true
+      
+      // Если есть активные выводы - карта используется для этого казино
+      const hasActiveWithdrawals = work.withdrawals && work.withdrawals.some((w: any) => 
+        ['new', 'waiting', 'received'].includes(w.status)
+      )
+      
+      return hasActiveWithdrawals
+    })
+  }
+
+  // Функция для проверки, используется ли карта в любой работе (для общей проверки)
   function isCardInUse(cardId: string): boolean {
     return allWorks.some(work => {
       if (work.card?.id !== cardId) return false
@@ -244,27 +261,36 @@ export default function JuniorCardsPage() {
     {
       key: 'casino_assignments',
       label: 'Назначения',
-      render: (card) => (
-        <div>
-          {card.casino_assignments.length > 0 ? (
-            <div className="space-y-1">
-              {card.casino_assignments.map((assignment, index) => (
-                <div key={assignment.assignment_id} className="text-sm">
-                  <div className="font-medium text-primary-600">
-                    {assignment.casino_name}
+      render: (card) => {
+        // Фильтруем назначения, исключая казино для которых карта уже используется
+        const availableAssignments = card.casino_assignments.filter(assignment => 
+          !isCardInUseForCasino(card.id, assignment.casino_id)
+        )
+        
+        return (
+          <div>
+            {availableAssignments.length > 0 ? (
+              <div className="space-y-1">
+                {availableAssignments.map((assignment, index) => (
+                  <div key={assignment.assignment_id} className="text-sm">
+                    <div className="font-medium text-primary-600">
+                      {assignment.casino_name}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {assignment.assignment_type === 'junior_work' ? '🎯 Работа' : '🧪 Тест'}
+                      {assignment.has_deposit && ` • $${assignment.deposit_amount}`}
+                    </div>
                   </div>
-                  <div className="text-xs text-gray-500">
-                    {assignment.assignment_type === 'junior_work' ? '🎯 Работа' : '🧪 Тест'}
-                    {assignment.has_deposit && ` • $${assignment.deposit_amount}`}
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <span className="text-sm text-gray-400">Нет назначений</span>
-          )}
-        </div>
-      )
+                ))}
+              </div>
+            ) : (
+              <span className="text-sm text-gray-400">
+                {card.casino_assignments.length > 0 ? 'Все назначения в работе' : 'Нет назначений'}
+              </span>
+            )}
+          </div>
+        )
+      }
     },
     {
       key: 'status',
@@ -299,14 +325,28 @@ export default function JuniorCardsPage() {
         window.location.href = `/dashboard/junior/work/new?card_id=${card.id}`
       },
       variant: 'secondary',
-      condition: (card) => card.status === 'active' && card.casino_assignments.length > 0 && !isCardInUse(card.id)
+      condition: (card) => {
+        // Проверяем, есть ли доступные назначения (не используемые в работе)
+        const availableAssignments = card.casino_assignments.filter(assignment => 
+          !isCardInUseForCasino(card.id, assignment.casino_id)
+        )
+        return card.status === 'active' && availableAssignments.length > 0
+      }
     }
   ]
 
-  // Фильтруем карты, исключая те, что находятся в работе
-  const availableCards = cards.filter(c => c.status === 'active' && !isCardInUse(c.id))
+  // Показываем все активные карты
+  const availableCards = cards.filter(c => c.status === 'active')
   const activeCards = availableCards.length
-  const cardsWithAssignments = availableCards.filter(c => c.casino_assignments.length > 0).length
+  
+  // Считаем карты с доступными назначениями (не используемыми в работе)
+  const cardsWithAvailableAssignments = availableCards.filter(c => {
+    const availableAssignments = c.casino_assignments.filter(assignment => 
+      !isCardInUseForCasino(c.id, assignment.casino_id)
+    )
+    return availableAssignments.length > 0
+  }).length
+  
   const totalBalance = availableCards.reduce((sum, c) => sum + c.account_balance, 0)
 
   return (
@@ -332,7 +372,7 @@ export default function JuniorCardsPage() {
         />
         <KPICard
           title="С назначениями"
-          value={cardsWithAssignments}
+          value={cardsWithAvailableAssignments}
           icon={<span className="text-xl">🎯</span>}
           color="primary"
         />
@@ -377,7 +417,7 @@ export default function JuniorCardsPage() {
       )}
 
       {/* Подсказка для пользователей с картами без назначений */}
-      {!loading && cards.length > 0 && cardsWithAssignments === 0 && (
+      {!loading && cards.length > 0 && cardsWithAvailableAssignments === 0 && (
         <div className="bg-info-50 border border-info-200 rounded-lg p-4">
           <div className="flex items-start">
             <ExclamationTriangleIcon className="h-5 w-5 text-info-600 mr-2 mt-0.5" />
