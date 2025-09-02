@@ -61,10 +61,25 @@ export default function JuniorWithdrawalsPage() {
     totalWithdrawals: 0
   })
   const [loading, setLoading] = useState(true)
+  const [openDropdown, setOpenDropdown] = useState<string | null>(null)
 
   useEffect(() => {
     loadWorks()
   }, [])
+
+  // Закрываем dropdown при клике вне его
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (openDropdown && !(event.target as Element).closest('.status-dropdown')) {
+        setOpenDropdown(null)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [openDropdown])
 
   async function loadWorks() {
     try {
@@ -327,7 +342,7 @@ export default function JuniorWithdrawalsPage() {
             {work.casino_name}
           </div>
           <div className="login-info">
-            Логин: {work.casino_login} | Пароль: {work.casino_password}
+            {work.casino_login} : {work.casino_password}
           </div>
         </div>
       )
@@ -364,35 +379,59 @@ export default function JuniorWithdrawalsPage() {
         if (!latestWithdrawal) {
           return (
             <div className="status-dropdown">
-              <StatusBadge status="new" />
-              <div className="status-dropdown-content">
-                <a onClick={() => {
-                  const amount = prompt(`Введите сумму вывода для ${work.casino_name} (${work.casino_currency}):`)
-                  if (amount && !isNaN(Number(amount)) && Number(amount) > 0) {
-                    createWithdrawal(work.id, Number(amount))
-                  }
-                }}>
-                  Создать вывод
-                </a>
+              <div 
+                onClick={() => setOpenDropdown(openDropdown === `new-${work.id}` ? null : `new-${work.id}`)}
+                style={{ cursor: 'pointer' }}
+              >
+                <StatusBadge status="new" />
               </div>
+              {openDropdown === `new-${work.id}` && (
+                <div className="status-dropdown-content" style={{ display: 'block' }}>
+                  <a onClick={() => {
+                    const amount = prompt(`Введите сумму вывода для ${work.casino_name} (${work.casino_currency}):`)
+                    if (amount && !isNaN(Number(amount)) && Number(amount) > 0) {
+                      createWithdrawal(work.id, Number(amount))
+                      setOpenDropdown(null)
+                    }
+                  }}>
+                    Создать вывод
+                  </a>
+                </div>
+              )}
             </div>
           )
         }
 
         return (
           <div className="status-dropdown">
-            <StatusBadge status={latestWithdrawal.status} />
-            <div className="status-dropdown-content">
-              <a onClick={() => updateWithdrawalStatus(latestWithdrawal.id, 'new')}>
-                Новый
-              </a>
-              <a onClick={() => updateWithdrawalStatus(latestWithdrawal.id, 'waiting')}>
-                В ожидании
-              </a>
-              <a onClick={() => updateWithdrawalStatus(latestWithdrawal.id, 'block')}>
-                Заблокирован
-              </a>
+            <div 
+              onClick={() => setOpenDropdown(openDropdown === `withdrawal-${latestWithdrawal.id}` ? null : `withdrawal-${latestWithdrawal.id}`)}
+              style={{ cursor: 'pointer' }}
+            >
+              <StatusBadge status={latestWithdrawal.status} />
             </div>
+            {openDropdown === `withdrawal-${latestWithdrawal.id}` && (
+              <div className="status-dropdown-content" style={{ display: 'block' }}>
+                <a onClick={() => {
+                  updateWithdrawalStatus(latestWithdrawal.id, 'new')
+                  setOpenDropdown(null)
+                }}>
+                  Новый
+                </a>
+                <a onClick={() => {
+                  updateWithdrawalStatus(latestWithdrawal.id, 'waiting')
+                  setOpenDropdown(null)
+                }}>
+                  В ожидании
+                </a>
+                <a onClick={() => {
+                  updateWithdrawalStatus(latestWithdrawal.id, 'block')
+                  setOpenDropdown(null)
+                }}>
+                  Заблокирован
+                </a>
+              </div>
+            )}
           </div>
         )
       }
