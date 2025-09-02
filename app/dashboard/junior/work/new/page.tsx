@@ -687,11 +687,11 @@ export default function NewWorkPage() {
               <div>
                 <label className="form-label">Пароль для казино</label>
                 <input
-                  type="password"
+                  type="text"
                   value={workForm.casino_password}
                   onChange={(e) => setWorkForm({ ...workForm, casino_password: e.target.value })}
                   className="form-input"
-                  placeholder="••••••••"
+                  placeholder="Введите пароль"
                 />
               </div>
             </div>

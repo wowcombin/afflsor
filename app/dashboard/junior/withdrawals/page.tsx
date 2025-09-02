@@ -652,10 +652,8 @@ export default function JuniorWithdrawalsPage() {
     key: 'actions',
     label: 'Действия',
     render: (row) => {
-      // Действия показываем только для строк депозита
-      if (!row.is_deposit_row) {
-        return null
-      }
+      // Для строк депозита показываем основные действия
+      if (row.is_deposit_row) {
 
       const work = works.find(w => w.id === row.work_id)
       if (!work) return null
@@ -702,6 +700,26 @@ export default function JuniorWithdrawalsPage() {
           )}
         </div>
       )
+      }
+
+      // Для строк дополнительных выводов - показываем крестик удаления если статус "new"
+      if (!row.is_deposit_row && row.withdrawal && row.withdrawal.status === 'new') {
+        return (
+          <div className="flex items-center space-x-2">
+            <TrashIcon
+              className="action-icon delete"
+              title="Удалить вывод"
+              onClick={() => {
+                if (confirm(`Удалить вывод на сумму ${row.withdrawal!.withdrawal_amount} ${row.casino_currency}?`)) {
+                  deleteWithdrawal(row.withdrawal!.id, row.casino_name)
+                }
+              }}
+            />
+          </div>
+        )
+      }
+
+      return null
     }
   }
 
