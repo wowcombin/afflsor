@@ -14,7 +14,6 @@ interface GeneratedAccount {
   password: string
   email: string
   phoneNumber: string
-  generationDate: string
 }
 
 export default function DataGeneratorPage() {
@@ -126,7 +125,7 @@ export default function DataGeneratorPage() {
   function generateUKPhoneNumber(): string {
     const prefix = ukMobilePrefixes[Math.floor(Math.random() * ukMobilePrefixes.length)]
     const remainingDigits = Array.from({ length: 8 }, () => Math.floor(Math.random() * 10)).join('')
-    return `0${prefix}${remainingDigits}`
+    return `7${prefix}${remainingDigits}`
   }
 
   // Основная функция генерации
@@ -135,15 +134,6 @@ export default function DataGeneratorPage() {
     
     try {
       const accounts: GeneratedAccount[] = []
-      const now = new Date()
-      const generationDate = now.toLocaleString('ru-RU', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit'
-      })
 
       // Парсим пользовательские имена если они есть
       const customNamesList = customNames
@@ -162,8 +152,7 @@ export default function DataGeneratorPage() {
           username,
           password,
           email,
-          phoneNumber,
-          generationDate
+          phoneNumber
         })
       }
 
@@ -198,15 +187,14 @@ export default function DataGeneratorPage() {
     }
 
     // Создаем CSV формат для Google Sheets
-    const headers = ['Username', 'Password', 'Email', 'Phone Number', 'Generation Date']
+    const headers = ['Username', 'Password', 'Email', 'Phone Number']
     const csvContent = [
       headers.join('\t'),
       ...generatedData.map(account => [
         account.username,
         account.password,
         account.email,
-        account.phoneNumber,
-        account.generationDate
+        account.phoneNumber
       ].join('\t'))
     ].join('\n')
 
@@ -342,9 +330,6 @@ export default function DataGeneratorPage() {
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Phone Number
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Generation Date
-                    </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -361,9 +346,6 @@ export default function DataGeneratorPage() {
                       </td>
                       <td className="px-4 py-3 text-sm font-mono text-gray-900 select-all">
                         {account.phoneNumber}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-500 select-all">
-                        {account.generationDate}
                       </td>
                     </tr>
                   ))}
@@ -392,7 +374,7 @@ export default function DataGeneratorPage() {
           <div>• Username: 8-16 символов, имя+фамилия+число</div>
           <div>• Password: 10-14 символов с цифрой, большой/маленькой буквой и спецсимволом</div>
           <div>• Email: на основе username с британскими доменами</div>
-          <div>• Phone: валидные британские номера с реальными префиксами операторов</div>
+          <div>• Phone: номера начинаются с 7, реальные префиксы операторов</div>
           <div>• Все данные проходят базовую валидацию сайтов</div>
         </div>
       </div>

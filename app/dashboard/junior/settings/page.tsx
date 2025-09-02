@@ -35,8 +35,7 @@ export default function SettingsPage() {
     name: '',
     surname: '',
     telegram_username: '',
-    usdt_wallet: '',
-    phone: ''
+    usdt_wallet: ''
   })
 
   // Загрузка настроек пользователя
@@ -72,8 +71,7 @@ export default function SettingsPage() {
         name: userData.name || '',
         surname: userData.surname || '',
         telegram_username: userData.telegram_username || '',
-        usdt_wallet: userData.usdt_wallet || '',
-        phone: userData.phone || ''
+        usdt_wallet: userData.usdt_wallet || ''
       })
     } catch (error) {
       console.error('Ошибка загрузки настроек:', error)
@@ -105,7 +103,6 @@ export default function SettingsPage() {
         surname: formData.surname?.trim() || null,
         telegram_username: formData.telegram_username?.trim()?.replace('@', '') || null,
         usdt_wallet: formData.usdt_wallet?.trim() || null,
-        phone: formData.phone?.trim() || null,
         updated_at: new Date().toISOString()
       }
 
@@ -157,10 +154,9 @@ export default function SettingsPage() {
   // Валидация USDT кошелька
   function validateUsdtWallet(wallet: string): boolean {
     if (!wallet) return true // Пустое значение допустимо
-    // Базовая валидация для USDT адресов (TRC20/ERC20)
-    const trc20Regex = /^T[A-Za-z1-9]{33}$/ // TRC20 (TRON)
-    const erc20Regex = /^0x[a-fA-F0-9]{40}$/ // ERC20 (Ethereum)
-    return trc20Regex.test(wallet) || erc20Regex.test(wallet)
+    // Валидация для USDT адресов (только BEP20)
+    const bep20Regex = /^0x[a-fA-F0-9]{40}$/ // BEP20 (Binance Smart Chain)
+    return bep20Regex.test(wallet)
   }
 
   // Форматирование отображаемого имени
@@ -300,7 +296,7 @@ export default function SettingsPage() {
                     ? 'border-red-300 focus:border-red-500'
                     : ''
                 }`}
-                placeholder="TRC20 или ERC20 адрес кошелька"
+                placeholder="BEP20 адрес кошелька (0x...)"
               />
               <button
                 type="button"
@@ -316,25 +312,11 @@ export default function SettingsPage() {
             </div>
             {formData.usdt_wallet && !validateUsdtWallet(formData.usdt_wallet) && (
               <p className="text-sm text-red-600 mt-1">
-                Некорректный адрес кошелька. Поддерживаются TRC20 (T...) и ERC20 (0x...) адреса
+                Некорректный адрес кошелька. Поддерживается только BEP20 формат (0x...)
               </p>
             )}
             <p className="text-xs text-gray-500 mt-1">
-              Адрес кошелька для получения выплат в USDT
-            </p>
-          </div>
-
-          <div>
-            <label className="form-label">Номер телефона</label>
-            <input
-              type="tel"
-              value={formData.phone}
-              onChange={(e) => handleInputChange('phone', e.target.value)}
-              className="form-input"
-              placeholder="+7 (xxx) xxx-xx-xx"
-            />
-            <p className="text-xs text-gray-500 mt-1">
-              Номер телефона для связи (опционально)
+              BEP20 адрес кошелька для получения выплат в USDT (Binance Smart Chain)
             </p>
           </div>
 
@@ -365,6 +347,7 @@ export default function SettingsPage() {
         <h4 className="font-medium text-yellow-900 mb-2">🔒 Безопасность:</h4>
         <div className="text-sm text-yellow-800 space-y-1">
           <div>• USDT кошелек хранится в зашифрованном виде</div>
+          <div>• Поддерживается только BEP20 (Binance Smart Chain)</div>
           <div>• Данные передаются по защищенному соединению</div>
           <div>• Доступ к настройкам только у владельца аккаунта</div>
           <div>• Регулярно проверяйте корректность адреса кошелька</div>
