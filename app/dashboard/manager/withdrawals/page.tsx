@@ -25,8 +25,11 @@ interface WithdrawalData {
   casino_name: string
   casino_company: string
   casino_url: string
+  casino_currency?: string
   card_mask: string
   card_type: string
+  bank_name?: string
+  account_holder?: string
   withdrawal_amount: number
   status: string
   created_at: string
@@ -209,7 +212,9 @@ export default function WithdrawalsQueue() {
       render: (item: WithdrawalData) => (
         <div>
           <div className="font-mono text-sm">{item.card_mask}</div>
-          <div className="text-xs text-gray-500">{item.card_type}</div>
+          <div className="text-xs text-gray-500">
+            {item.account_holder || item.card_type}
+          </div>
         </div>
       )
     },
@@ -217,17 +222,15 @@ export default function WithdrawalsQueue() {
       key: 'withdrawal_amount',
       label: 'Сумма',
       render: (item: WithdrawalData) => {
-        // Определяем валюту из casino_name или используем USD по умолчанию
-        const currency = getCasinoCurrency(item.casino_name)
+        const currency = getCasinoCurrency(item)
+        const symbol = currency === 'USD' ? '$' : currency === 'GBP' ? '£' : currency === 'EUR' ? '€' : currency
         return (
           <div>
             <div className="font-semibold text-lg">
-              {currency === 'USD' ? '$' : currency === 'GBP' ? '£' : currency === 'EUR' ? '€' : ''}
-              {item.withdrawal_amount}
+              {symbol}{item.withdrawal_amount}
             </div>
             <div className="text-sm text-gray-500">
-              Депозит: {currency === 'USD' ? '$' : currency === 'GBP' ? '£' : currency === 'EUR' ? '€' : ''}
-              {item.deposit_amount}
+              Депозит: {symbol}{item.deposit_amount}
             </div>
           </div>
         )
@@ -238,8 +241,8 @@ export default function WithdrawalsQueue() {
       label: 'Профит',
       render: (item: WithdrawalData) => {
         const profit = item.withdrawal_amount - item.deposit_amount
-        const currency = getCasinoCurrency(item.casino_name)
-        const symbol = currency === 'USD' ? '$' : currency === 'GBP' ? '£' : currency === 'EUR' ? '€' : ''
+        const currency = getCasinoCurrency(item)
+        const symbol = currency === 'USD' ? '$' : currency === 'GBP' ? '£' : currency === 'EUR' ? '€' : currency
         
         return (
           <div className={`font-semibold ${profit > 0 ? 'text-success-600' : 'text-danger-600'}`}>
@@ -257,13 +260,18 @@ export default function WithdrawalsQueue() {
     }
   ]
 
-  // Функция для определения валюты казино (заглушка)
-  const getCasinoCurrency = (casinoName: string): string => {
-    // В реальной системе это будет из базы данных
-    if (casinoName.toLowerCase().includes('uk') || casinoName.toLowerCase().includes('british')) {
+  // Функция для определения валюты казино
+  const getCasinoCurrency = (item: WithdrawalData): string => {
+    // Используем casino_currency из API если доступно
+    if ((item as any).casino_currency) {
+      return (item as any).casino_currency
+    }
+    // Fallback логика по названию казино
+    const casinoName = item.casino_name.toLowerCase()
+    if (casinoName.includes('uk') || casinoName.includes('british') || casinoName.includes('virgin')) {
       return 'GBP'
     }
-    if (casinoName.toLowerCase().includes('euro')) {
+    if (casinoName.includes('euro')) {
       return 'EUR'
     }
     return 'USD'
@@ -428,15 +436,19 @@ function WithdrawalReviewModal({
   const [comment, setComment] = useState('')
 
   const profit = withdrawal.withdrawal_amount - withdrawal.deposit_amount
-  const currency = getCasinoCurrency(withdrawal.casino_name)
-  const symbol = currency === 'USD' ? '$' : currency === 'GBP' ? '£' : currency === 'EUR' ? '€' : ''
+  const currency = getCasinoCurrency(withdrawal)
+  const symbol = currency === 'USD' ? '$' : currency === 'GBP' ? '£' : currency === 'EUR' ? '€' : currency
 
   // Функция для определения валюты казино (дублируем здесь для доступности)
-  function getCasinoCurrency(casinoName: string): string {
-    if (casinoName.toLowerCase().includes('uk') || casinoName.toLowerCase().includes('british')) {
+  function getCasinoCurrency(item: WithdrawalData): string {
+    if ((item as any).casino_currency) {
+      return (item as any).casino_currency
+    }
+    const casinoName = item.casino_name.toLowerCase()
+    if (casinoName.includes('uk') || casinoName.includes('british') || casinoName.includes('virgin')) {
       return 'GBP'
     }
-    if (casinoName.toLowerCase().includes('euro')) {
+    if (casinoName.includes('euro')) {
       return 'EUR'
     }
     return 'USD'
