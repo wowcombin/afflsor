@@ -38,16 +38,22 @@ export async function GET() {
 // PATCH - Обновить данные текущего пользователя
 export async function PATCH(request: NextRequest) {
   try {
+    console.log('=== PATCH /api/users/me called ===')
     const supabase = await createClient()
     
     // Получаем текущего пользователя
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     
     if (authError || !user) {
+      console.log('Auth error:', authError)
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    console.log('Authenticated user ID:', user.id)
+
     const body = await request.json()
+    console.log('Request body:', body)
+    
     const { name, surname, telegram_username, usdt_wallet, phone } = body
 
     // Валидация данных
@@ -97,22 +103,51 @@ export async function PATCH(request: NextRequest) {
       updateData.phone = phone?.trim() || null
     }
 
+    console.log('Update data prepared:', updateData)
+
+    // Сначала проверим, существует ли пользователь
+    const { data: existingUser, error: findError } = await supabase
+      .from('users')
+      .select('id, auth_id, email, name, surname')
+      .eq('auth_id', user.id)
+      .single()
+
+    console.log('Existing user check:', { existingUser, findError })
+
+    if (findError || !existingUser) {
+      console.error('User not found in database:', findError)
+      return NextResponse.json({ 
+        error: 'User not found in database',
+        details: findError 
+      }, { status: 404 })
+    }
+
     // Обновляем данные пользователя
+    const finalUpdateData = {
+      ...updateData,
+      updated_at: new Date().toISOString()
+    }
+
+    console.log('Final update data:', finalUpdateData)
+
     const { data: updatedUser, error: updateError } = await supabase
       .from('users')
-      .update({
-        ...updateData,
-        updated_at: new Date().toISOString()
-      })
+      .update(finalUpdateData)
       .eq('auth_id', user.id)
       .select()
       .single()
 
+    console.log('Update result:', { updatedUser, updateError })
+
     if (updateError) {
       console.error('Error updating user data:', updateError)
-      return NextResponse.json({ error: 'Failed to update user data' }, { status: 500 })
+      return NextResponse.json({ 
+        error: 'Failed to update user data',
+        details: updateError 
+      }, { status: 500 })
     }
 
+    console.log('User updated successfully:', updatedUser)
     return NextResponse.json(updatedUser)
 
   } catch (error) {
