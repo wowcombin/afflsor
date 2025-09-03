@@ -23,8 +23,28 @@ export async function GET() {
       .single()
 
     if (userError) {
-      console.error('Error fetching user data:', userError)
-      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+      console.log('User not found in database, creating new user record...')
+      
+      // Создаем пользователя в таблице users, если его нет
+      const { data: newUser, error: createError } = await supabase
+        .from('users')
+        .insert({
+          auth_id: user.id,
+          email: user.email || '',
+          role: 'junior', // По умолчанию роль junior
+          status: 'active',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .select()
+        .single()
+
+      if (createError) {
+        console.error('Failed to create user in database:', createError)
+        return NextResponse.json({ error: 'Failed to create user' }, { status: 500 })
+      }
+
+      return NextResponse.json(newUser)
     }
 
     return NextResponse.json(userData)
@@ -115,11 +135,33 @@ export async function PATCH(request: NextRequest) {
     console.log('Existing user check:', { existingUser, findError })
 
     if (findError || !existingUser) {
-      console.error('User not found in database:', findError)
-      return NextResponse.json({ 
-        error: 'User not found in database',
-        details: findError 
-      }, { status: 404 })
+      console.log('User not found in database, creating new user record...')
+      
+      // Создаем пользователя в таблице users, если его нет
+      const { data: newUser, error: createError } = await supabase
+        .from('users')
+        .insert({
+          auth_id: user.id,
+          email: user.email || '',
+          role: 'junior', // По умолчанию роль junior
+          status: 'active',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .select()
+        .single()
+
+      console.log('User creation result:', { newUser, createError })
+
+      if (createError) {
+        console.error('Failed to create user in database:', createError)
+        return NextResponse.json({ 
+          error: 'Failed to create user in database',
+          details: createError 
+        }, { status: 500 })
+      }
+
+      console.log('New user created successfully:', newUser)
     }
 
     // Обновляем данные пользователя
