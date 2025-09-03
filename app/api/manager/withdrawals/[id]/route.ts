@@ -35,49 +35,93 @@ export async function PATCH(
       return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
     }
 
-    // Проверяем, что вывод существует и в статусе pending
-    const { data: withdrawal, error: fetchError } = await supabase
-      .from('test_withdrawals')
-      .select('id, withdrawal_status, work_id')
+    // Сначала пробуем найти в work_withdrawals (Junior)
+    let { data: withdrawal, error: fetchError } = await supabase
+      .from('work_withdrawals')
+      .select('id, status, work_id')
       .eq('id', withdrawalId)
       .single()
 
+    let isJuniorWithdrawal = true
+    let currentStatus = withdrawal?.status
+
+    // Если не найден в work_withdrawals, ищем в test_withdrawals
     if (fetchError || !withdrawal) {
-      return NextResponse.json({ error: 'Withdrawal not found' }, { status: 404 })
+      const { data: testWithdrawal, error: testFetchError } = await supabase
+        .from('test_withdrawals')
+        .select('id, withdrawal_status, work_id')
+        .eq('id', withdrawalId)
+        .single()
+
+      if (testFetchError || !testWithdrawal) {
+        return NextResponse.json({ error: 'Withdrawal not found' }, { status: 404 })
+      }
+
+      withdrawal = testWithdrawal
+      isJuniorWithdrawal = false
+      currentStatus = testWithdrawal.withdrawal_status
     }
 
-    if (withdrawal.withdrawal_status !== 'pending') {
+    // Проверяем статус (разные поля для разных таблиц)
+    const pendingStatuses = isJuniorWithdrawal ? ['waiting', 'new'] : ['pending']
+    if (!pendingStatuses.includes(currentStatus)) {
       return NextResponse.json({ 
         error: 'Withdrawal already processed',
-        current_status: withdrawal.withdrawal_status 
+        current_status: currentStatus 
       }, { status: 400 })
     }
 
-    // Обновляем статус вывода
-    const newStatus = action === 'approve' ? 'approved' : 'rejected'
-    const { error: updateError } = await supabase
-      .from('test_withdrawals')
-      .update({
+    // Обновляем статус вывода (разные статусы для разных таблиц)
+    let newStatus: string
+    let updateData: any
+
+    if (isJuniorWithdrawal) {
+      // Для Junior withdrawals
+      newStatus = action === 'approve' ? 'received' : 'block'
+      updateData = {
+        status: newStatus,
+        updated_at: new Date().toISOString(),
+        manager_notes: comment || null
+      }
+
+      const { error: updateError } = await supabase
+        .from('work_withdrawals')
+        .update(updateData)
+        .eq('id', withdrawalId)
+
+      if (updateError) {
+        console.error('Update error:', updateError)
+        return NextResponse.json({ error: 'Failed to update withdrawal' }, { status: 500 })
+      }
+    } else {
+      // Для Tester withdrawals
+      newStatus = action === 'approve' ? 'approved' : 'rejected'
+      updateData = {
         withdrawal_status: newStatus,
         updated_at: new Date().toISOString(),
         notes: comment || null
-      })
-      .eq('id', withdrawalId)
+      }
 
-    if (updateError) {
-      console.error('Update error:', updateError)
-      return NextResponse.json({ error: 'Failed to update withdrawal' }, { status: 500 })
-    }
+      const { error: updateError } = await supabase
+        .from('test_withdrawals')
+        .update(updateData)
+        .eq('id', withdrawalId)
 
-    // Если одобрено, обновляем статус теста казино
-    if (action === 'approve') {
-      await supabase
-        .from('casino_tests')
-        .update({
-          status: 'completed',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', withdrawal.work_id)
+      if (updateError) {
+        console.error('Update error:', updateError)
+        return NextResponse.json({ error: 'Failed to update withdrawal' }, { status: 500 })
+      }
+
+      // Если одобрено, обновляем статус теста казино
+      if (action === 'approve') {
+        await supabase
+          .from('casino_tests')
+          .update({
+            status: 'completed',
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', withdrawal.work_id)
+      }
     }
 
     // Логируем действие в историю
@@ -85,9 +129,9 @@ export async function PATCH(
       .from('action_history')
       .insert({
         action_type: action,
-        entity_type: 'test_withdrawal',
+        entity_type: isJuniorWithdrawal ? 'work_withdrawal' : 'test_withdrawal',
         entity_id: withdrawalId,
-        change_description: `Manager ${action}d withdrawal${comment ? `: ${comment}` : ''}`,
+        change_description: `Manager ${action}d ${isJuniorWithdrawal ? 'junior' : 'tester'} withdrawal${comment ? `: ${comment}` : ''}`,
         performed_by: userData.id,
         new_values: { status: newStatus, comment }
       })
