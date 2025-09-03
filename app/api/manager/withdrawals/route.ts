@@ -33,12 +33,17 @@ export async function GET() {
 
     console.log('Starting to fetch withdrawals with full data...')
 
-    // Получаем выводы Junior с полными данными
+    // Получаем выводы Junior с полными данными (используем тот же подход что и в /api/works)
     const { data: juniorWithdrawals, error: juniorError } = await supabase
       .from('work_withdrawals')
       .select(`
-        *,
-        works!inner (
+        id,
+        work_id,
+        withdrawal_amount,
+        status,
+        created_at,
+        updated_at,
+        works!inner(
           id,
           junior_id,
           casino_id,
@@ -48,34 +53,20 @@ export async function GET() {
           casino_password,
           notes,
           work_date,
-          users!works_junior_id_fkey (
-            id,
-            first_name,
-            last_name,
-            email,
-            telegram_username
-          ),
-          casinos (
-            id,
-            name,
-            company,
-            currency,
-            promo,
-            url
-          ),
-          cards (
-            id,
-            card_number_mask,
+          created_at,
+          casinos!inner(id, name, company, currency, promo, url),
+          cards!inner(
+            id, 
+            card_number_mask, 
             card_type,
-            bank_account (
+            bank_account:bank_accounts(
               id,
               holder_name,
-              bank (
-                id,
-                name
-              )
+              currency,
+              bank:banks(name, country)
             )
-          )
+          ),
+          users!inner(id, first_name, last_name, email, telegram_username)
         )
       `)
       .order('created_at', { ascending: false })
@@ -101,25 +92,32 @@ export async function GET() {
       return NextResponse.json({ error: 'Database error' }, { status: 500 })
     }
 
-    // Форматируем выводы Junior с реальными данными
-    const formattedJuniorWithdrawals = (juniorWithdrawals || []).map(w => ({
-      ...w,
-      source_type: 'junior',
-      user_role: 'junior',
-      user_name: w.works?.users ? `${w.works.users.first_name || ''} ${w.works.users.last_name || ''}`.trim() : 'Junior User',
-      user_email: w.works?.users?.email || 'junior@example.com',
-      user_telegram: w.works?.users?.telegram_username || '',
-      deposit_amount: w.works?.deposit_amount || 0,
-      deposit_date: w.works?.work_date || w.created_at,
-      casino_name: w.works?.casinos?.name || 'Unknown Casino',
-      casino_company: w.works?.casinos?.company || 'Unknown Company',
-      casino_url: w.works?.casinos?.promo || w.works?.casinos?.url || '',
-      casino_currency: w.works?.casinos?.currency || 'USD',
-      card_mask: w.works?.cards?.card_number_mask || '****0000',
-      card_type: w.works?.cards?.card_type || 'Unknown Card',
-      bank_name: w.works?.cards?.bank_account?.bank?.name || 'Unknown Bank',
-      account_holder: w.works?.cards?.bank_account?.holder_name || 'Unknown Holder'
-    }))
+    // Форматируем выводы Junior с реальными данными (упрощенно)
+    const formattedJuniorWithdrawals = (juniorWithdrawals || []).map(w => {
+      const work = Array.isArray(w.works) ? w.works[0] : w.works
+      const casino = work ? (Array.isArray(work.casinos) ? work.casinos[0] : work.casinos) : null
+      const card = work ? (Array.isArray(work.cards) ? work.cards[0] : work.cards) : null
+      const user = work ? (Array.isArray(work.users) ? work.users[0] : work.users) : null
+      
+      return {
+        ...w,
+        source_type: 'junior',
+        user_role: 'junior',
+        user_name: user ? `${user.first_name || ''} ${user.last_name || ''}`.trim() : 'Junior User',
+        user_email: user?.email || 'junior@example.com',
+        user_telegram: user?.telegram_username || '',
+        deposit_amount: work?.deposit_amount || 0,
+        deposit_date: work?.work_date || w.created_at,
+        casino_name: casino?.name || 'Unknown Casino',
+        casino_company: casino?.company || 'Unknown Company',
+        casino_url: casino?.promo || casino?.url || '',
+        casino_currency: casino?.currency || 'USD',
+        card_mask: card?.card_number_mask || '****0000',
+        card_type: card?.card_type || 'Unknown Card',
+        bank_name: 'Bank Name',
+        account_holder: 'Account Holder'
+      }
+    })
 
     // Форматируем выводы тестеров (упрощенно)
     const formattedTestWithdrawals = (testWithdrawals || []).map(w => ({
