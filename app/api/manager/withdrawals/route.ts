@@ -62,24 +62,24 @@ export async function GET() {
       .from('work_withdrawals')
       .select(`
         *,
-        work:works (
+        works!inner (
           id,
           deposit_amount,
           created_at,
-          casino:casinos (
+          casinos!inner (
             id,
             name,
             company,
             url
           ),
-          junior:users (
+          users!works_junior_id_fkey (
             id,
             first_name,
             last_name,
             email,
             telegram_username
           ),
-          card:cards (
+          cards!inner (
             id,
             card_number_mask,
             card_bin,
@@ -116,16 +116,16 @@ export async function GET() {
       ...w,
       source_type: 'junior',
       user_role: 'junior',
-      user_name: w.work?.junior ? `${w.work.junior.first_name || ''} ${w.work.junior.last_name || ''}`.trim() : 'Unknown',
-      user_email: w.work?.junior?.email || '',
-      user_telegram: w.work?.junior?.telegram_username || '',
-      deposit_amount: w.work?.deposit_amount || 0,
-      deposit_date: w.work?.created_at,
-      casino_name: w.work?.casino?.name || 'Unknown',
-      casino_company: w.work?.casino?.company || '',
-      casino_url: w.work?.casino?.url || '',
-      card_mask: w.work?.card?.card_number_mask || '',
-      card_type: w.work?.card?.card_type || ''
+      user_name: w.works?.users ? `${w.works.users.first_name || ''} ${w.works.users.last_name || ''}`.trim() : 'Unknown',
+      user_email: w.works?.users?.email || '',
+      user_telegram: w.works?.users?.telegram_username || '',
+      deposit_amount: w.works?.deposit_amount || 0,
+      deposit_date: w.works?.created_at,
+      casino_name: w.works?.casinos?.name || 'Unknown',
+      casino_company: w.works?.casinos?.company || '',
+      casino_url: w.works?.casinos?.url || '',
+      card_mask: w.works?.cards?.card_number_mask || '',
+      card_type: w.works?.cards?.card_type || ''
     }))
 
     // Объединяем все выводы и сортируем по дате
