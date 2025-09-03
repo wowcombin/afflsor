@@ -57,7 +57,12 @@ export async function PATCH(
         return NextResponse.json({ error: 'Withdrawal not found' }, { status: 404 })
       }
 
-      withdrawal = testWithdrawal
+      // Приводим к общему формату
+      withdrawal = {
+        id: testWithdrawal.id,
+        status: testWithdrawal.withdrawal_status, // Приводим к общему полю
+        work_id: testWithdrawal.work_id
+      }
       isJuniorWithdrawal = false
       currentStatus = testWithdrawal.withdrawal_status
     }
