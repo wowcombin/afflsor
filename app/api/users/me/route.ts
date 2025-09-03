@@ -19,7 +19,7 @@ export async function GET() {
     const { data: userData, error: userError } = await supabase
       .from('users')
       .select('*')
-      .eq('id', user.id)
+      .eq('auth_id', user.id)
       .single()
 
     if (userError) {
@@ -80,12 +80,11 @@ export async function PATCH(request: NextRequest) {
     if (usdt_wallet !== undefined) {
       const cleanWallet = usdt_wallet?.trim() || null
       if (cleanWallet) {
-        // Валидация USDT кошелька (TRC20/ERC20)
-        const trc20Regex = /^T[A-Za-z1-9]{33}$/
-        const erc20Regex = /^0x[a-fA-F0-9]{40}$/
-        if (!trc20Regex.test(cleanWallet) && !erc20Regex.test(cleanWallet)) {
+        // Валидация USDT кошелька (только BEP20)
+        const bep20Regex = /^0x[a-fA-F0-9]{40}$/
+        if (!bep20Regex.test(cleanWallet)) {
           return NextResponse.json({ 
-            error: 'Некорректный адрес USDT кошелька' 
+            error: 'Некорректный адрес USDT кошелька. Поддерживается только BEP20 формат (0x...)' 
           }, { status: 400 })
         }
         updateData.usdt_wallet = cleanWallet
@@ -105,7 +104,7 @@ export async function PATCH(request: NextRequest) {
         ...updateData,
         updated_at: new Date().toISOString()
       })
-      .eq('id', user.id)
+      .eq('auth_id', user.id)
       .select()
       .single()
 

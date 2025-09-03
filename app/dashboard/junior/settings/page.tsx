@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { createClient } from '@/lib/supabase/client'
 import { useToast } from '@/components/ui/Toast'
 import { 
   CogIcon,
@@ -47,22 +46,14 @@ export default function SettingsPage() {
     try {
       setLoading(true)
       
-      const supabase = createClient()
-      const { data: { user: authUser } } = await supabase.auth.getUser()
+      // Загружаем данные пользователя через API
+      const response = await fetch('/api/users/me')
       
-      if (!authUser) {
-        throw new Error('Пользователь не авторизован')
+      if (!response.ok) {
+        throw new Error('Не удалось загрузить настройки пользователя')
       }
 
-      const { data: userData, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('auth_id', authUser.id)
-        .single()
-
-      if (error || !userData) {
-        throw new Error('Пользователь не найден')
-      }
+      const userData = await response.json()
 
       setSettings(userData)
       
@@ -90,33 +81,29 @@ export default function SettingsPage() {
     try {
       setSaving(true)
       
-      const supabase = createClient()
-      const { data: { user: authUser } } = await supabase.auth.getUser()
-      
-      if (!authUser) {
-        throw new Error('Пользователь не авторизован')
-      }
-
       // Подготавливаем данные для обновления
-      const updateData: any = {
+      const updateData = {
         name: formData.name?.trim() || null,
         surname: formData.surname?.trim() || null,
         telegram_username: formData.telegram_username?.trim()?.replace('@', '') || null,
-        usdt_wallet: formData.usdt_wallet?.trim() || null,
-        updated_at: new Date().toISOString()
+        usdt_wallet: formData.usdt_wallet?.trim() || null
       }
 
-      const { data: updatedUser, error } = await supabase
-        .from('users')
-        .update(updateData)
-        .eq('auth_id', authUser.id)
-        .select()
-        .single()
+      // Отправляем запрос к API
+      const response = await fetch('/api/users/me', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updateData)
+      })
 
-      if (error) {
-        throw new Error('Ошибка сохранения настроек')
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Ошибка сохранения настроек')
       }
-      
+
+      const updatedUser = await response.json()
       setSettings(updatedUser)
       
       addToast({
@@ -129,7 +116,7 @@ export default function SettingsPage() {
       addToast({
         type: 'error',
         title: 'Ошибка сохранения',
-        description: 'Не удалось сохранить настройки'
+        description: error instanceof Error ? error.message : 'Не удалось сохранить настройки'
       })
     } finally {
       setSaving(false)
