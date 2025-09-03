@@ -23,34 +23,10 @@ export async function GET() {
       .single()
 
     if (userError) {
-      console.log('User not found in database, creating new user record...')
-      
-      // Создаем пользователя в таблице users, если его нет
-      const { data: newUser, error: createError } = await supabase
-        .from('users')
-        .insert({
-          auth_id: user.id,
-          email: user.email || '',
-          first_name: null,
-          last_name: null,
-          role: 'junior', // По умолчанию роль junior
-          status: 'active',
-          telegram_username: null,
-          usdt_wallet: null,
-          salary_percentage: 0.00,
-          salary_bonus: 0.00,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
-        .select()
-        .single()
-
-      if (createError) {
-        console.error('Failed to create user in database:', createError)
-        return NextResponse.json({ error: 'Failed to create user' }, { status: 500 })
-      }
-
-      return NextResponse.json(newUser)
+      console.error('User not found in database:', userError)
+      return NextResponse.json({ 
+        error: 'User not found in system. Please contact administrator.' 
+      }, { status: 404 })
     }
 
     return NextResponse.json(userData)
@@ -141,39 +117,11 @@ export async function PATCH(request: NextRequest) {
     console.log('Existing user check:', { existingUser, findError })
 
     if (findError || !existingUser) {
-      console.log('User not found in database, creating new user record...')
-      
-      // Создаем пользователя в таблице users, если его нет
-      const { data: newUser, error: createError } = await supabase
-        .from('users')
-        .insert({
-          auth_id: user.id,
-          email: user.email || '',
-          first_name: null,
-          last_name: null,
-          role: 'junior', // По умолчанию роль junior
-          status: 'active',
-          telegram_username: null,
-          usdt_wallet: null,
-          salary_percentage: 0.00,
-          salary_bonus: 0.00,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
-        .select()
-        .single()
-
-      console.log('User creation result:', { newUser, createError })
-
-      if (createError) {
-        console.error('Failed to create user in database:', createError)
-        return NextResponse.json({ 
-          error: 'Failed to create user in database',
-          details: createError 
-        }, { status: 500 })
-      }
-
-      console.log('New user created successfully:', newUser)
+      console.error('User not found in database:', findError)
+      return NextResponse.json({ 
+        error: 'User not found in system. Please contact administrator.',
+        details: findError 
+      }, { status: 404 })
     }
 
     // Обновляем данные пользователя
