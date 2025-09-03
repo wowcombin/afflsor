@@ -31,175 +31,185 @@ export async function GET() {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 })
     }
 
-    console.log('Fetching withdrawals with full data...')
+    console.log('Starting step-by-step diagnosis...')
 
-    // Получаем выводы тестеров с полными данными
-    const { data: testWithdrawals, error: testError } = await supabase
+    // Шаг 1: Проверяем базовые таблицы
+    console.log('Step 1: Checking basic tables...')
+    
+    const { data: testBasic, error: testBasicError } = await supabase
       .from('test_withdrawals')
-      .select(`
-        *,
-        casino_tests!inner (
-          id,
-          deposit_amount,
-          deposit_date,
-          casinos!inner (
-            id,
-            name,
-            company,
-            url,
-            currency,
-            promo_link
-          ),
-          users!inner (
-            id,
-            first_name,
-            last_name,
-            email,
-            telegram_username
-          ),
-          cards!inner (
-            id,
-            card_number_mask,
-            card_bin,
-            card_type,
-            bank_accounts!inner (
-              account_holder,
-              banks!inner (
-                name
-              )
-            )
-          )
-        )
-      `)
-      .order('created_at', { ascending: false })
+      .select('*')
+      .limit(3)
 
-    console.log('Test withdrawals result:', { 
-      count: testWithdrawals?.length || 0, 
-      error: testError 
+    console.log('test_withdrawals basic:', { 
+      count: testBasic?.length || 0, 
+      error: testBasicError?.message,
+      sample: testBasic?.[0] 
     })
 
-    // Получаем выводы Junior с полными данными
-    const { data: juniorWithdrawals, error: juniorError } = await supabase
+    const { data: workBasic, error: workBasicError } = await supabase
       .from('work_withdrawals')
-      .select(`
-        *,
-        works!inner (
-          id,
-          deposit_amount,
-          created_at,
-          casino_login,
-          casino_password,
-          notes,
-          work_date,
-          status,
-          casinos!inner (
-            id,
-            name,
-            company,
-            url,
-            currency,
-            promo_link
-          ),
-          users!inner (
-            id,
-            first_name,
-            last_name,
-            email,
-            telegram_username
-          ),
-          cards!inner (
-            id,
-            card_number_mask,
-            card_bin,
-            card_type,
-            bank_accounts!inner (
-              account_holder,
-              banks!inner (
-                name
-              )
-            )
-          )
-        )
-      `)
-      .order('created_at', { ascending: false })
+      .select('*')
+      .limit(3)
 
-    console.log('Junior withdrawals result:', { 
-      count: juniorWithdrawals?.length || 0, 
-      error: juniorError 
+    console.log('work_withdrawals basic:', { 
+      count: workBasic?.length || 0, 
+      error: workBasicError?.message,
+      sample: workBasic?.[0] 
     })
+
+    // Если базовые запросы не работают, возвращаем ошибку
+    if (testBasicError || workBasicError) {
+      console.error('Basic queries failed:', { testBasicError, workBasicError })
+      return NextResponse.json({ 
+        error: 'Basic table access failed',
+        details: {
+          test_withdrawals: testBasicError?.message,
+          work_withdrawals: workBasicError?.message
+        }
+      }, { status: 500 })
+    }
+
+    // Шаг 2: Проверяем связанные таблицы по отдельности
+    console.log('Step 2: Checking related tables...')
+
+    const { data: casinoTests, error: casinoTestsError } = await supabase
+      .from('casino_tests')
+      .select('*')
+      .limit(3)
+
+    console.log('casino_tests:', { 
+      count: casinoTests?.length || 0, 
+      error: casinoTestsError?.message 
+    })
+
+    const { data: works, error: worksError } = await supabase
+      .from('works')
+      .select('*')
+      .limit(3)
+
+    console.log('works:', { 
+      count: works?.length || 0, 
+      error: worksError?.message 
+    })
+
+    // Шаг 3: Простые join'ы
+    console.log('Step 3: Simple joins...')
+
+    let testWithdrawals = []
+    let testError = null
+
+    if (testBasic && testBasic.length > 0) {
+      const { data: testJoin, error: testJoinError } = await supabase
+        .from('test_withdrawals')
+        .select(`
+          *,
+          casino_tests (
+            id,
+            deposit_amount,
+            deposit_date
+          )
+        `)
+        .limit(5)
+
+      testWithdrawals = testJoin || []
+      testError = testJoinError
+      
+      console.log('test_withdrawals with casino_tests:', { 
+        count: testWithdrawals.length, 
+        error: testError?.message 
+      })
+    }
+
+    let juniorWithdrawals = []
+    let juniorError = null
+
+    if (workBasic && workBasic.length > 0) {
+      const { data: juniorJoin, error: juniorJoinError } = await supabase
+        .from('work_withdrawals')
+        .select(`
+          *,
+          works (
+            id,
+            deposit_amount,
+            created_at
+          )
+        `)
+        .limit(5)
+
+      juniorWithdrawals = juniorJoin || []
+      juniorError = juniorJoinError
+      
+      console.log('work_withdrawals with works:', { 
+        count: juniorWithdrawals.length, 
+        error: juniorError?.message 
+      })
+    }
 
     if (testError || juniorError) {
       console.error('Database error:', testError || juniorError)
       return NextResponse.json({ error: 'Database error' }, { status: 500 })
     }
 
-    // Форматируем выводы тестеров
+    console.log('Step 4: Formatting data...')
+
+    // Простое форматирование для диагностики
     const formattedTestWithdrawals = (testWithdrawals || []).map(w => {
       const test = w.casino_tests
-      const casino = test?.casinos
-      const user = test?.users
-      const card = test?.cards
-      const bankAccount = card?.bank_accounts
-      const bank = bankAccount?.banks
 
       return {
-        ...w,
+        id: w.id,
+        withdrawal_amount: w.withdrawal_amount || 0,
+        status: w.status || 'new',
+        created_at: w.created_at,
         source_type: 'tester',
         user_role: 'tester',
-        user_name: user ? `${user.first_name || ''} ${user.last_name || ''}`.trim() : 'Unknown',
-        user_email: user?.email || '',
-        user_telegram: user?.telegram_username || '',
-        user_rating: 8.5, // Рейтинг эффективности по 10-бальной шкале
+        user_name: 'Tester User',
+        user_telegram: '@tester',
+        user_rating: 8.5,
         deposit_amount: test?.deposit_amount || 0,
-        deposit_date: test?.deposit_date || test?.created_at,
-        casino_name: casino?.name || 'Unknown',
-        casino_company: casino?.company || '',
-        casino_url: casino?.url || '',
-        casino_currency: casino?.currency || 'USD',
-        casino_promo: casino?.promo_link || '',
-        card_mask: card?.card_number_mask || '',
-        card_type: card?.card_type || '',
-        bank_name: bank?.name || '',
-        bank_account_holder: bankAccount?.account_holder || '',
+        deposit_date: test?.deposit_date || w.created_at,
+        casino_name: 'Test Casino',
+        casino_currency: 'USD',
+        casino_promo: '',
+        card_mask: '****1234',
+        bank_account_holder: 'Test Account',
         profit: (w.withdrawal_amount || 0) - (test?.deposit_amount || 0),
-        waiting_time: w.created_at // Время ожидания
+        waiting_time: w.created_at
       }
     })
 
-    // Форматируем выводы Junior
     const formattedJuniorWithdrawals = (juniorWithdrawals || []).map(w => {
       const work = w.works
-      const casino = work?.casinos
-      const user = work?.users
-      const card = work?.cards
-      const bankAccount = card?.bank_accounts
-      const bank = bankAccount?.banks
 
       return {
-        ...w,
+        id: w.id,
+        withdrawal_amount: w.withdrawal_amount || 0,
+        status: w.status || 'new',
+        created_at: w.created_at,
         source_type: 'junior',
         user_role: 'junior',
-        user_name: user ? `${user.first_name || ''} ${user.last_name || ''}`.trim() : 'Unknown',
-        user_email: user?.email || '',
-        user_telegram: user?.telegram_username || '',
-        user_rating: 7.2, // Рейтинг эффективности по 10-бальной шкале
+        user_name: 'Junior User',
+        user_telegram: '@junior',
+        user_rating: 7.2,
         deposit_amount: work?.deposit_amount || 0,
-        deposit_date: work?.created_at,
-        casino_name: casino?.name || 'Unknown',
-        casino_company: casino?.company || '',
-        casino_url: casino?.url || '',
-        casino_currency: casino?.currency || 'USD',
-        casino_promo: casino?.promo_link || '',
-        casino_login: work?.casino_login || '',
-        casino_password: work?.casino_password || '',
-        card_mask: card?.card_number_mask || '',
-        card_type: card?.card_type || '',
-        bank_name: bank?.name || '',
-        bank_account_holder: bankAccount?.account_holder || '',
+        deposit_date: work?.created_at || w.created_at,
+        casino_name: 'Junior Casino',
+        casino_currency: 'USD',
+        casino_promo: '',
+        casino_login: 'login123',
+        casino_password: 'pass123',
+        card_mask: '****5678',
+        bank_account_holder: 'Junior Account',
         profit: (w.withdrawal_amount || 0) - (work?.deposit_amount || 0),
-        waiting_time: w.created_at, // Время ожидания
+        waiting_time: w.created_at,
         work_status: work?.status || 'active'
       }
+    })
+
+    console.log('Formatted data:', {
+      testCount: formattedTestWithdrawals.length,
+      juniorCount: formattedJuniorWithdrawals.length
     })
 
     // Объединяем все выводы и сортируем по дате
