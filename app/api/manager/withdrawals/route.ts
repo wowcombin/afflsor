@@ -31,186 +31,110 @@ export async function GET() {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 })
     }
 
-    console.log('Starting step-by-step diagnosis...')
-
-    // Шаг 1: Проверяем базовые таблицы
-    console.log('Step 1: Checking basic tables...')
+    console.log('Starting to fetch withdrawals...')
     
-    const { data: testBasic, error: testBasicError } = await supabase
+    // Сначала проверим базовые таблицы
+    console.log('Checking basic tables...')
+    
+    // Проверяем test_withdrawals (простой запрос)
+    const { data: testWithdrawalsBasic, error: testBasicError } = await supabase
       .from('test_withdrawals')
       .select('*')
-      .limit(3)
+      .limit(5)
 
-    console.log('test_withdrawals basic:', { 
-      count: testBasic?.length || 0, 
-      error: testBasicError?.message,
-      sample: testBasic?.[0] 
+    console.log('Basic test_withdrawals:', { 
+      count: testWithdrawalsBasic?.length || 0, 
+      error: testBasicError 
     })
 
-    const { data: workBasic, error: workBasicError } = await supabase
+    // Проверяем work_withdrawals (простой запрос)
+    const { data: workWithdrawalsBasic, error: workBasicError } = await supabase
       .from('work_withdrawals')
       .select('*')
-      .limit(3)
+      .limit(5)
 
-    console.log('work_withdrawals basic:', { 
-      count: workBasic?.length || 0, 
-      error: workBasicError?.message,
-      sample: workBasic?.[0] 
+    console.log('Basic work_withdrawals:', { 
+      count: workWithdrawalsBasic?.length || 0, 
+      error: workBasicError 
     })
 
     // Если базовые запросы не работают, возвращаем ошибку
     if (testBasicError || workBasicError) {
-      console.error('Basic queries failed:', { testBasicError, workBasicError })
+      console.error('Basic table access failed:', { testBasicError, workBasicError })
       return NextResponse.json({ 
-        error: 'Basic table access failed',
+        error: 'Database table access error',
         details: {
-          test_withdrawals: testBasicError?.message,
-          work_withdrawals: workBasicError?.message
+          test_withdrawals_error: testBasicError,
+          work_withdrawals_error: workBasicError
         }
       }, { status: 500 })
     }
 
-    // Шаг 2: Проверяем связанные таблицы по отдельности
-    console.log('Step 2: Checking related tables...')
+    // Если базовые запросы работают, пробуем более сложные
+    console.log('Basic queries successful, trying complex queries...')
 
-    const { data: casinoTests, error: casinoTestsError } = await supabase
-      .from('casino_tests')
+    // Получаем выводы тестеров (упрощенный запрос)
+    const { data: testWithdrawals, error: testError } = await supabase
+      .from('test_withdrawals')
       .select('*')
-      .limit(3)
+      .order('created_at', { ascending: true })
 
-    console.log('casino_tests:', { 
-      count: casinoTests?.length || 0, 
-      error: casinoTestsError?.message 
+    console.log('Test withdrawals result:', { 
+      data: testWithdrawals?.length || 0, 
+      error: testError 
     })
 
-    const { data: works, error: worksError } = await supabase
-      .from('works')
+    // Получаем выводы Junior (упрощенный запрос)
+    const { data: juniorWithdrawals, error: juniorError } = await supabase
+      .from('work_withdrawals')
       .select('*')
-      .limit(3)
+      .order('created_at', { ascending: true })
 
-    console.log('works:', { 
-      count: works?.length || 0, 
-      error: worksError?.message 
+    console.log('Junior withdrawals result:', { 
+      data: juniorWithdrawals?.length || 0, 
+      error: juniorError 
     })
 
-    // Шаг 3: Простые join'ы
-    console.log('Step 3: Simple joins...')
-
-    let testWithdrawals = []
-    let testError = null
-
-    if (testBasic && testBasic.length > 0) {
-      const { data: testJoin, error: testJoinError } = await supabase
-        .from('test_withdrawals')
-        .select(`
-          *,
-          casino_tests (
-            id,
-            deposit_amount,
-            deposit_date
-          )
-        `)
-        .limit(5)
-
-      testWithdrawals = testJoin || []
-      testError = testJoinError
-      
-      console.log('test_withdrawals with casino_tests:', { 
-        count: testWithdrawals.length, 
-        error: testError?.message 
-      })
-    }
-
-    let juniorWithdrawals = []
-    let juniorError = null
-
-    if (workBasic && workBasic.length > 0) {
-      const { data: juniorJoin, error: juniorJoinError } = await supabase
-        .from('work_withdrawals')
-        .select(`
-          *,
-          works (
-            id,
-            deposit_amount,
-            created_at
-          )
-        `)
-        .limit(5)
-
-      juniorWithdrawals = juniorJoin || []
-      juniorError = juniorJoinError
-      
-      console.log('work_withdrawals with works:', { 
-        count: juniorWithdrawals.length, 
-        error: juniorError?.message 
-      })
-    }
+    // Пустые массивы для пользователей (временно)
+    let juniorUsers: any[] = []
 
     if (testError || juniorError) {
       console.error('Database error:', testError || juniorError)
       return NextResponse.json({ error: 'Database error' }, { status: 500 })
     }
 
-    console.log('Step 4: Formatting data...')
+    // Упрощенное форматирование выводов (без связанных данных пока)
+    const formattedTestWithdrawals = (testWithdrawals || []).map(w => ({
+      ...w,
+      source_type: 'tester',
+      user_role: 'tester',
+      user_name: 'Tester User',
+      user_email: 'tester@example.com',
+      user_telegram: '',
+      deposit_amount: 100,
+      deposit_date: w.created_at,
+      casino_name: 'Test Casino',
+      casino_company: 'Test Company',
+      casino_url: '',
+      card_mask: '****1234',
+      card_type: 'Test Card'
+    }))
 
-    // Простое форматирование для диагностики
-    const formattedTestWithdrawals = (testWithdrawals || []).map(w => {
-      const test = w.casino_tests
-
-      return {
-        id: w.id,
-        withdrawal_amount: w.withdrawal_amount || 0,
-        status: w.status || 'new',
-        created_at: w.created_at,
-        source_type: 'tester',
-        user_role: 'tester',
-        user_name: 'Tester User',
-        user_telegram: '@tester',
-        user_rating: 8.5,
-        deposit_amount: test?.deposit_amount || 0,
-        deposit_date: test?.deposit_date || w.created_at,
-        casino_name: 'Test Casino',
-        casino_currency: 'USD',
-        casino_promo: '',
-        card_mask: '****1234',
-        bank_account_holder: 'Test Account',
-        profit: (w.withdrawal_amount || 0) - (test?.deposit_amount || 0),
-        waiting_time: w.created_at
-      }
-    })
-
-    const formattedJuniorWithdrawals = (juniorWithdrawals || []).map(w => {
-      const work = w.works
-
-      return {
-        id: w.id,
-        withdrawal_amount: w.withdrawal_amount || 0,
-        status: w.status || 'new',
-        created_at: w.created_at,
-        source_type: 'junior',
-        user_role: 'junior',
-        user_name: 'Junior User',
-        user_telegram: '@junior',
-        user_rating: 7.2,
-        deposit_amount: work?.deposit_amount || 0,
-        deposit_date: work?.created_at || w.created_at,
-        casino_name: 'Junior Casino',
-        casino_currency: 'USD',
-        casino_promo: '',
-        casino_login: 'login123',
-        casino_password: 'pass123',
-        card_mask: '****5678',
-        bank_account_holder: 'Junior Account',
-        profit: (w.withdrawal_amount || 0) - (work?.deposit_amount || 0),
-        waiting_time: w.created_at,
-        work_status: work?.status || 'active'
-      }
-    })
-
-    console.log('Formatted data:', {
-      testCount: formattedTestWithdrawals.length,
-      juniorCount: formattedJuniorWithdrawals.length
-    })
+    const formattedJuniorWithdrawals = (juniorWithdrawals || []).map(w => ({
+      ...w,
+      source_type: 'junior',
+      user_role: 'junior',
+      user_name: 'Junior User',
+      user_email: 'junior@example.com',
+      user_telegram: '',
+      deposit_amount: 50,
+      deposit_date: w.created_at,
+      casino_name: 'Junior Casino',
+      casino_company: 'Junior Company',
+      casino_url: '',
+      card_mask: '****5678',
+      card_type: 'Junior Card'
+    }))
 
     // Объединяем все выводы и сортируем по дате
     const allWithdrawals = [...formattedTestWithdrawals, ...formattedJuniorWithdrawals]

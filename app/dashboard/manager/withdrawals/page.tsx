@@ -6,27 +6,72 @@ import DataTable from '@/components/ui/DataTable'
 import Modal from '@/components/ui/Modal'
 import StatusBadge from '@/components/ui/StatusBadge'
 import { useToast } from '@/components/ui/Toast'
-import { TestWithdrawal, CasinoTest, User, Card, Casino } from '@/types/database.types'
+import { 
+  ClockIcon,
+  CheckCircleIcon,
+  XCircleIcon,
+  StarIcon
+} from '@heroicons/react/24/outline'
 
-interface WithdrawalWithDetails extends TestWithdrawal {
-  work?: CasinoTest & {
-    tester?: User
-    casino?: Casino
-    card?: Card
-  }
+interface WithdrawalData {
+  id: string
+  source_type: 'tester' | 'junior'
+  user_role: string
+  user_name: string
+  user_email: string
+  user_telegram: string
+  deposit_amount: number
+  deposit_date: string
+  casino_name: string
+  casino_company: string
+  casino_url: string
+  card_mask: string
+  card_type: string
+  withdrawal_amount: number
+  status: string
+  created_at: string
+  updated_at: string
 }
 
 export default function WithdrawalsQueue() {
   const router = useRouter()
   const { addToast } = useToast()
-  const [withdrawals, setWithdrawals] = useState<WithdrawalWithDetails[]>([])
-  const [selectedWithdrawal, setSelectedWithdrawal] = useState<WithdrawalWithDetails | null>(null)
+  const [withdrawals, setWithdrawals] = useState<WithdrawalData[]>([])
+  const [selectedWithdrawals, setSelectedWithdrawals] = useState<string[]>([])
+  const [selectedWithdrawal, setSelectedWithdrawal] = useState<WithdrawalData | null>(null)
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState(false)
+  const [exchangeRates, setExchangeRates] = useState<any>(null)
 
   useEffect(() => {
-    fetchWithdrawals()
+    loadData()
   }, [])
+
+  async function loadData() {
+    // Сначала загружаем курсы валют, затем выводы
+    await loadExchangeRates()
+    await fetchWithdrawals()
+  }
+
+  async function loadExchangeRates() {
+    try {
+      const response = await fetch('/api/currency-rates')
+      if (response.ok) {
+        const rates = await response.json()
+        setExchangeRates(rates)
+      }
+    } catch (error) {
+      console.error('Failed to load exchange rates:', error)
+      // Устанавливаем fallback курсы
+      setExchangeRates({
+        'GBP': 0.95 * 1.27, // Google rate -5%
+        'EUR': 0.95 * 1.09,
+        'CAD': 0.95 * 0.74,
+        'AUD': 0.95 * 0.67,
+        'USD': 1
+      })
+    }
+  }
 
   const fetchWithdrawals = async () => {
     try {
@@ -43,6 +88,27 @@ export default function WithdrawalsQueue() {
     } finally {
       setLoading(false)
     }
+  }
+
+  // Функция конвертации валют (как в Junior withdrawals)
+  function convertToUSD(amount: number, currency: string): number {
+    if (!exchangeRates || currency === 'USD') return amount
+    const rate = exchangeRates[currency] || 1
+    return amount * rate
+  }
+
+  // Функция для копирования промо ссылки
+  const copyPromoLink = (casinoUrl: string) => {
+    if (casinoUrl) {
+      navigator.clipboard.writeText(casinoUrl)
+      addToast({ type: 'success', title: 'Скопировано', description: 'Промо ссылка скопирована в буфер обмена' })
+    }
+  }
+
+  // Функция для получения рейтинга пользователя (заглушка)
+  const getUserRating = (userId: string): number => {
+    // В реальной системе это будет запрос к API
+    return Math.floor(Math.random() * 3) + 7 // 7-10 баллов
   }
 
   const handleWithdrawalAction = async (withdrawalId: string, action: 'approve' | 'reject', comment?: string) => {
@@ -72,92 +138,183 @@ export default function WithdrawalsQueue() {
 
   const columns = [
     {
+      key: 'select',
+      label: '☐',
+      render: (item: WithdrawalData) => (
+        <input
+          type="checkbox"
+          checked={selectedWithdrawals.includes(item.id)}
+          onChange={(e) => {
+            if (e.target.checked) {
+              setSelectedWithdrawals([...selectedWithdrawals, item.id])
+            } else {
+              setSelectedWithdrawals(selectedWithdrawals.filter(id => id !== item.id))
+            }
+          }}
+          className="rounded border-gray-300"
+        />
+      )
+    },
+    {
       key: 'created_at',
       label: 'Время ожидания',
-      render: (item: WithdrawalWithDetails) => {
-        const hours = Math.floor((Date.now() - new Date(item.created_at).getTime()) / (1000 * 60 * 60))
+      render: (item: WithdrawalData) => {
+        const now = Date.now()
+        const created = new Date(item.created_at).getTime()
+        const diffMs = now - created
+        
+        const hours = Math.floor(diffMs / (1000 * 60 * 60))
+        const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60))
         const isUrgent = hours > 4
+        
         return (
           <span className={isUrgent ? 'text-danger-600 font-semibold' : 'text-gray-600'}>
-            {hours}ч {Math.floor(((Date.now() - new Date(item.created_at).getTime()) % (1000 * 60 * 60)) / (1000 * 60))}м
+            {hours}ч {minutes}м
           </span>
         )
       }
     },
     {
-      key: 'work.tester.first_name',
+      key: 'user_name',
       label: 'Junior',
-      render: (item: WithdrawalWithDetails) => (
+      render: (item: WithdrawalData) => (
         <div>
           <div className="font-medium">
-            {item.work?.tester?.first_name} {item.work?.tester?.last_name}
+            {item.user_telegram ? `@${item.user_telegram}` : item.user_name}
           </div>
           <div className="text-sm text-gray-500">
-            Рейтинг: ⭐ 4.2/5
+            Рейтинг: {getUserRating(item.id)}/10
           </div>
         </div>
       )
     },
     {
-      key: 'work.casino.name',
+      key: 'casino_name',
       label: 'Казино',
-      render: (item: WithdrawalWithDetails) => (
+      render: (item: WithdrawalData) => (
         <div>
-          <div className="font-medium">{item.work?.casino?.name}</div>
-          <div className="text-sm text-gray-500">{item.work?.casino?.company}</div>
+          <button
+            onClick={() => copyPromoLink(item.casino_url)}
+            className="font-medium text-primary-600 hover:text-primary-800 cursor-pointer"
+          >
+            {item.casino_name}
+          </button>
+          <div className="text-sm text-gray-500">{item.casino_company}</div>
         </div>
       )
     },
     {
-      key: 'work.card.card_number_mask',
+      key: 'card_mask',
       label: 'Карта',
-      render: (item: WithdrawalWithDetails) => (
+      render: (item: WithdrawalData) => (
         <div>
-          <div className="font-mono text-sm">{item.work?.card?.card_number_mask}</div>
-          <StatusBadge status={item.work?.card?.status || 'active'} />
+          <div className="font-mono text-sm">{item.card_mask}</div>
+          <div className="text-xs text-gray-500">{item.card_type}</div>
         </div>
       )
     },
     {
       key: 'withdrawal_amount',
       label: 'Сумма',
-      render: (item: WithdrawalWithDetails) => (
-        <div>
-          <div className="font-semibold text-lg">${item.withdrawal_amount}</div>
-          <div className="text-sm text-gray-500">
-            Депозит: ${item.work?.deposit_amount || 0}
-          </div>
-        </div>
-      )
-    },
-    {
-      key: 'profit',
-      label: 'Профит',
-      render: (item: WithdrawalWithDetails) => {
-        const profit = (item.withdrawal_amount || 0) - (item.work?.deposit_amount || 0)
+      render: (item: WithdrawalData) => {
+        // Определяем валюту из casino_name или используем USD по умолчанию
+        const currency = getCasinoCurrency(item.casino_name)
         return (
-          <div className={`font-semibold ${profit > 0 ? 'text-success-600' : 'text-danger-600'}`}>
-            ${profit.toFixed(2)}
+          <div>
+            <div className="font-semibold text-lg">
+              {currency === 'USD' ? '$' : currency === 'GBP' ? '£' : currency === 'EUR' ? '€' : ''}
+              {item.withdrawal_amount}
+            </div>
+            <div className="text-sm text-gray-500">
+              Депозит: {currency === 'USD' ? '$' : currency === 'GBP' ? '£' : currency === 'EUR' ? '€' : ''}
+              {item.deposit_amount}
+            </div>
           </div>
         )
       }
     },
     {
-      key: 'withdrawal_status',
+      key: 'profit',
+      label: 'Профит',
+      render: (item: WithdrawalData) => {
+        const profit = item.withdrawal_amount - item.deposit_amount
+        const currency = getCasinoCurrency(item.casino_name)
+        const symbol = currency === 'USD' ? '$' : currency === 'GBP' ? '£' : currency === 'EUR' ? '€' : ''
+        
+        return (
+          <div className={`font-semibold ${profit > 0 ? 'text-success-600' : 'text-danger-600'}`}>
+            {symbol}{profit.toFixed(2)}
+          </div>
+        )
+      }
+    },
+    {
+      key: 'status',
       label: 'Статус',
-      render: (item: WithdrawalWithDetails) => (
-        <StatusBadge status={item.withdrawal_status} />
+      render: (item: WithdrawalData) => (
+        <StatusBadge status={item.status} />
       )
     }
   ]
 
+  // Функция для определения валюты казино (заглушка)
+  const getCasinoCurrency = (casinoName: string): string => {
+    // В реальной системе это будет из базы данных
+    if (casinoName.toLowerCase().includes('uk') || casinoName.toLowerCase().includes('british')) {
+      return 'GBP'
+    }
+    if (casinoName.toLowerCase().includes('euro')) {
+      return 'EUR'
+    }
+    return 'USD'
+  }
+
   const actions = [
     {
       label: 'Проверить',
-      action: (item: WithdrawalWithDetails) => setSelectedWithdrawal(item),
+      action: (item: WithdrawalData) => setSelectedWithdrawal(item),
       variant: 'primary' as const
     }
   ]
+
+  // Массовые операции
+  const handleBulkAction = async (action: 'approve' | 'reject') => {
+    if (selectedWithdrawals.length === 0) {
+      addToast({ type: 'warning', title: 'Предупреждение', description: 'Выберите выводы для обработки' })
+      return
+    }
+
+    setActionLoading(true)
+    try {
+      const response = await fetch('/api/manager/withdrawals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: action === 'approve' ? 'bulk_approve' : 'bulk_reject',
+          withdrawal_ids: selectedWithdrawals,
+          comment: `Массовое ${action === 'approve' ? 'одобрение' : 'отклонение'} менеджером`
+        })
+      })
+
+      const data = await response.json()
+      
+      if (data.success) {
+        addToast({ 
+          type: 'success', 
+          title: 'Успешно', 
+          description: `${selectedWithdrawals.length} выводов ${action === 'approve' ? 'одобрено' : 'отклонено'}` 
+        })
+        setSelectedWithdrawals([])
+        fetchWithdrawals()
+      } else {
+        addToast({ type: 'error', title: 'Ошибка', description: data.error || 'Не удалось обработать выводы' })
+      }
+    } catch (error) {
+      addToast({ type: 'error', title: 'Ошибка', description: 'Ошибка сети' })
+    } finally {
+      setActionLoading(false)
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -170,18 +327,47 @@ export default function WithdrawalsQueue() {
           <button className="btn-secondary" onClick={() => router.push('/dashboard/manager')}>
             ← Назад
           </button>
-          <button className="btn-success" onClick={() => handleBulkApprove()}>
-            Одобрить все &lt; $200
+          <button 
+            className="btn-secondary" 
+            onClick={() => {
+              if (selectedWithdrawals.length === withdrawals.length) {
+                setSelectedWithdrawals([])
+              } else {
+                setSelectedWithdrawals(withdrawals.map(w => w.id))
+              }
+            }}
+          >
+            {selectedWithdrawals.length === withdrawals.length ? 'Снять выделение' : 'Выбрать все'}
           </button>
+          {selectedWithdrawals.length > 0 && (
+            <>
+              <button 
+                className="btn-success" 
+                onClick={() => handleBulkAction('approve')}
+                disabled={actionLoading}
+              >
+                <CheckCircleIcon className="h-4 w-4 mr-2" />
+                Одобрить выбранные ({selectedWithdrawals.length})
+              </button>
+              <button 
+                className="btn-danger" 
+                onClick={() => handleBulkAction('reject')}
+                disabled={actionLoading}
+              >
+                <XCircleIcon className="h-4 w-4 mr-2" />
+                Отклонить выбранные ({selectedWithdrawals.length})
+              </button>
+            </>
+          )}
         </div>
       </div>
 
       {/* Статистика */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="card">
-          <h3 className="text-sm font-medium text-gray-500">В очереди</h3>
+          <h3 className="text-sm font-medium text-gray-500">Ожидают</h3>
           <p className="text-2xl font-bold text-warning-600">
-            {withdrawals.filter(w => w.withdrawal_status === 'pending').length}
+            {withdrawals.filter(w => w.status === 'waiting' || w.status === 'new').length}
           </p>
         </div>
         <div className="card">
@@ -189,28 +375,20 @@ export default function WithdrawalsQueue() {
           <p className="text-2xl font-bold text-danger-600">
             {withdrawals.filter(w => {
               const hours = Math.floor((Date.now() - new Date(w.created_at).getTime()) / (1000 * 60 * 60))
-              return hours > 4 && w.withdrawal_status === 'pending'
+              return hours > 4 && (w.status === 'waiting' || w.status === 'new')
             }).length}
           </p>
         </div>
         <div className="card">
-          <h3 className="text-sm font-medium text-gray-500">Сегодня одобрено</h3>
+          <h3 className="text-sm font-medium text-gray-500">Одобрено</h3>
           <p className="text-2xl font-bold text-success-600">
-            {withdrawals.filter(w => {
-              const today = new Date().toDateString()
-              return new Date(w.updated_at).toDateString() === today && w.withdrawal_status === 'approved'
-            }).length}
+            {withdrawals.filter(w => w.status === 'received').length}
           </p>
         </div>
         <div className="card">
-          <h3 className="text-sm font-medium text-gray-500">Общий профит</h3>
-          <p className="text-2xl font-bold text-success-600">
-            ${withdrawals.reduce((sum, w) => {
-              if (w.withdrawal_status === 'approved') {
-                return sum + ((w.withdrawal_amount || 0) - (w.work?.deposit_amount || 0))
-              }
-              return sum
-            }, 0).toFixed(2)}
+          <h3 className="text-sm font-medium text-gray-500">Заблокировано</h3>
+          <p className="text-2xl font-bold text-danger-600">
+            {withdrawals.filter(w => w.status === 'block').length}
           </p>
         </div>
       </div>
@@ -233,20 +411,6 @@ export default function WithdrawalsQueue() {
       )}
     </div>
   )
-
-  async function handleBulkApprove() {
-    const smallWithdrawals = withdrawals.filter(w => 
-      w.withdrawal_status === 'pending' && (w.withdrawal_amount || 0) < 200
-    )
-    
-    if (smallWithdrawals.length === 0) {
-      addToast({ type: 'info', title: 'Информация', description: 'Нет выводов менее $200 для одобрения' })
-      return
-    }
-
-    // Здесь будет API для массового одобрения
-    addToast({ type: 'info', title: 'В разработке', description: 'Функция массового одобрения будет добавлена' })
-  }
 }
 
 // Компонент модального окна для проверки вывода
@@ -256,15 +420,27 @@ function WithdrawalReviewModal({
   onAction, 
   loading 
 }: {
-  withdrawal: WithdrawalWithDetails
+  withdrawal: WithdrawalData
   onClose: () => void
   onAction: (id: string, action: 'approve' | 'reject', comment?: string) => void
   loading: boolean
 }) {
   const [comment, setComment] = useState('')
-  const [action, setAction] = useState<'approve' | 'reject' | null>(null)
 
-  const profit = (withdrawal.withdrawal_amount || 0) - (withdrawal.work?.deposit_amount || 0)
+  const profit = withdrawal.withdrawal_amount - withdrawal.deposit_amount
+  const currency = getCasinoCurrency(withdrawal.casino_name)
+  const symbol = currency === 'USD' ? '$' : currency === 'GBP' ? '£' : currency === 'EUR' ? '€' : ''
+
+  // Функция для определения валюты казино (дублируем здесь для доступности)
+  function getCasinoCurrency(casinoName: string): string {
+    if (casinoName.toLowerCase().includes('uk') || casinoName.toLowerCase().includes('british')) {
+      return 'GBP'
+    }
+    if (casinoName.toLowerCase().includes('euro')) {
+      return 'EUR'
+    }
+    return 'USD'
+  }
 
   return (
     <Modal isOpen={true} onClose={onClose} title="Проверка вывода">
@@ -273,13 +449,26 @@ function WithdrawalReviewModal({
         <div className="grid grid-cols-2 gap-4">
           <div>
             <h3 className="font-semibold text-gray-900 mb-2">Junior</h3>
-            <p>{withdrawal.work?.tester?.first_name} {withdrawal.work?.tester?.last_name}</p>
-            <p className="text-sm text-gray-500">{withdrawal.work?.tester?.email}</p>
+            <p className="font-medium">
+              {withdrawal.user_telegram ? `@${withdrawal.user_telegram}` : withdrawal.user_name}
+            </p>
+            <p className="text-sm text-gray-500">{withdrawal.user_email}</p>
+            <p className="text-sm text-gray-500">Рейтинг: 8/10</p>
           </div>
           <div>
             <h3 className="font-semibold text-gray-900 mb-2">Казино</h3>
-            <p>{withdrawal.work?.casino?.name}</p>
-            <p className="text-sm text-gray-500">{withdrawal.work?.casino?.company}</p>
+            <p className="font-medium">{withdrawal.casino_name}</p>
+            <p className="text-sm text-gray-500">{withdrawal.casino_company}</p>
+            <button
+              onClick={() => {
+                if (withdrawal.casino_url) {
+                  navigator.clipboard.writeText(withdrawal.casino_url)
+                }
+              }}
+              className="text-sm text-primary-600 hover:text-primary-800"
+            >
+              Скопировать промо ссылку
+            </button>
           </div>
         </div>
 
@@ -288,16 +477,16 @@ function WithdrawalReviewModal({
           <div className="grid grid-cols-3 gap-4 text-center">
             <div>
               <p className="text-sm text-gray-500">Депозит</p>
-              <p className="text-lg font-semibold">${withdrawal.work?.deposit_amount || 0}</p>
+              <p className="text-lg font-semibold">{symbol}{withdrawal.deposit_amount}</p>
             </div>
             <div>
               <p className="text-sm text-gray-500">Вывод</p>
-              <p className="text-lg font-semibold">${withdrawal.withdrawal_amount}</p>
+              <p className="text-lg font-semibold">{symbol}{withdrawal.withdrawal_amount}</p>
             </div>
             <div>
               <p className="text-sm text-gray-500">Профит</p>
               <p className={`text-lg font-semibold ${profit > 0 ? 'text-success-600' : 'text-danger-600'}`}>
-                ${profit.toFixed(2)}
+                {symbol}{profit.toFixed(2)}
               </p>
             </div>
           </div>
@@ -306,9 +495,9 @@ function WithdrawalReviewModal({
         {/* Карта */}
         <div>
           <h3 className="font-semibold text-gray-900 mb-2">Карта</h3>
-          <div className="flex items-center gap-4">
-            <span className="font-mono">{withdrawal.work?.card?.card_number_mask}</span>
-            <StatusBadge status={withdrawal.work?.card?.status || 'active'} />
+          <div className="space-y-2">
+            <div className="font-mono text-sm">{withdrawal.card_mask}</div>
+            <div className="text-xs text-gray-500">{withdrawal.card_type}</div>
           </div>
         </div>
 
