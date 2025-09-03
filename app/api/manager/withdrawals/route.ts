@@ -59,11 +59,11 @@ export async function GET() {
             id, 
             card_number_mask, 
             card_type,
-            bank_account:bank_accounts(
+            bank_account:bank_accounts!inner(
               id,
               holder_name,
               currency,
-              bank:banks(name, country)
+              bank:banks!inner(name, country)
             )
           ),
           users!inner(id, first_name, last_name, email, telegram_username)
@@ -99,6 +99,10 @@ export async function GET() {
       const card = work ? (Array.isArray(work.cards) ? work.cards[0] : work.cards) : null
       const user = work ? (Array.isArray(work.users) ? work.users[0] : work.users) : null
       
+      // Извлекаем данные банковского аккаунта
+      const bankAccount = card?.bank_account ? (Array.isArray(card.bank_account) ? card.bank_account[0] : card.bank_account) : null
+      const bank = bankAccount?.bank ? (Array.isArray(bankAccount.bank) ? bankAccount.bank[0] : bankAccount.bank) : null
+      
       return {
         ...w,
         source_type: 'junior',
@@ -114,8 +118,8 @@ export async function GET() {
         casino_currency: casino?.currency || 'USD',
         card_mask: card?.card_number_mask || '****0000',
         card_type: card?.card_type || 'Unknown Card',
-        bank_name: 'Bank Name',
-        account_holder: 'Account Holder'
+        bank_name: bank?.name || 'Unknown Bank',
+        account_holder: bankAccount?.holder_name || 'Unknown Holder'
       }
     })
 

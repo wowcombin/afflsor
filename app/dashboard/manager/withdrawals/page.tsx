@@ -213,7 +213,7 @@ export default function WithdrawalsQueue() {
         <div>
           <div className="font-mono text-sm">{item.card_mask}</div>
           <div className="text-xs text-gray-500">
-            {item.account_holder || item.card_type}
+            {item.bank_name} • {item.account_holder}
           </div>
         </div>
       )
@@ -509,7 +509,8 @@ function WithdrawalReviewModal({
           <h3 className="font-semibold text-gray-900 mb-2">Карта</h3>
           <div className="space-y-2">
             <div className="font-mono text-sm">{withdrawal.card_mask}</div>
-            <div className="text-xs text-gray-500">{withdrawal.card_type}</div>
+            <div className="text-sm text-gray-600">{withdrawal.bank_name}</div>
+            <div className="text-xs text-gray-500">{withdrawal.account_holder}</div>
           </div>
         </div>
 
