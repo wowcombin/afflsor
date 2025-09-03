@@ -6,13 +6,17 @@ export const dynamic = 'force-dynamic'
 // GET - Получить все выводы для проверки менеджером
 export async function GET() {
   try {
+    console.log('=== Manager Withdrawals API Called ===')
     const supabase = await createClient()
     
     // Проверка аутентификации и роли
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
+      console.log('No authenticated user')
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    console.log('Authenticated user ID:', user.id)
 
     const { data: userData } = await supabase
       .from('users')
@@ -20,10 +24,15 @@ export async function GET() {
       .eq('auth_id', user.id)
       .single()
 
+    console.log('User data:', userData)
+
     if (!userData || userData.status !== 'active' || userData.role !== 'manager') {
+      console.log('Access denied for user:', userData)
       return NextResponse.json({ error: 'Access denied' }, { status: 403 })
     }
 
+    console.log('Fetching test withdrawals...')
+    
     // Получаем выводы тестеров
     const { data: testWithdrawals, error: testError } = await supabase
       .from('test_withdrawals')
@@ -57,6 +66,13 @@ export async function GET() {
       `)
       .order('created_at', { ascending: true })
 
+    console.log('Test withdrawals result:', { 
+      data: testWithdrawals?.length || 0, 
+      error: testError 
+    })
+
+    console.log('Fetching junior withdrawals...')
+    
     // Получаем выводы Junior
     const { data: juniorWithdrawals, error: juniorError } = await supabase
       .from('work_withdrawals')
@@ -66,18 +82,14 @@ export async function GET() {
           id,
           deposit_amount,
           created_at,
+          junior_id,
+          casino_id,
+          card_id,
           casinos!inner (
             id,
             name,
             company,
             url
-          ),
-          users!works_junior_id_fkey (
-            id,
-            first_name,
-            last_name,
-            email,
-            telegram_username
           ),
           cards!inner (
             id,
@@ -89,6 +101,36 @@ export async function GET() {
         )
       `)
       .order('created_at', { ascending: true })
+
+    console.log('Junior withdrawals result:', { 
+      data: juniorWithdrawals?.length || 0, 
+      error: juniorError 
+    })
+
+    // Если есть junior withdrawals, получаем данные пользователей отдельно
+    let juniorUsers: any[] = []
+    if (juniorWithdrawals && juniorWithdrawals.length > 0) {
+      const juniorIds = Array.from(new Set(juniorWithdrawals.map(w => w.works?.junior_id).filter(Boolean)))
+      console.log('Fetching junior users for IDs:', juniorIds)
+      
+      if (juniorIds.length > 0) {
+        const { data: usersData, error: usersError } = await supabase
+          .from('users')
+          .select('id, first_name, last_name, email, telegram_username')
+          .in('id', juniorIds)
+        
+        console.log('Junior users result:', { 
+          data: usersData?.length || 0, 
+          error: usersError 
+        })
+        
+        if (usersError) {
+          console.error('Users fetch error:', usersError)
+        } else {
+          juniorUsers = usersData || []
+        }
+      }
+    }
 
     if (testError || juniorError) {
       console.error('Database error:', testError || juniorError)
@@ -112,21 +154,24 @@ export async function GET() {
       card_type: w.work?.card?.card_type || ''
     }))
 
-    const formattedJuniorWithdrawals = (juniorWithdrawals || []).map(w => ({
-      ...w,
-      source_type: 'junior',
-      user_role: 'junior',
-      user_name: w.works?.users ? `${w.works.users.first_name || ''} ${w.works.users.last_name || ''}`.trim() : 'Unknown',
-      user_email: w.works?.users?.email || '',
-      user_telegram: w.works?.users?.telegram_username || '',
-      deposit_amount: w.works?.deposit_amount || 0,
-      deposit_date: w.works?.created_at,
-      casino_name: w.works?.casinos?.name || 'Unknown',
-      casino_company: w.works?.casinos?.company || '',
-      casino_url: w.works?.casinos?.url || '',
-      card_mask: w.works?.cards?.card_number_mask || '',
-      card_type: w.works?.cards?.card_type || ''
-    }))
+    const formattedJuniorWithdrawals = (juniorWithdrawals || []).map(w => {
+      const user = juniorUsers.find(u => u.id === w.works?.junior_id)
+      return {
+        ...w,
+        source_type: 'junior',
+        user_role: 'junior',
+        user_name: user ? `${user.first_name || ''} ${user.last_name || ''}`.trim() : 'Unknown',
+        user_email: user?.email || '',
+        user_telegram: user?.telegram_username || '',
+        deposit_amount: w.works?.deposit_amount || 0,
+        deposit_date: w.works?.created_at,
+        casino_name: w.works?.casinos?.name || 'Unknown',
+        casino_company: w.works?.casinos?.company || '',
+        casino_url: w.works?.casinos?.url || '',
+        card_mask: w.works?.cards?.card_number_mask || '',
+        card_type: w.works?.cards?.card_type || ''
+      }
+    })
 
     // Объединяем все выводы и сортируем по дате
     const allWithdrawals = [...formattedTestWithdrawals, ...formattedJuniorWithdrawals]
