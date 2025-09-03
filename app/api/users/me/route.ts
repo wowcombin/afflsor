@@ -31,8 +31,14 @@ export async function GET() {
         .insert({
           auth_id: user.id,
           email: user.email || '',
+          first_name: null,
+          last_name: null,
           role: 'junior', // По умолчанию роль junior
           status: 'active',
+          telegram_username: null,
+          usdt_wallet: null,
+          salary_percentage: 0.00,
+          salary_bonus: 0.00,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         })
@@ -80,11 +86,11 @@ export async function PATCH(request: NextRequest) {
     const updateData: any = {}
     
     if (name !== undefined) {
-      updateData.name = name?.trim() || null
+      updateData.first_name = name?.trim() || null
     }
     
     if (surname !== undefined) {
-      updateData.surname = surname?.trim() || null
+      updateData.last_name = surname?.trim() || null
     }
     
     if (telegram_username !== undefined) {
@@ -128,7 +134,7 @@ export async function PATCH(request: NextRequest) {
     // Сначала проверим, существует ли пользователь
     const { data: existingUser, error: findError } = await supabase
       .from('users')
-      .select('id, auth_id, email, name, surname')
+      .select('id, auth_id, email, first_name, last_name')
       .eq('auth_id', user.id)
       .single()
 
@@ -143,8 +149,14 @@ export async function PATCH(request: NextRequest) {
         .insert({
           auth_id: user.id,
           email: user.email || '',
+          first_name: null,
+          last_name: null,
           role: 'junior', // По умолчанию роль junior
           status: 'active',
+          telegram_username: null,
+          usdt_wallet: null,
+          salary_percentage: 0.00,
+          salary_bonus: 0.00,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         })
