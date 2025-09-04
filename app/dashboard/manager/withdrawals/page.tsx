@@ -36,6 +36,8 @@ interface WithdrawalData {
   updated_at: string
 }
 
+type TabStatus = 'waiting' | 'new' | 'received' | 'block'
+
 export default function WithdrawalsQueue() {
   const router = useRouter()
   const { addToast } = useToast()
@@ -45,6 +47,7 @@ export default function WithdrawalsQueue() {
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState(false)
   const [exchangeRates, setExchangeRates] = useState<any>(null)
+  const [activeTab, setActiveTab] = useState<TabStatus>('waiting')
 
   useEffect(() => {
     loadData()
@@ -113,6 +116,73 @@ export default function WithdrawalsQueue() {
     // В реальной системе это будет запрос к API
     return Math.floor(Math.random() * 3) + 7 // 7-10 баллов
   }
+
+  // Функция для фильтрации выводов по активной вкладке
+  const getFilteredWithdrawals = (): WithdrawalData[] => {
+    return withdrawals.filter(w => {
+      switch (activeTab) {
+        case 'waiting':
+          return w.status === 'waiting'
+        case 'new':
+          return w.status === 'new'
+        case 'received':
+          return w.status === 'received'
+        case 'block':
+          return w.status === 'block'
+        default:
+          return true
+      }
+    })
+  }
+
+  // Функция для получения статистики по месяцам
+  const getMonthlyStats = (status: TabStatus) => {
+    const now = new Date()
+    const currentMonth = now.getMonth()
+    const currentYear = now.getFullYear()
+    
+    // Первое число текущего месяца
+    const monthStart = new Date(currentYear, currentMonth, 1)
+    // Последнее число текущего месяца
+    const monthEnd = new Date(currentYear, currentMonth + 1, 0, 23, 59, 59)
+    
+    return withdrawals.filter(w => {
+      const createdDate = new Date(w.created_at)
+      return w.status === status && 
+             createdDate >= monthStart && 
+             createdDate <= monthEnd
+    }).length
+  }
+
+  // Конфигурация вкладок
+  const tabs = [
+    {
+      id: 'waiting' as TabStatus,
+      label: 'Ожидание',
+      count: getMonthlyStats('waiting'),
+      color: 'text-warning-600 bg-warning-50 border-warning-200'
+    },
+    {
+      id: 'new' as TabStatus,
+      label: 'Новые аккаунты',
+      count: getMonthlyStats('new'),
+      color: 'text-blue-600 bg-blue-50 border-blue-200'
+    },
+    {
+      id: 'received' as TabStatus,
+      label: 'Получен',
+      count: getMonthlyStats('received'),
+      color: 'text-success-600 bg-success-50 border-success-200'
+    },
+    {
+      id: 'block' as TabStatus,
+      label: 'Заблокирован',
+      count: getMonthlyStats('block'),
+      color: 'text-danger-600 bg-danger-50 border-danger-200'
+    }
+  ]
+
+  const filteredWithdrawals = getFilteredWithdrawals()
 
   const handleWithdrawalAction = async (withdrawalId: string, action: 'approve' | 'reject', comment?: string) => {
     setActionLoading(true)
@@ -338,14 +408,14 @@ export default function WithdrawalsQueue() {
           <button 
             className="btn-secondary" 
             onClick={() => {
-              if (selectedWithdrawals.length === withdrawals.length) {
+              if (selectedWithdrawals.length === filteredWithdrawals.length && filteredWithdrawals.length > 0) {
                 setSelectedWithdrawals([])
               } else {
-                setSelectedWithdrawals(withdrawals.map(w => w.id))
+                setSelectedWithdrawals(filteredWithdrawals.map(w => w.id))
               }
             }}
           >
-            {selectedWithdrawals.length === withdrawals.length ? 'Снять выделение' : 'Выбрать все'}
+            {selectedWithdrawals.length === filteredWithdrawals.length && filteredWithdrawals.length > 0 ? 'Снять выделение' : 'Выбрать все'}
           </button>
           {selectedWithdrawals.length > 0 && (
             <>
@@ -370,39 +440,69 @@ export default function WithdrawalsQueue() {
         </div>
       </div>
 
-      {/* Статистика */}
+      {/* Вкладки статусов */}
+      <div className="border-b border-gray-200">
+        <nav className="-mb-px flex space-x-8">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => {
+                setActiveTab(tab.id)
+                setSelectedWithdrawals([]) // Сбрасываем выделение при смене вкладки
+              }}
+              className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
+                activeTab === tab.id
+                  ? 'border-primary-500 text-primary-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              {tab.label}
+              <span className={`ml-2 py-0.5 px-2 rounded-full text-xs font-medium ${
+                activeTab === tab.id ? tab.color : 'bg-gray-100 text-gray-600'
+              }`}>
+                {tab.count}
+              </span>
+            </button>
+          ))}
+        </nav>
+      </div>
+
+      {/* Статистика текущей вкладки */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="card">
-          <h3 className="text-sm font-medium text-gray-500">Ожидают</h3>
-          <p className="text-2xl font-bold text-warning-600">
-            {withdrawals.filter(w => w.status === 'waiting' || w.status === 'new').length}
+          <h3 className="text-sm font-medium text-gray-500">Всего в этом месяце</h3>
+          <p className="text-2xl font-bold text-primary-600">
+            {tabs.find(t => t.id === activeTab)?.count || 0}
           </p>
         </div>
         <div className="card">
           <h3 className="text-sm font-medium text-gray-500">Просрочено (&gt;4ч)</h3>
           <p className="text-2xl font-bold text-danger-600">
-            {withdrawals.filter(w => {
+            {filteredWithdrawals.filter(w => {
               const hours = Math.floor((Date.now() - new Date(w.created_at).getTime()) / (1000 * 60 * 60))
-              return hours > 4 && (w.status === 'waiting' || w.status === 'new')
+              return hours > 4
             }).length}
           </p>
         </div>
         <div className="card">
-          <h3 className="text-sm font-medium text-gray-500">Одобрено</h3>
-          <p className="text-2xl font-bold text-success-600">
-            {withdrawals.filter(w => w.status === 'received').length}
+          <h3 className="text-sm font-medium text-gray-500">Сегодня</h3>
+          <p className="text-2xl font-bold text-blue-600">
+            {filteredWithdrawals.filter(w => {
+              const today = new Date().toDateString()
+              return new Date(w.created_at).toDateString() === today
+            }).length}
           </p>
         </div>
         <div className="card">
-          <h3 className="text-sm font-medium text-gray-500">Заблокировано</h3>
-          <p className="text-2xl font-bold text-danger-600">
-            {withdrawals.filter(w => w.status === 'block').length}
+          <h3 className="text-sm font-medium text-gray-500">Выбрано</h3>
+          <p className="text-2xl font-bold text-gray-600">
+            {selectedWithdrawals.length}
           </p>
         </div>
       </div>
 
       <DataTable
-        data={withdrawals}
+        data={filteredWithdrawals}
         columns={columns}
         actions={actions}
         loading={loading}
