@@ -67,88 +67,21 @@ export default function ManagerAnalyticsPage() {
     try {
       setLoading(true)
       
-      // Пока используем моковые данные
-      // В будущем здесь будет реальный API запрос
-      const mockData: AnalyticsData = {
-        totalJuniors: 12,
-        activeJuniors: 8,
-        totalWithdrawals: 156,
-        pendingWithdrawals: 23,
-        approvedWithdrawals: 118,
-        rejectedWithdrawals: 15,
-        totalProfit: 15420.50,
-        todayProfit: 1250.30,
-        weekProfit: 8750.20,
-        monthProfit: 15420.50,
-        avgProcessingTime: 2.5,
-        overdueWithdrawals: 5,
-        topPerformers: [
-          {
-            id: '1',
-            name: 'Алексей Петров',
-            telegram: '@alex_trader',
-            profit: 3250.80,
-            withdrawals: 28,
-            successRate: 92.5
-          },
-          {
-            id: '2',
-            name: 'Мария Сидорова',
-            telegram: '@maria_crypto',
-            profit: 2890.40,
-            withdrawals: 24,
-            successRate: 87.5
-          },
-          {
-            id: '3',
-            name: 'Дмитрий Козлов',
-            telegram: '@dmitry_win',
-            profit: 2650.20,
-            withdrawals: 22,
-            successRate: 90.9
-          }
-        ],
-        casinoStats: [
-          {
-            name: 'Virgin Games',
-            totalDeposits: 12500.00,
-            totalWithdrawals: 18750.00,
-            profit: 6250.00,
-            successRate: 85.2
-          },
-          {
-            name: 'Betfair Casino',
-            totalDeposits: 8900.00,
-            totalWithdrawals: 12340.00,
-            profit: 3440.00,
-            successRate: 78.9
-          },
-          {
-            name: 'William Hill',
-            totalDeposits: 7650.00,
-            totalWithdrawals: 10890.00,
-            profit: 3240.00,
-            successRate: 82.1
-          }
-        ],
-        dailyStats: Array.from({ length: 30 }, (_, i) => ({
-          date: new Date(Date.now() - i * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-          deposits: Math.floor(Math.random() * 2000) + 500,
-          withdrawals: Math.floor(Math.random() * 3000) + 800,
-          profit: Math.floor(Math.random() * 1000) + 200
-        })).reverse()
+      // Загружаем реальные данные из API
+      const response = await fetch(`/api/manager/analytics?dateRange=${dateRange}`)
+      
+      if (!response.ok) {
+        throw new Error('Не удалось загрузить данные аналитики')
       }
 
-      // Симулируем задержку API
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      
-      setAnalytics(mockData)
+      const analyticsData = await response.json()
+      setAnalytics(analyticsData)
     } catch (error) {
       console.error('Ошибка загрузки аналитики:', error)
       addToast({
         type: 'error',
         title: 'Ошибка загрузки',
-        description: 'Не удалось загрузить данные аналитики'
+        description: error instanceof Error ? error.message : 'Не удалось загрузить данные аналитики'
       })
     } finally {
       setLoading(false)
@@ -307,7 +240,10 @@ export default function ManagerAnalyticsPage() {
               </p>
               <div className="flex items-center justify-center mt-1">
                 <ArrowTrendingUpIcon className="h-4 w-4 text-green-500 mr-1" />
-                <span className="text-sm text-green-600">+12.5%</span>
+                <span className="text-sm text-green-600">
+                  {analytics.todayProfit > 0 ? '+' : ''}
+                  {((analytics.todayProfit / Math.max(analytics.weekProfit - analytics.todayProfit, 1)) * 100).toFixed(1)}%
+                </span>
               </div>
             </div>
             
@@ -318,7 +254,10 @@ export default function ManagerAnalyticsPage() {
               </p>
               <div className="flex items-center justify-center mt-1">
                 <ArrowTrendingUpIcon className="h-4 w-4 text-blue-500 mr-1" />
-                <span className="text-sm text-blue-600">+8.3%</span>
+                <span className="text-sm text-blue-600">
+                  {analytics.weekProfit > 0 ? '+' : ''}
+                  {((analytics.weekProfit / Math.max(analytics.monthProfit - analytics.weekProfit, 1)) * 100).toFixed(1)}%
+                </span>
               </div>
             </div>
             
@@ -329,7 +268,10 @@ export default function ManagerAnalyticsPage() {
               </p>
               <div className="flex items-center justify-center mt-1">
                 <ArrowTrendingUpIcon className="h-4 w-4 text-purple-500 mr-1" />
-                <span className="text-sm text-purple-600">+15.7%</span>
+                <span className="text-sm text-purple-600">
+                  {analytics.monthProfit > 0 ? '+' : ''}
+                  {((analytics.monthProfit / Math.max(analytics.totalProfit - analytics.monthProfit, 1)) * 100).toFixed(1)}%
+                </span>
               </div>
             </div>
           </div>
