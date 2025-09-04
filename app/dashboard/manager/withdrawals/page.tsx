@@ -37,6 +37,17 @@ interface WithdrawalData {
 }
 
 type TabStatus = 'waiting' | 'new' | 'received' | 'block'
+type DateFilter = 'today' | '3days' | 'week' | 'month'
+
+interface Filters {
+  casino: string
+  worker: string
+  bankAccount: string
+  depositAmountMin: string
+  depositAmountMax: string
+  withdrawalAmountMin: string
+  withdrawalAmountMax: string
+}
 
 export default function WithdrawalsQueue() {
   const router = useRouter()
@@ -48,6 +59,16 @@ export default function WithdrawalsQueue() {
   const [actionLoading, setActionLoading] = useState(false)
   const [exchangeRates, setExchangeRates] = useState<any>(null)
   const [activeTab, setActiveTab] = useState<TabStatus>('waiting')
+  const [dateFilter, setDateFilter] = useState<DateFilter>('today')
+  const [filters, setFilters] = useState<Filters>({
+    casino: '',
+    worker: '',
+    bankAccount: '',
+    depositAmountMin: '',
+    depositAmountMax: '',
+    withdrawalAmountMin: '',
+    withdrawalAmountMax: ''
+  })
 
   useEffect(() => {
     loadData()
@@ -117,21 +138,108 @@ export default function WithdrawalsQueue() {
     return Math.floor(Math.random() * 3) + 7 // 7-10 баллов
   }
 
-  // Функция для фильтрации выводов по активной вкладке
+  // Функция для получения диапазона дат по фильтру
+  const getDateRange = (filter: DateFilter) => {
+    const now = new Date()
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    
+    switch (filter) {
+      case 'today':
+        return {
+          start: today,
+          end: new Date(today.getTime() + 24 * 60 * 60 * 1000 - 1)
+        }
+      case '3days':
+        const threeDaysAgo = new Date(today)
+        threeDaysAgo.setDate(today.getDate() - 2)
+        return {
+          start: threeDaysAgo,
+          end: new Date(today.getTime() + 24 * 60 * 60 * 1000 - 1)
+        }
+      case 'week':
+        const weekAgo = new Date(today)
+        weekAgo.setDate(today.getDate() - 6)
+        return {
+          start: weekAgo,
+          end: new Date(today.getTime() + 24 * 60 * 60 * 1000 - 1)
+        }
+      case 'month':
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+        const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59)
+        return {
+          start: monthStart,
+          end: monthEnd
+        }
+      default:
+        return { start: today, end: new Date(today.getTime() + 24 * 60 * 60 * 1000 - 1) }
+    }
+  }
+
+  // Функция для фильтрации выводов по активной вкладке и фильтрам
   const getFilteredWithdrawals = (): WithdrawalData[] => {
     return withdrawals.filter(w => {
+      // Фильтр по статусу
+      let statusMatch = false
       switch (activeTab) {
         case 'waiting':
-          return w.status === 'waiting'
+          statusMatch = w.status === 'waiting'
+          break
         case 'new':
-          return w.status === 'new'
+          statusMatch = w.status === 'new'
+          break
         case 'received':
-          return w.status === 'received'
+          statusMatch = w.status === 'received'
+          break
         case 'block':
-          return w.status === 'block'
+          statusMatch = w.status === 'block'
+          break
         default:
-          return true
+          statusMatch = true
       }
+
+      if (!statusMatch) return false
+
+      // Фильтр по дате
+      const { start, end } = getDateRange(dateFilter)
+      const createdDate = new Date(w.created_at)
+      const dateMatch = createdDate >= start && createdDate <= end
+
+      if (!dateMatch) return false
+
+      // Фильтры по полям
+      if (filters.casino && !w.casino_name?.toLowerCase().includes(filters.casino.toLowerCase())) {
+        return false
+      }
+
+      if (filters.worker && !w.user_name?.toLowerCase().includes(filters.worker.toLowerCase()) && 
+          !w.user_telegram?.toLowerCase().includes(filters.worker.toLowerCase())) {
+        return false
+      }
+
+      if (filters.bankAccount && 
+          !w.account_holder?.toLowerCase().includes(filters.bankAccount.toLowerCase()) &&
+          !w.bank_name?.toLowerCase().includes(filters.bankAccount.toLowerCase())) {
+        return false
+      }
+
+      // Фильтры по суммам
+      if (filters.depositAmountMin && w.deposit_amount < parseFloat(filters.depositAmountMin)) {
+        return false
+      }
+
+      if (filters.depositAmountMax && w.deposit_amount > parseFloat(filters.depositAmountMax)) {
+        return false
+      }
+
+      if (filters.withdrawalAmountMin && w.withdrawal_amount < parseFloat(filters.withdrawalAmountMin)) {
+        return false
+      }
+
+      if (filters.withdrawalAmountMax && w.withdrawal_amount > parseFloat(filters.withdrawalAmountMax)) {
+        return false
+      }
+
+      return true
     })
   }
 
@@ -153,6 +261,41 @@ export default function WithdrawalsQueue() {
              createdDate <= monthEnd
     }).length
   }
+
+  // Функция для расчета детальной аналитики
+  const getDetailedAnalytics = () => {
+    const filtered = getFilteredWithdrawals()
+    
+    const totalDeposits = filtered.reduce((sum, w) => {
+      const depositInUSD = convertToUSD(w.deposit_amount, w.casino_currency || 'USD')
+      return sum + depositInUSD
+    }, 0)
+    
+    const totalWithdrawals = filtered.reduce((sum, w) => {
+      const withdrawalInUSD = convertToUSD(w.withdrawal_amount, w.casino_currency || 'USD')
+      return sum + withdrawalInUSD
+    }, 0)
+    
+    const totalProfit = totalWithdrawals - totalDeposits
+    
+    // Для заблокированных аккаунтов - потерянные депозиты
+    const lostDeposits = activeTab === 'block' ? totalDeposits : 0
+    
+    return {
+      totalCount: filtered.length,
+      totalDeposits: totalDeposits,
+      totalWithdrawals: totalWithdrawals,
+      totalProfit: totalProfit,
+      lostDeposits: lostDeposits,
+      selectedCount: selectedWithdrawals.length,
+      overdueCount: filtered.filter(w => {
+        const hours = Math.floor((Date.now() - new Date(w.created_at).getTime()) / (1000 * 60 * 60))
+        return hours > 4
+      }).length
+    }
+  }
+
+  const analytics = getDetailedAnalytics()
 
   // Конфигурация вкладок
   const tabs = [
@@ -230,8 +373,23 @@ export default function WithdrawalsQueue() {
     },
     {
       key: 'created_at',
-      label: 'Время ожидания',
+      label: activeTab === 'received' || activeTab === 'block' ? 'Дата создания' : 'Время ожидания',
       render: (item: WithdrawalData) => {
+        // Для финализированных статусов показываем дату создания
+        if (activeTab === 'received' || activeTab === 'block') {
+          const createdDate = new Date(item.created_at)
+          return (
+            <span className="text-gray-600">
+              {createdDate.toLocaleDateString('ru-RU', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric'
+              })}
+            </span>
+          )
+        }
+        
+        // Для активных статусов показываем время ожидания
         const now = Date.now()
         const created = new Date(item.created_at).getTime()
         const diffMs = now - created
@@ -467,37 +625,180 @@ export default function WithdrawalsQueue() {
         </nav>
       </div>
 
-      {/* Статистика текущей вкладки */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      {/* Фильтр по периоду */}
+      <div className="flex gap-2 mb-4">
+        <select
+          value={dateFilter}
+          onChange={(e) => setDateFilter(e.target.value as DateFilter)}
+          className="form-select"
+        >
+          <option value="today">Сегодня</option>
+          <option value="3days">За 3 дня</option>
+          <option value="week">На этой неделе</option>
+          <option value="month">В этом месяце</option>
+        </select>
+      </div>
+
+      {/* Расширенная статистика */}
+      <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-6">
         <div className="card">
-          <h3 className="text-sm font-medium text-gray-500">Всего в этом месяце</h3>
+          <h3 className="text-sm font-medium text-gray-500">Всего аккаунтов</h3>
           <p className="text-2xl font-bold text-primary-600">
-            {tabs.find(t => t.id === activeTab)?.count || 0}
+            {analytics.totalCount}
           </p>
         </div>
         <div className="card">
-          <h3 className="text-sm font-medium text-gray-500">Просрочено (&gt;4ч)</h3>
+          <h3 className="text-sm font-medium text-gray-500">
+            {activeTab === 'received' || activeTab === 'block' ? 'Просрочено было' : 'Просрочено (>4ч)'}
+          </h3>
           <p className="text-2xl font-bold text-danger-600">
-            {filteredWithdrawals.filter(w => {
-              const hours = Math.floor((Date.now() - new Date(w.created_at).getTime()) / (1000 * 60 * 60))
-              return hours > 4
-            }).length}
-          </p>
-        </div>
-        <div className="card">
-          <h3 className="text-sm font-medium text-gray-500">Сегодня</h3>
-          <p className="text-2xl font-bold text-blue-600">
-            {filteredWithdrawals.filter(w => {
-              const today = new Date().toDateString()
-              return new Date(w.created_at).toDateString() === today
-            }).length}
+            {analytics.overdueCount}
           </p>
         </div>
         <div className="card">
           <h3 className="text-sm font-medium text-gray-500">Выбрано</h3>
           <p className="text-2xl font-bold text-gray-600">
-            {selectedWithdrawals.length}
+            {analytics.selectedCount}
           </p>
+        </div>
+        <div className="card">
+          <h3 className="text-sm font-medium text-gray-500">Депозиты</h3>
+          <p className="text-2xl font-bold text-blue-600">
+            ${analytics.totalDeposits.toFixed(2)}
+          </p>
+        </div>
+        <div className="card">
+          <h3 className="text-sm font-medium text-gray-500">Выводы</h3>
+          <p className="text-2xl font-bold text-green-600">
+            ${analytics.totalWithdrawals.toFixed(2)}
+          </p>
+        </div>
+        <div className="card">
+          <h3 className="text-sm font-medium text-gray-500">
+            {activeTab === 'block' ? 'Потерян профит' : 'Профит'}
+          </h3>
+          <p className={`text-2xl font-bold ${
+            activeTab === 'block' 
+              ? 'text-danger-600' 
+              : analytics.totalProfit >= 0 
+                ? 'text-success-600' 
+                : 'text-danger-600'
+          }`}>
+            ${analytics.totalProfit.toFixed(2)}
+          </p>
+        </div>
+      </div>
+
+      {/* Дополнительная статистика для заблокированных */}
+      {activeTab === 'block' && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          <div className="card bg-red-50 border-red-200">
+            <h3 className="text-sm font-medium text-red-700">Потеряно депозитов</h3>
+            <p className="text-2xl font-bold text-red-600">
+              ${analytics.lostDeposits.toFixed(2)}
+            </p>
+          </div>
+          <div className="card bg-red-50 border-red-200">
+            <h3 className="text-sm font-medium text-red-700">Процент потерь</h3>
+            <p className="text-2xl font-bold text-red-600">
+              {analytics.totalDeposits > 0 ? ((analytics.lostDeposits / analytics.totalDeposits) * 100).toFixed(1) : 0}%
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Фильтры */}
+      <div className="card mb-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Фильтры</h3>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Сайт</label>
+            <input
+              type="text"
+              value={filters.casino}
+              onChange={(e) => setFilters({...filters, casino: e.target.value})}
+              placeholder="Поиск по казино..."
+              className="form-input"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Работник</label>
+            <input
+              type="text"
+              value={filters.worker}
+              onChange={(e) => setFilters({...filters, worker: e.target.value})}
+              placeholder="Имя или @telegram..."
+              className="form-input"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Банк аккаунт</label>
+            <input
+              type="text"
+              value={filters.bankAccount}
+              onChange={(e) => setFilters({...filters, bankAccount: e.target.value})}
+              placeholder="Банк или держатель..."
+              className="form-input"
+            />
+          </div>
+          <div>
+            <button
+              onClick={() => setFilters({
+                casino: '',
+                worker: '',
+                bankAccount: '',
+                depositAmountMin: '',
+                depositAmountMax: '',
+                withdrawalAmountMin: '',
+                withdrawalAmountMax: ''
+              })}
+              className="btn-secondary mt-6"
+            >
+              Сбросить фильтры
+            </button>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Депозит от</label>
+            <input
+              type="number"
+              value={filters.depositAmountMin}
+              onChange={(e) => setFilters({...filters, depositAmountMin: e.target.value})}
+              placeholder="0"
+              className="form-input"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Депозит до</label>
+            <input
+              type="number"
+              value={filters.depositAmountMax}
+              onChange={(e) => setFilters({...filters, depositAmountMax: e.target.value})}
+              placeholder="1000"
+              className="form-input"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Вывод от</label>
+            <input
+              type="number"
+              value={filters.withdrawalAmountMin}
+              onChange={(e) => setFilters({...filters, withdrawalAmountMin: e.target.value})}
+              placeholder="0"
+              className="form-input"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Вывод до</label>
+            <input
+              type="number"
+              value={filters.withdrawalAmountMax}
+              onChange={(e) => setFilters({...filters, withdrawalAmountMax: e.target.value})}
+              placeholder="5000"
+              className="form-input"
+            />
+          </div>
         </div>
       </div>
 
