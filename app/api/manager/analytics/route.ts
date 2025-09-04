@@ -110,6 +110,12 @@ export async function GET(request: NextRequest) {
 
     const withdrawals = withdrawalsData || []
 
+    console.log('Raw withdrawals data:', {
+      count: withdrawals.length,
+      sample: withdrawals.slice(0, 2),
+      dateRange: `${startDate.toISOString()} to ${now.toISOString()}`
+    })
+
     // Подсчитываем статистику выводов
     const totalWithdrawals = withdrawals.length
     const pendingWithdrawals = withdrawals.filter(w => w.status === 'waiting' || w.status === 'new').length
@@ -306,6 +312,15 @@ export async function GET(request: NextRequest) {
       casinoStats: casinoStatsArray,
       dailyStats
     }
+
+    console.log('Analytics data:', {
+      totalJuniors,
+      activeJuniors,
+      totalWithdrawals,
+      withdrawalsCount: withdrawals.length,
+      topPerformersCount: topPerformers.length,
+      casinoStatsCount: casinoStatsArray.length
+    })
 
     return NextResponse.json(analyticsData)
 
