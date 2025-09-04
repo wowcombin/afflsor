@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
 
 export const dynamic = 'force-dynamic'
 
@@ -6,55 +7,289 @@ export async function GET(request: NextRequest) {
   try {
     console.log('Analytics API called at:', new Date().toISOString())
     
-    // Простые статичные данные для проверки
-    const analyticsData = {
-      totalJuniors: 1,
-      activeJuniors: 1,
-      totalWithdrawals: 3,
-      pendingWithdrawals: 1,
-      approvedWithdrawals: 2,
-      rejectedWithdrawals: 0,
-      totalProfit: 290.0,
-      todayProfit: 50.0,
-      weekProfit: 150.0,
-      monthProfit: 290.0,
-      avgProcessingTime: 2.5,
-      overdueWithdrawals: 0,
-      topPerformers: [
-        {
-          id: '1',
-          name: 'Дмитрий К',
-          telegram: '@opporenno',
-          profit: 290.0,
-          withdrawals: 3,
-          successRate: 85.5
-        }
-      ],
-      casinoStats: [
-        {
-          name: 'Virgin Games',
-          totalDeposits: 200.0,
-          totalWithdrawals: 300.0,
-          profit: 100.0,
-          successRate: 87.3
-        },
-        {
-          name: 'Lottomart',
-          totalDeposits: 150.0,
-          totalWithdrawals: 200.0,
-          profit: 50.0,
-          successRate: 82.1
-        }
-      ],
-      dailyStats: Array.from({ length: 30 }, (_, i) => ({
-        date: new Date(Date.now() - i * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        deposits: Math.floor(Math.random() * 100) + 50,
-        withdrawals: Math.floor(Math.random() * 150) + 80,
-        profit: Math.floor(Math.random() * 50) + 20
-      })).reverse()
+    const supabase = await createClient()
+
+    // Проверяем аутентификацию
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
+      console.log('Auth error:', authError)
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    console.log('Returning analytics data successfully')
+    // Получаем параметры запроса
+    const { searchParams } = new URL(request.url)
+    const dateRange = searchParams.get('dateRange') || '30d'
+
+    // Вычисляем диапазон дат
+    const now = new Date()
+    let startDate: Date
+    
+    switch (dateRange) {
+      case '7d':
+        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+        break
+      case '90d':
+        startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000)
+        break
+      case '30d':
+      default:
+        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+        break
+    }
+
+    console.log('Date range:', { dateRange, startDate: startDate.toISOString() })
+
+    // Получаем курсы валют для конвертации
+    const convertToUSD = (amount: number, currency: string): number => {
+      const rates: { [key: string]: number } = {
+        'USD': 1,
+        'GBP': 1.27 * 0.95, // Google rate -5%
+        'EUR': 1.09 * 0.95,
+        'CAD': 0.74 * 0.95
+      }
+      return amount * (rates[currency] || 1)
+    }
+
+    // 1. Получаем общую статистику пользователей
+    const { data: usersData, error: usersError } = await supabase
+      .from('users')
+      .select('id, role, created_at')
+      .eq('role', 'junior')
+
+    if (usersError) {
+      console.error('Users error:', usersError)
+      throw new Error('Failed to fetch users')
+    }
+
+    const totalJuniors = usersData?.length || 0
+
+    // 2. Получаем активных Junior (те, кто создавал работы за период)
+    const { data: activeJuniorsData, error: activeJuniorsError } = await supabase
+      .from('works')
+      .select('junior_id')
+      .gte('created_at', startDate.toISOString())
+      .neq('junior_id', null)
+
+    if (activeJuniorsError) {
+      console.error('Active juniors error:', activeJuniorsError)
+      throw new Error('Failed to fetch active juniors')
+    }
+
+    const activeJuniorIds = Array.from(new Set(activeJuniorsData?.map(w => w.junior_id) || []))
+    const activeJuniors = activeJuniorIds.length
+
+    // 3. Получаем статистику выводов
+    const { data: withdrawalsData, error: withdrawalsError } = await supabase
+      .from('work_withdrawals')
+      .select(`
+        *,
+        works!inner(
+          junior_id,
+          deposit_amount,
+          deposit_currency,
+          casinos!inner(name, currency)
+        )
+      `)
+      .gte('created_at', startDate.toISOString())
+
+    if (withdrawalsError) {
+      console.error('Withdrawals error:', withdrawalsError)
+      throw new Error('Failed to fetch withdrawals')
+    }
+
+    const withdrawals = withdrawalsData || []
+    console.log('Withdrawals count:', withdrawals.length)
+
+    // Подсчитываем статистику
+    const totalWithdrawals = withdrawals.length
+    const pendingWithdrawals = withdrawals.filter(w => w.status === 'waiting').length
+    const approvedWithdrawals = withdrawals.filter(w => w.status === 'received').length
+    const rejectedWithdrawals = withdrawals.filter(w => w.status === 'block').length
+
+    // Подсчитываем профит
+    let totalProfit = 0
+    let todayProfit = 0
+    let weekProfit = 0
+    let monthProfit = 0
+
+    const today = new Date()
+    const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000)
+    const monthAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000)
+
+    withdrawals.forEach(w => {
+      const work = Array.isArray(w.works) ? w.works[0] : w.works
+      if (!work) return
+
+      const casino = Array.isArray(work.casinos) ? work.casinos[0] : work.casinos
+      if (!casino) return
+
+      const depositUSD = convertToUSD(work.deposit_amount || 0, work.deposit_currency || 'USD')
+      const withdrawalUSD = convertToUSD(w.withdrawal_amount || 0, casino.currency || 'USD')
+      const profit = withdrawalUSD - depositUSD
+
+      totalProfit += profit
+
+      const createdAt = new Date(w.created_at)
+      if (createdAt >= monthAgo) monthProfit += profit
+      if (createdAt >= weekAgo) weekProfit += profit
+      if (createdAt.toDateString() === today.toDateString()) todayProfit += profit
+    })
+
+    // Просроченные выводы (>4 часа)
+    const fourHoursAgo = new Date(now.getTime() - 4 * 60 * 60 * 1000)
+    const overdueWithdrawals = withdrawals.filter(w => 
+      w.status === 'waiting' && new Date(w.created_at) < fourHoursAgo
+    ).length
+
+    // Среднее время обработки
+    const processedWithdrawals = withdrawals.filter(w => w.status !== 'waiting')
+    let avgProcessingTime = 0
+    if (processedWithdrawals.length > 0) {
+      const totalProcessingTime = processedWithdrawals.reduce((sum, w) => {
+        const created = new Date(w.created_at).getTime()
+        const updated = new Date(w.updated_at).getTime()
+        return sum + (updated - created)
+      }, 0)
+      avgProcessingTime = totalProcessingTime / processedWithdrawals.length / (1000 * 60 * 60) // в часах
+    }
+
+    // Топ исполнители
+    const juniorStats: { [key: string]: { profit: number, withdrawals: number, approved: number } } = {}
+    
+    withdrawals.forEach(w => {
+      const work = Array.isArray(w.works) ? w.works[0] : w.works
+      if (!work || !work.junior_id) return
+
+      const casino = Array.isArray(work.casinos) ? work.casinos[0] : work.casinos
+      if (!casino) return
+
+      const depositUSD = convertToUSD(work.deposit_amount || 0, work.deposit_currency || 'USD')
+      const withdrawalUSD = convertToUSD(w.withdrawal_amount || 0, casino.currency || 'USD')
+      const profit = withdrawalUSD - depositUSD
+
+      if (!juniorStats[work.junior_id]) {
+        juniorStats[work.junior_id] = { profit: 0, withdrawals: 0, approved: 0 }
+      }
+
+      juniorStats[work.junior_id].profit += profit
+      juniorStats[work.junior_id].withdrawals += 1
+      if (w.status === 'received') juniorStats[work.junior_id].approved += 1
+    })
+
+    // Получаем данные пользователей для топ исполнителей
+    const { data: juniorUsersData } = await supabase
+      .from('users')
+      .select('id, name, surname, telegram_username')
+      .in('id', Object.keys(juniorStats))
+
+    const topPerformers = Object.entries(juniorStats)
+      .map(([juniorId, stats]) => {
+        const user = juniorUsersData?.find(u => u.id === juniorId)
+        const displayName = user?.telegram_username || 
+                           (user?.name && user?.surname ? `${user.name} ${user.surname}` : 'Неизвестно')
+        
+        return {
+          id: juniorId,
+          name: displayName,
+          telegram: user?.telegram_username || '',
+          profit: Math.round(stats.profit * 100) / 100,
+          withdrawals: stats.withdrawals,
+          successRate: stats.withdrawals > 0 ? Math.round((stats.approved / stats.withdrawals) * 100 * 100) / 100 : 0
+        }
+      })
+      .sort((a, b) => b.profit - a.profit)
+      .slice(0, 10)
+
+    // Статистика по казино
+    const casinoStats: { [key: string]: { deposits: number, withdrawals: number, profit: number, count: number, approved: number } } = {}
+    
+    withdrawals.forEach(w => {
+      const work = Array.isArray(w.works) ? w.works[0] : w.works
+      if (!work) return
+
+      const casino = Array.isArray(work.casinos) ? work.casinos[0] : work.casinos
+      if (!casino) return
+
+      const depositUSD = convertToUSD(work.deposit_amount || 0, work.deposit_currency || 'USD')
+      const withdrawalUSD = convertToUSD(w.withdrawal_amount || 0, casino.currency || 'USD')
+      const profit = withdrawalUSD - depositUSD
+
+      if (!casinoStats[casino.name]) {
+        casinoStats[casino.name] = { deposits: 0, withdrawals: 0, profit: 0, count: 0, approved: 0 }
+      }
+
+      casinoStats[casino.name].deposits += depositUSD
+      casinoStats[casino.name].withdrawals += withdrawalUSD
+      casinoStats[casino.name].profit += profit
+      casinoStats[casino.name].count += 1
+      if (w.status === 'received') casinoStats[casino.name].approved += 1
+    })
+
+    const casinoStatsArray = Object.entries(casinoStats)
+      .map(([name, stats]) => ({
+        name,
+        totalDeposits: Math.round(stats.deposits * 100) / 100,
+        totalWithdrawals: Math.round(stats.withdrawals * 100) / 100,
+        profit: Math.round(stats.profit * 100) / 100,
+        successRate: stats.count > 0 ? Math.round((stats.approved / stats.count) * 100 * 100) / 100 : 0
+      }))
+      .sort((a, b) => b.profit - a.profit)
+
+    // Дневная статистика (последние 30 дней)
+    const dailyStats = Array.from({ length: 30 }, (_, i) => {
+      const date = new Date(now.getTime() - i * 24 * 60 * 60 * 1000)
+      const dateStr = date.toISOString().split('T')[0]
+      
+      const dayWithdrawals = withdrawals.filter(w => 
+        w.created_at.split('T')[0] === dateStr
+      )
+
+      let dayDeposits = 0
+      let dayWithdrawalsAmount = 0
+      let dayProfit = 0
+
+      dayWithdrawals.forEach(w => {
+        const work = Array.isArray(w.works) ? w.works[0] : w.works
+        if (!work) return
+
+        const casino = Array.isArray(work.casinos) ? work.casinos[0] : work.casinos
+        if (!casino) return
+
+        const depositUSD = convertToUSD(work.deposit_amount || 0, work.deposit_currency || 'USD')
+        const withdrawalUSD = convertToUSD(w.withdrawal_amount || 0, casino.currency || 'USD')
+
+        dayDeposits += depositUSD
+        dayWithdrawalsAmount += withdrawalUSD
+        dayProfit += (withdrawalUSD - depositUSD)
+      })
+
+      return {
+        date: dateStr,
+        deposits: Math.round(dayDeposits * 100) / 100,
+        withdrawals: Math.round(dayWithdrawalsAmount * 100) / 100,
+        profit: Math.round(dayProfit * 100) / 100
+      }
+    }).reverse()
+
+    const analyticsData = {
+      totalJuniors,
+      activeJuniors,
+      totalWithdrawals,
+      pendingWithdrawals,
+      approvedWithdrawals,
+      rejectedWithdrawals,
+      totalProfit: Math.round(totalProfit * 100) / 100,
+      todayProfit: Math.round(todayProfit * 100) / 100,
+      weekProfit: Math.round(weekProfit * 100) / 100,
+      monthProfit: Math.round(monthProfit * 100) / 100,
+      avgProcessingTime: Math.round(avgProcessingTime * 100) / 100,
+      overdueWithdrawals,
+      topPerformers,
+      casinoStats: casinoStatsArray,
+      dailyStats
+    }
+
+    console.log('Analytics data prepared successfully')
     return NextResponse.json(analyticsData)
 
   } catch (error) {
