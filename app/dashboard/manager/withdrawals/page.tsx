@@ -117,11 +117,16 @@ export default function WithdrawalsQueue() {
     }
   }
 
-  // Функция конвертации валют (как в Junior withdrawals)
+  // Функция конвертации валют с применением коэффициента -5% (брутто)
   function convertToUSD(amount: number, currency: string): number {
-    if (!exchangeRates || currency === 'USD') return amount
+    if (!exchangeRates) return amount * 0.95 // Если нет курсов, применяем -5%
+    
+    if (currency === 'USD') {
+      return amount * 0.95 // USD к USD тоже -5% для статистики (брутто)
+    }
+    
     const rate = exchangeRates[currency] || 1
-    return amount * rate
+    return amount * rate // Курсы уже содержат -5% коэффициент
   }
 
   // Функция для копирования промо ссылки
@@ -267,12 +272,14 @@ export default function WithdrawalsQueue() {
     const filtered = getFilteredWithdrawals()
 
     const totalDeposits = filtered.reduce((sum, w) => {
-      const depositInUSD = convertToUSD(w.deposit_amount, w.casino_currency || 'USD')
+      const currency = getCasinoCurrency(w)
+      const depositInUSD = convertToUSD(w.deposit_amount, currency)
       return sum + depositInUSD
     }, 0)
-
+    
     const totalWithdrawals = filtered.reduce((sum, w) => {
-      const withdrawalInUSD = convertToUSD(w.withdrawal_amount, w.casino_currency || 'USD')
+      const currency = getCasinoCurrency(w)
+      const withdrawalInUSD = convertToUSD(w.withdrawal_amount, currency)
       return sum + withdrawalInUSD
     }, 0)
 
