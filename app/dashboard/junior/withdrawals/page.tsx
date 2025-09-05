@@ -5,6 +5,7 @@ import { useToast } from '@/components/ui/Toast'
 import DataTable, { Column, ActionButton } from '@/components/ui/DataTable'
 import KPICard from '@/components/ui/KPICard'
 import StatusBadge from '@/components/ui/StatusBadge'
+import { convertToUSD, getCasinoCurrency } from '@/lib/currency'
 import { 
   ClockIcon,
   BanknotesIcon,
@@ -117,23 +118,7 @@ export default function JuniorWithdrawalsPage() {
     }
   }
 
-  // Функция конвертации в USD
-  function convertToUSD(amount: number, currency: string): number {
-    if (!exchangeRates || currency === 'USD') return amount
-    const rate = exchangeRates[currency] || 1
-    const convertedAmount = amount * rate
-    
-    // Отладочная информация
-    console.log(`Converting ${amount} ${currency} to USD:`, {
-      amount,
-      currency,
-      rate,
-      convertedAmount,
-      exchangeRates
-    })
-    
-    return convertedAmount
-  }
+  // Используем единую функцию конвертации из lib/currency.ts
 
   // Закрываем dropdown при клике вне его
   useEffect(() => {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { convertToUSD } from '@/lib/currency'
 
 export const dynamic = 'force-dynamic'
 
@@ -39,16 +40,7 @@ export async function GET(request: NextRequest) {
 
     console.log('Date range:', { dateRange, startDate: startDate.toISOString() })
 
-    // Получаем курсы валют для конвертации
-    const convertToUSD = (amount: number, currency: string): number => {
-      const rates: { [key: string]: number } = {
-        'USD': 1,
-        'GBP': 1.27 * 0.95, // Google rate -5%
-        'EUR': 1.09 * 0.95,
-        'CAD': 0.74 * 0.95
-      }
-      return amount * (rates[currency] || 1)
-    }
+    // Используем единую функцию конвертации из lib/currency.ts
 
     // 1. Получаем общую статистику пользователей
     const { data: usersData, error: usersError } = await supabase

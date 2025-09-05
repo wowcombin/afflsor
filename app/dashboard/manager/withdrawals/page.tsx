@@ -6,6 +6,7 @@ import DataTable from '@/components/ui/DataTable'
 import Modal from '@/components/ui/Modal'
 import StatusBadge from '@/components/ui/StatusBadge'
 import { useToast } from '@/components/ui/Toast'
+import { convertToUSD, getCasinoCurrency } from '@/lib/currency'
 import {
   ClockIcon,
   CheckCircleIcon,
@@ -117,34 +118,7 @@ export default function WithdrawalsQueue() {
     }
   }
 
-  // Функция конвертации валют с применением коэффициента -5% (брутто)
-  function convertToUSD(amount: number, currency: string): number {
-    if (!exchangeRates) return amount * 0.95 // Если нет курсов, применяем -5%
-
-    if (currency === 'USD') {
-      return amount * 0.95 // USD к USD тоже -5% для статистики (брутто)
-    }
-
-    const rate = exchangeRates[currency] || 1
-    return amount * rate // Курсы уже содержат -5% коэффициент
-  }
-
-  // Функция для определения валюты казино
-  const getCasinoCurrency = (item: WithdrawalData): string => {
-    // Используем casino_currency из API если доступно
-    if ((item as any).casino_currency) {
-      return (item as any).casino_currency
-    }
-    // Fallback логика по названию казино
-    const casinoName = item.casino_name.toLowerCase()
-    if (casinoName.includes('uk') || casinoName.includes('british') || casinoName.includes('virgin')) {
-      return 'GBP'
-    }
-    if (casinoName.includes('euro')) {
-      return 'EUR'
-    }
-    return 'USD'
-  }
+  // Используем единую функцию конвертации из lib/currency.ts
 
   // Функция для копирования промо ссылки
   const copyPromoLink = (casinoUrl: string) => {

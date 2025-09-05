@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import KPICard from '@/components/ui/KPICard'
+import { convertToUSD, getCasinoCurrency } from '@/lib/currency'
 import DataTable from '@/components/ui/DataTable'
 import { 
   BanknotesIcon,
@@ -60,12 +61,7 @@ export default function JuniorStatsPage() {
     }
   }
 
-  // Функция конвертации в USD
-  function convertToUSD(amount: number, currency: string): number {
-    if (!exchangeRates || currency === 'USD') return amount
-    const rate = exchangeRates[currency] || 1
-    return amount * rate
-  }
+  // Используем единую функцию конвертации из lib/currency.ts
 
   // Загрузка статистики
   async function loadStatsData() {

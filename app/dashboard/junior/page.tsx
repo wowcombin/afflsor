@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import KPICard from '@/components/ui/KPICard'
+import { convertToUSD, getCasinoCurrency } from '@/lib/currency'
 import { 
   BanknotesIcon,
   CheckCircleIcon,
@@ -69,12 +70,7 @@ export default function JuniorDashboard() {
     }
   }
 
-  // Функция конвертации в USD
-  function convertToUSD(amount: number, currency: string): number {
-    if (!exchangeRates || currency === 'USD') return amount
-    const rate = exchangeRates[currency] || 1
-    return amount * rate
-  }
+  // Используем единую функцию конвертации из lib/currency.ts
 
   // Загрузка данных дашборда
   async function loadDashboardData() {
@@ -107,13 +103,7 @@ export default function JuniorDashboard() {
       if (!worksResponse.ok) throw new Error('Failed to fetch works')
       const { works } = await worksResponse.json()
       
-      // Локальная функция конвертации с загруженными курсами
-      const localConvertToUSD = (amount: number, currency: string): number => {
-        if (!rates || currency === 'USD') return amount
-        const rate = rates[currency] || 1
-        console.log(`Converting ${amount} ${currency} to USD: rate=${rate}, result=${amount * rate}`)
-        return amount * rate
-      }
+      // Используем единую функцию конвертации
       
       // Рассчитываем статистику
       const currentMonth = new Date().getMonth()
@@ -130,19 +120,19 @@ export default function JuniorDashboard() {
       let expectedProfit = 0 // Ожидаемый профит (включая активные работы)
       
       monthlyWorks.forEach((work: any) => {
-        const depositUSD = localConvertToUSD(work.deposit_amount, work.casinos?.currency || 'USD')
+        const depositUSD = convertToUSD(work.deposit_amount, work.casinos?.currency || 'USD')
         const receivedWithdrawals = work.work_withdrawals?.filter((w: any) => w.status === 'received') || []
         const allWithdrawals = work.work_withdrawals || []
         
         // Фактический профит (только полученные выводы)
         const withdrawalsUSD = receivedWithdrawals.reduce((sum: number, w: any) => {
-          return sum + localConvertToUSD(w.withdrawal_amount, work.casinos?.currency || 'USD')
+          return sum + convertToUSD(w.withdrawal_amount, work.casinos?.currency || 'USD')
         }, 0)
         monthlyProfit += (withdrawalsUSD - depositUSD)
         
         // Ожидаемый профит (все выводы, включая ожидающие)
         const expectedWithdrawalsUSD = allWithdrawals.reduce((sum: number, w: any) => {
-          return sum + localConvertToUSD(w.withdrawal_amount, work.casinos?.currency || 'USD')
+          return sum + convertToUSD(w.withdrawal_amount, work.casinos?.currency || 'USD')
         }, 0)
         expectedProfit += (expectedWithdrawalsUSD - depositUSD)
       })

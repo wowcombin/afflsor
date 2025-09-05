@@ -22,7 +22,7 @@ async function fetchExchangeRates() {
     }
 
     const data = await response.json()
-    
+
     // Конвертируем в наш формат (к USD) и применяем коэффициент 0.95
     // data.rates содержит курсы FROM USD (например USD->GBP = 0.78)
     // Нам нужны курсы TO USD (например GBP->USD = 1/0.78 = 1.28)
@@ -42,7 +42,7 @@ async function fetchExchangeRates() {
 
   } catch (error) {
     console.error('Error fetching exchange rates:', error)
-    
+
     // Fallback курсы если API недоступен
     return {
       rates: {
@@ -64,9 +64,9 @@ export async function GET(request: Request) {
   try {
     const url = new URL(request.url)
     const forceRefresh = url.searchParams.get('refresh') === 'true'
-    
+
     const now = Date.now()
-    
+
     // Проверяем нужно ли обновить кеш (или принудительное обновление)
     if (!cachedRates || (now - lastUpdate) > CACHE_DURATION || forceRefresh) {
       console.log('Fetching fresh exchange rates...', forceRefresh ? '(forced)' : '')
@@ -93,7 +93,7 @@ export async function POST(request: Request) {
   try {
     // Можно добавить проверку прав доступа
     console.log('Force refreshing exchange rates...')
-    
+
     cachedRates = await fetchExchangeRates()
     lastUpdate = Date.now()
 

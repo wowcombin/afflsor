@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import { convertToUSD, getCasinoCurrency } from '@/lib/currency'
 
 export const dynamic = 'force-dynamic'
 
@@ -82,32 +83,37 @@ export async function GET() {
           startOfMonth.setHours(0, 0, 0, 0)
 
           const [
-            totalTestsResult,
-            monthlyTestsResult,
-            successfulTestsResult,
+            totalWorksResult,
+            monthlyWorksResult,
+            successfulWorksResult,
             assignedCardsResult,
             pendingWithdrawalsResult,
             lastActivityResult
           ] = await Promise.all([
-            // Общее количество тестов
+            // Общее количество работ
             supabase
-              .from('casino_tests')
+              .from('works')
               .select('id', { count: 'exact', head: true })
-              .eq('tester_id', junior.id),
+              .eq('junior_id', junior.id),
             
-            // Тесты за текущий месяц
+            // Работы за текущий месяц
             supabase
-              .from('casino_tests')
+              .from('works')
               .select('id', { count: 'exact', head: true })
-              .eq('tester_id', junior.id)
+              .eq('junior_id', junior.id)
               .gte('created_at', startOfMonth.toISOString()),
             
-            // Успешные тесты
+            // Успешные работы (с выводами)
             supabase
-              .from('casino_tests')
-              .select('id', { count: 'exact', head: true })
-              .eq('tester_id', junior.id)
-              .eq('test_result', 'passed'),
+              .from('work_withdrawals')
+              .select(`
+                id,
+                work:works!inner (
+                  junior_id
+                )
+              `, { count: 'exact', head: true })
+              .eq('work.junior_id', junior.id)
+              .in('status', ['received', 'approved']),
             
             // Назначенные карты
             supabase
@@ -118,21 +124,21 @@ export async function GET() {
             
             // Ожидающие выводы
             supabase
-              .from('test_withdrawals')
+              .from('work_withdrawals')
               .select(`
                 id,
-                work:casino_tests!inner (
-                  tester_id
+                work:works!inner (
+                  junior_id
                 )
               `, { count: 'exact', head: true })
-              .eq('work.tester_id', junior.id)
-              .eq('withdrawal_status', 'pending'),
+              .eq('work.junior_id', junior.id)
+              .in('status', ['new', 'waiting']),
             
             // Последняя активность
             supabase
-              .from('casino_tests')
+              .from('works')
               .select('created_at')
-              .eq('tester_id', junior.id)
+              .eq('junior_id', junior.id)
               .order('created_at', { ascending: false })
               .limit(1)
               .single()
@@ -140,33 +146,40 @@ export async function GET() {
 
           // Получаем профит за месяц
           const { data: monthlyWithdrawals } = await supabase
-            .from('test_withdrawals')
+            .from('work_withdrawals')
             .select(`
               withdrawal_amount,
-              work:casino_tests!inner (
-                tester_id,
-                deposit_amount
+              work:works!inner (
+                junior_id,
+                deposit_amount,
+                casinos (
+                  currency
+                )
               )
             `)
-            .eq('work.tester_id', junior.id)
-            .eq('withdrawal_status', 'approved')
+            .eq('work.junior_id', junior.id)
+            .in('status', ['received', 'approved'])
             .gte('updated_at', startOfMonth.toISOString())
 
+          // Используем единую функцию конвертации
           const totalProfit = (monthlyWithdrawals || []).reduce((sum: number, w: any) => {
-            return sum + ((w.withdrawal_amount || 0) - (w.work?.deposit_amount || 0))
+            const currency = w.work?.casinos?.currency || 'USD'
+            const withdrawalUSD = convertToUSD(w.withdrawal_amount || 0, currency)
+            const depositUSD = convertToUSD(w.work?.deposit_amount || 0, currency)
+            return sum + (withdrawalUSD - depositUSD)
           }, 0)
 
-          const totalTests = totalTestsResult.count || 0
-          const successfulTests = successfulTestsResult.count || 0
-          const successRate = totalTests > 0 ? Math.round((successfulTests / totalTests) * 100) : 0
+          const totalWorks = totalWorksResult.count || 0
+          const successfulWorks = successfulWorksResult.count || 0
+          const successRate = totalWorks > 0 ? Math.round((successfulWorks / totalWorks) * 100) : 0
 
           return {
             ...junior,
             stats: {
-              total_tests: totalTests,
-              successful_tests: successfulTests,
+              total_tests: totalWorks,
+              successful_tests: successfulWorks,
               success_rate: successRate,
-              monthly_tests: monthlyTestsResult.count || 0,
+              monthly_tests: monthlyWorksResult.count || 0,
               assigned_cards: assignedCardsResult.count || 0,
               pending_withdrawals: pendingWithdrawalsResult.count || 0,
               total_profit: totalProfit,
