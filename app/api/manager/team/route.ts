@@ -98,67 +98,42 @@ export async function GET() {
             sample: allWorksCheck
           })
 
-          const [
-            totalWorksResult,
-            monthlyWorksResult,
-            successfulWorksResult,
-            assignedCardsResult,
-            pendingWithdrawalsResult,
-            lastActivityResult
-          ] = await Promise.all([
-            // Общее количество работ
-            supabase
-              .from('works')
-              .select('id', { count: 'exact', head: true })
-              .eq('junior_id', junior.id),
+          // Простые запросы без сложных JOIN'ов
+          const { data: allWorks } = await supabase
+            .from('works')
+            .select('id, created_at')
+            .eq('junior_id', junior.id)
+
+          const { data: monthlyWorks } = await supabase
+            .from('works')
+            .select('id')
+            .eq('junior_id', junior.id)
+            .gte('created_at', startOfMonth.toISOString())
+
+          const { data: allWithdrawals } = await supabase
+            .from('work_withdrawals')
+            .select('id, status, work_id')
             
-            // Работы за текущий месяц
-            supabase
-              .from('works')
-              .select('id', { count: 'exact', head: true })
-              .eq('junior_id', junior.id)
-              .gte('created_at', startOfMonth.toISOString()),
-            
-            // Успешные работы (только со статусом received)
-            supabase
-              .from('work_withdrawals')
-              .select(`
-                id,
-                work:works!inner (
-                  junior_id
-                )
-              `, { count: 'exact', head: true })
-              .eq('work.junior_id', junior.id)
-              .eq('status', 'received'),
-            
-            // Назначенные карты
-            supabase
-              .from('cards')
-              .select('id', { count: 'exact', head: true })
-              .eq('assigned_to', junior.id)
-              .eq('status', 'active'),
-            
-            // Ожидающие выводы
-            supabase
-              .from('work_withdrawals')
-              .select(`
-                id,
-                work:works!inner (
-                  junior_id
-                )
-              `, { count: 'exact', head: true })
-              .eq('work.junior_id', junior.id)
-              .in('status', ['new', 'waiting']),
-            
-            // Последняя активность
-            supabase
-              .from('works')
-              .select('created_at')
-              .eq('junior_id', junior.id)
-              .order('created_at', { ascending: false })
-              .limit(1)
-              .single()
-          ])
+          const { data: assignedCards } = await supabase
+            .from('cards')
+            .select('id')
+            .eq('assigned_to', junior.id)
+            .eq('status', 'active')
+
+          // Фильтруем выводы этого junior'а
+          const juniorWithdrawals = allWithdrawals?.filter(w => 
+            allWorks?.some(work => work.id === w.work_id)
+          ) || []
+
+          const successfulWithdrawals = juniorWithdrawals.filter(w => w.status === 'received')
+          const pendingWithdrawals = juniorWithdrawals.filter(w => ['new', 'waiting'].includes(w.status))
+
+          const totalWorksResult = { count: allWorks?.length || 0 }
+          const monthlyWorksResult = { count: monthlyWorks?.length || 0 }
+          const successfulWorksResult = { count: successfulWithdrawals.length }
+          const assignedCardsResult = { count: assignedCards?.length || 0 }
+          const pendingWithdrawalsResult = { count: pendingWithdrawals.length }
+          const lastActivityResult = { data: allWorks?.[0] || null }
 
           // Получаем профит за месяц
           const { data: monthlyWithdrawals } = await supabase
