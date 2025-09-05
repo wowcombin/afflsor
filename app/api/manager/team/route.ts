@@ -84,6 +84,19 @@ export async function GET() {
           
           console.log(`📊 Обрабатываем junior ${junior.id} (${junior.first_name} ${junior.last_name})`)
           console.log(`📅 Начало месяца: ${startOfMonth.toISOString()}`)
+          
+          // Проверяем есть ли работы у этого junior'а вообще
+          const { data: allWorksCheck, error: worksCheckError } = await supabase
+            .from('works')
+            .select('id, created_at, deposit_amount')
+            .eq('junior_id', junior.id)
+            .limit(5)
+          
+          console.log(`🔍 Проверка работ junior ${junior.id}:`, {
+            found: allWorksCheck?.length || 0,
+            error: worksCheckError?.message,
+            sample: allWorksCheck
+          })
 
           const [
             totalWorksResult,
