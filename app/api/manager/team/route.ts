@@ -133,7 +133,7 @@ export async function GET() {
           const successfulWorksResult = { count: successfulWithdrawals.length }
           const assignedCardsResult = { count: assignedCards?.length || 0 }
           const pendingWithdrawalsResult = { count: pendingWithdrawals.length }
-          const lastActivityResult = { data: allWorks?.[0] || null }
+          const lastActivityResult = { data: allWorks?.[0]?.created_at || null }
 
           // Получаем профит за месяц
           const { data: monthlyWithdrawals } = await supabase

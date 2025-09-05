@@ -25,6 +25,8 @@ export default function TeamManagement() {
   const { addToast } = useToast()
   const [juniors, setJuniors] = useState<JuniorWithStats[]>([])
   const [loading, setLoading] = useState(true)
+  const [editingSalary, setEditingSalary] = useState<JuniorWithStats | null>(null)
+  const [newSalaryPercentage, setNewSalaryPercentage] = useState('')
 
   useEffect(() => {
     fetchTeamData()
@@ -44,6 +46,29 @@ export default function TeamManagement() {
       addToast({ type: 'error', title: 'Ошибка', description: 'Ошибка сети' })
     } finally {
       setLoading(false)
+    }
+  }
+
+  const updateSalaryPercentage = async () => {
+    if (!editingSalary || !newSalaryPercentage) return
+
+    try {
+      const response = await fetch(`/api/users/${editingSalary.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ salary_percentage: parseInt(newSalaryPercentage) })
+      })
+
+      if (response.ok) {
+        addToast({ type: 'success', title: 'Успешно', description: 'Процент обновлен' })
+        setEditingSalary(null)
+        setNewSalaryPercentage('')
+        fetchTeamData()
+      } else {
+        addToast({ type: 'error', title: 'Ошибка', description: 'Не удалось обновить процент' })
+      }
+    } catch (error) {
+      addToast({ type: 'error', title: 'Ошибка', description: 'Ошибка сети' })
     }
   }
 
@@ -144,9 +169,15 @@ export default function TeamManagement() {
       label: 'Процент',
       render: (item: JuniorWithStats) => (
         <div className="text-center">
-          <div className="text-lg font-semibold text-gray-900">
+          <button 
+            onClick={() => {
+              setEditingSalary(item)
+              setNewSalaryPercentage(item.salary_percentage.toString())
+            }}
+            className="text-lg font-semibold text-blue-600 hover:text-blue-800 cursor-pointer"
+          >
             {item.salary_percentage}%
-          </div>
+          </button>
           <div className="text-xs text-gray-500">от профита</div>
         </div>
       )
@@ -348,6 +379,49 @@ export default function TeamManagement() {
         actions={actions}
         loading={loading}
       />
+      {/* Модальное окно редактирования процента */}
+      {editingSalary && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-screen overflow-y-auto">
+            <h3 className="text-lg font-semibold mb-4">
+              Изменить процент для {editingSalary.first_name} {editingSalary.last_name}
+            </h3>
+            
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Процент от профита
+              </label>
+              <input
+                type="number"
+                min="0"
+                max="100"
+                value={newSalaryPercentage}
+                onChange={(e) => setNewSalaryPercentage(e.target.value)}
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                placeholder="Введите процент"
+              />
+            </div>
+            
+            <div className="flex gap-3">
+              <button
+                onClick={updateSalaryPercentage}
+                className="flex-1 bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-600"
+              >
+                Сохранить
+              </button>
+              <button
+                onClick={() => {
+                  setEditingSalary(null)
+                  setNewSalaryPercentage('')
+                }}
+                className="flex-1 bg-gray-500 text-white py-2 px-4 rounded-lg hover:bg-gray-600"
+              >
+                Отмена
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
