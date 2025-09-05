@@ -6,7 +6,7 @@ import DataTable from '@/components/ui/DataTable'
 import Modal from '@/components/ui/Modal'
 import StatusBadge from '@/components/ui/StatusBadge'
 import { useToast } from '@/components/ui/Toast'
-import { 
+import {
   ClockIcon,
   CheckCircleIcon,
   XCircleIcon,
@@ -104,7 +104,7 @@ export default function WithdrawalsQueue() {
     try {
       const response = await fetch('/api/manager/withdrawals')
       const data = await response.json()
-      
+
       if (data.success) {
         setWithdrawals(data.data)
       } else {
@@ -142,7 +142,7 @@ export default function WithdrawalsQueue() {
   const getDateRange = (filter: DateFilter) => {
     const now = new Date()
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-    
+
     switch (filter) {
       case 'today':
         return {
@@ -211,14 +211,14 @@ export default function WithdrawalsQueue() {
         return false
       }
 
-      if (filters.worker && !w.user_name?.toLowerCase().includes(filters.worker.toLowerCase()) && 
-          !w.user_telegram?.toLowerCase().includes(filters.worker.toLowerCase())) {
+      if (filters.worker && !w.user_name?.toLowerCase().includes(filters.worker.toLowerCase()) &&
+        !w.user_telegram?.toLowerCase().includes(filters.worker.toLowerCase())) {
         return false
       }
 
-      if (filters.bankAccount && 
-          !w.account_holder?.toLowerCase().includes(filters.bankAccount.toLowerCase()) &&
-          !w.bank_name?.toLowerCase().includes(filters.bankAccount.toLowerCase())) {
+      if (filters.bankAccount &&
+        !w.account_holder?.toLowerCase().includes(filters.bankAccount.toLowerCase()) &&
+        !w.bank_name?.toLowerCase().includes(filters.bankAccount.toLowerCase())) {
         return false
       }
 
@@ -248,45 +248,41 @@ export default function WithdrawalsQueue() {
     const now = new Date()
     const currentMonth = now.getMonth()
     const currentYear = now.getFullYear()
-    
+
     // Первое число текущего месяца
     const monthStart = new Date(currentYear, currentMonth, 1)
     // Последнее число текущего месяца
     const monthEnd = new Date(currentYear, currentMonth + 1, 0, 23, 59, 59)
-    
+
     return withdrawals.filter(w => {
       const createdDate = new Date(w.created_at)
-      return w.status === status && 
-             createdDate >= monthStart && 
-             createdDate <= monthEnd
+      return w.status === status &&
+        createdDate >= monthStart &&
+        createdDate <= monthEnd
     }).length
   }
 
   // Функция для расчета детальной аналитики
   const getDetailedAnalytics = () => {
     const filtered = getFilteredWithdrawals()
-    
+
     const totalDeposits = filtered.reduce((sum, w) => {
       const depositInUSD = convertToUSD(w.deposit_amount, w.casino_currency || 'USD')
       return sum + depositInUSD
     }, 0)
-    
+
     const totalWithdrawals = filtered.reduce((sum, w) => {
       const withdrawalInUSD = convertToUSD(w.withdrawal_amount, w.casino_currency || 'USD')
       return sum + withdrawalInUSD
     }, 0)
-    
+
     const totalProfit = totalWithdrawals - totalDeposits
-    
-    // Для заблокированных аккаунтов - потерянные депозиты
-    const lostDeposits = activeTab === 'block' ? totalDeposits : 0
     
     return {
       totalCount: filtered.length,
       totalDeposits: totalDeposits,
       totalWithdrawals: totalWithdrawals,
       totalProfit: totalProfit,
-      lostDeposits: lostDeposits,
       selectedCount: selectedWithdrawals.length,
       overdueCount: filtered.filter(w => {
         const hours = Math.floor((Date.now() - new Date(w.created_at).getTime()) / (1000 * 60 * 60))
@@ -337,7 +333,7 @@ export default function WithdrawalsQueue() {
       })
 
       const data = await response.json()
-      
+
       if (data.success) {
         addToast({ type: 'success', title: 'Успешно', description: `Вывод ${action === 'approve' ? 'одобрен' : 'отклонен'}` })
         setSelectedWithdrawal(null)
@@ -388,16 +384,16 @@ export default function WithdrawalsQueue() {
             </span>
           )
         }
-        
+
         // Для активных статусов показываем время ожидания
         const now = Date.now()
         const created = new Date(item.created_at).getTime()
         const diffMs = now - created
-        
+
         const hours = Math.floor(diffMs / (1000 * 60 * 60))
         const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60))
         const isUrgent = hours > 4
-        
+
         return (
           <span className={isUrgent ? 'text-danger-600 font-semibold' : 'text-gray-600'}>
             {hours}ч {minutes}м
@@ -471,7 +467,7 @@ export default function WithdrawalsQueue() {
         const profit = item.withdrawal_amount - item.deposit_amount
         const currency = getCasinoCurrency(item)
         const symbol = currency === 'USD' ? '$' : currency === 'GBP' ? '£' : currency === 'EUR' ? '€' : currency
-        
+
         return (
           <div className={`font-semibold ${profit > 0 ? 'text-success-600' : 'text-danger-600'}`}>
             {symbol}{profit.toFixed(2)}
@@ -533,12 +529,12 @@ export default function WithdrawalsQueue() {
       })
 
       const data = await response.json()
-      
+
       if (data.success) {
-        addToast({ 
-          type: 'success', 
-          title: 'Успешно', 
-          description: `${selectedWithdrawals.length} выводов ${action === 'approve' ? 'одобрено' : 'отклонено'}` 
+        addToast({
+          type: 'success',
+          title: 'Успешно',
+          description: `${selectedWithdrawals.length} выводов ${action === 'approve' ? 'одобрено' : 'отклонено'}`
         })
         setSelectedWithdrawals([])
         fetchWithdrawals()
@@ -563,8 +559,8 @@ export default function WithdrawalsQueue() {
           <button className="btn-secondary" onClick={() => router.push('/dashboard/manager')}>
             ← Назад
           </button>
-          <button 
-            className="btn-secondary" 
+          <button
+            className="btn-secondary"
             onClick={() => {
               if (selectedWithdrawals.length === filteredWithdrawals.length && filteredWithdrawals.length > 0) {
                 setSelectedWithdrawals([])
@@ -577,16 +573,16 @@ export default function WithdrawalsQueue() {
           </button>
           {selectedWithdrawals.length > 0 && (
             <>
-              <button 
-                className="btn-success" 
+              <button
+                className="btn-success"
                 onClick={() => handleBulkAction('approve')}
                 disabled={actionLoading}
               >
                 <CheckCircleIcon className="h-4 w-4 mr-2" />
                 Одобрить выбранные ({selectedWithdrawals.length})
               </button>
-              <button 
-                className="btn-danger" 
+              <button
+                className="btn-danger"
                 onClick={() => handleBulkAction('reject')}
                 disabled={actionLoading}
               >
@@ -608,16 +604,14 @@ export default function WithdrawalsQueue() {
                 setActiveTab(tab.id)
                 setSelectedWithdrawals([]) // Сбрасываем выделение при смене вкладки
               }}
-              className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
-                activeTab === tab.id
+              className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${activeTab === tab.id
                   ? 'border-primary-500 text-primary-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
+                }`}
             >
               {tab.label}
-              <span className={`ml-2 py-0.5 px-2 rounded-full text-xs font-medium ${
-                activeTab === tab.id ? tab.color : 'bg-gray-100 text-gray-600'
-              }`}>
+              <span className={`ml-2 py-0.5 px-2 rounded-full text-xs font-medium ${activeTab === tab.id ? tab.color : 'bg-gray-100 text-gray-600'
+                }`}>
                 {tab.count}
               </span>
             </button>
@@ -647,14 +641,16 @@ export default function WithdrawalsQueue() {
             {analytics.totalCount}
           </p>
         </div>
-        <div className="card">
-          <h3 className="text-sm font-medium text-gray-500">
-            {activeTab === 'received' || activeTab === 'block' ? 'Просрочено было' : 'Просрочено (>4ч)'}
-          </h3>
-          <p className="text-2xl font-bold text-danger-600">
-            {analytics.overdueCount}
-          </p>
-        </div>
+        {activeTab !== 'block' && (
+          <div className="card">
+            <h3 className="text-sm font-medium text-gray-500">
+              {activeTab === 'received' ? 'Просрочено было' : 'Просрочено (>4ч)'}
+            </h3>
+            <p className="text-2xl font-bold text-danger-600">
+              {analytics.overdueCount}
+            </p>
+          </div>
+        )}
         <div className="card">
           <h3 className="text-sm font-medium text-gray-500">Выбрано</h3>
           <p className="text-2xl font-bold text-gray-600">
@@ -677,13 +673,12 @@ export default function WithdrawalsQueue() {
           <h3 className="text-sm font-medium text-gray-500">
             {activeTab === 'block' ? 'Общая потеря' : 'Профит'}
           </h3>
-          <p className={`text-2xl font-bold ${
-            activeTab === 'block' 
-              ? 'text-danger-600' 
-              : analytics.totalProfit >= 0 
-                ? 'text-success-600' 
+          <p className={`text-2xl font-bold ${activeTab === 'block'
+              ? 'text-danger-600'
+              : analytics.totalProfit >= 0
+                ? 'text-success-600'
                 : 'text-danger-600'
-          }`}>
+            }`}>
             ${activeTab === 'block' ? analytics.totalWithdrawals.toFixed(2) : analytics.totalProfit.toFixed(2)}
           </p>
         </div>
@@ -691,17 +686,16 @@ export default function WithdrawalsQueue() {
 
       {/* Дополнительная статистика для заблокированных */}
       {activeTab === 'block' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-1 gap-4 mb-6">
           <div className="card bg-red-50 border-red-200">
-            <h3 className="text-sm font-medium text-red-700">Потеряно депозитов</h3>
+            <h3 className="text-sm font-medium text-red-700">Общий процент потерь</h3>
             <p className="text-2xl font-bold text-red-600">
-              ${analytics.lostDeposits.toFixed(2)}
+              {(analytics.totalDeposits + analytics.totalWithdrawals) > 0 
+                ? ((analytics.totalWithdrawals / (analytics.totalDeposits + analytics.totalWithdrawals)) * 100).toFixed(1) 
+                : 0}%
             </p>
-          </div>
-          <div className="card bg-red-50 border-red-200">
-            <h3 className="text-sm font-medium text-red-700">Процент потерь</h3>
-            <p className="text-2xl font-bold text-red-600">
-              {analytics.totalDeposits > 0 ? ((analytics.lostDeposits / analytics.totalDeposits) * 100).toFixed(1) : 0}%
+            <p className="text-xs text-red-600 mt-1">
+              Процент недозаработанного профита от общего оборота
             </p>
           </div>
         </div>
@@ -716,7 +710,7 @@ export default function WithdrawalsQueue() {
             <input
               type="text"
               value={filters.casino}
-              onChange={(e) => setFilters({...filters, casino: e.target.value})}
+              onChange={(e) => setFilters({ ...filters, casino: e.target.value })}
               placeholder="Поиск по казино..."
               className="form-input"
             />
@@ -726,7 +720,7 @@ export default function WithdrawalsQueue() {
             <input
               type="text"
               value={filters.worker}
-              onChange={(e) => setFilters({...filters, worker: e.target.value})}
+              onChange={(e) => setFilters({ ...filters, worker: e.target.value })}
               placeholder="Имя или @telegram..."
               className="form-input"
             />
@@ -736,7 +730,7 @@ export default function WithdrawalsQueue() {
             <input
               type="text"
               value={filters.bankAccount}
-              onChange={(e) => setFilters({...filters, bankAccount: e.target.value})}
+              onChange={(e) => setFilters({ ...filters, bankAccount: e.target.value })}
               placeholder="Банк или держатель..."
               className="form-input"
             />
@@ -764,7 +758,7 @@ export default function WithdrawalsQueue() {
             <input
               type="number"
               value={filters.depositAmountMin}
-              onChange={(e) => setFilters({...filters, depositAmountMin: e.target.value})}
+              onChange={(e) => setFilters({ ...filters, depositAmountMin: e.target.value })}
               placeholder="0"
               className="form-input"
             />
@@ -774,7 +768,7 @@ export default function WithdrawalsQueue() {
             <input
               type="number"
               value={filters.depositAmountMax}
-              onChange={(e) => setFilters({...filters, depositAmountMax: e.target.value})}
+              onChange={(e) => setFilters({ ...filters, depositAmountMax: e.target.value })}
               placeholder="1000"
               className="form-input"
             />
@@ -784,7 +778,7 @@ export default function WithdrawalsQueue() {
             <input
               type="number"
               value={filters.withdrawalAmountMin}
-              onChange={(e) => setFilters({...filters, withdrawalAmountMin: e.target.value})}
+              onChange={(e) => setFilters({ ...filters, withdrawalAmountMin: e.target.value })}
               placeholder="0"
               className="form-input"
             />
@@ -794,7 +788,7 @@ export default function WithdrawalsQueue() {
             <input
               type="number"
               value={filters.withdrawalAmountMax}
-              onChange={(e) => setFilters({...filters, withdrawalAmountMax: e.target.value})}
+              onChange={(e) => setFilters({ ...filters, withdrawalAmountMax: e.target.value })}
               placeholder="5000"
               className="form-input"
             />
@@ -823,11 +817,11 @@ export default function WithdrawalsQueue() {
 }
 
 // Компонент модального окна для проверки вывода
-function WithdrawalReviewModal({ 
-  withdrawal, 
-  onClose, 
-  onAction, 
-  loading 
+function WithdrawalReviewModal({
+  withdrawal,
+  onClose,
+  onAction,
+  loading
 }: {
   withdrawal: WithdrawalData
   onClose: () => void

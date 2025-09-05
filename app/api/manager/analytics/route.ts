@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic'
 export async function GET(request: NextRequest) {
   try {
     console.log('Analytics API called at:', new Date().toISOString())
-    
+
     const supabase = await createClient()
 
     // Проверяем аутентификацию
@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
     // Вычисляем диапазон дат
     const now = new Date()
     let startDate: Date
-    
+
     switch (dateRange) {
       case '7d':
         startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
@@ -146,7 +146,7 @@ export async function GET(request: NextRequest) {
 
     // Просроченные выводы (>4 часа)
     const fourHoursAgo = new Date(now.getTime() - 4 * 60 * 60 * 1000)
-    const overdueWithdrawals = withdrawals.filter(w => 
+    const overdueWithdrawals = withdrawals.filter(w =>
       w.status === 'waiting' && new Date(w.created_at) < fourHoursAgo
     ).length
 
@@ -164,7 +164,7 @@ export async function GET(request: NextRequest) {
 
     // Топ исполнители
     const juniorStats: { [key: string]: { profit: number, withdrawals: number, approved: number } } = {}
-    
+
     withdrawals.forEach(w => {
       const work = Array.isArray(w.works) ? w.works[0] : w.works
       if (!work) return
@@ -197,9 +197,9 @@ export async function GET(request: NextRequest) {
     const topPerformers = Object.entries(juniorStats)
       .map(([juniorId, stats]) => {
         const user = juniorUsersData?.find(u => u.id === juniorId)
-        const displayName = user?.telegram_username || 
-                           (user?.first_name && user?.last_name ? `${user.first_name} ${user.last_name}` : 'Неизвестно')
-        
+        const displayName = user?.telegram_username ||
+          (user?.first_name && user?.last_name ? `${user.first_name} ${user.last_name}` : 'Неизвестно')
+
         return {
           id: juniorId,
           name: displayName,
@@ -214,7 +214,7 @@ export async function GET(request: NextRequest) {
 
     // Статистика по казино
     const casinoStats: { [key: string]: { deposits: number, withdrawals: number, profit: number, count: number, approved: number } } = {}
-    
+
     withdrawals.forEach(w => {
       const work = Array.isArray(w.works) ? w.works[0] : w.works
       if (!work) return
@@ -251,8 +251,8 @@ export async function GET(request: NextRequest) {
     const dailyStats = Array.from({ length: 30 }, (_, i) => {
       const date = new Date(now.getTime() - i * 24 * 60 * 60 * 1000)
       const dateStr = date.toISOString().split('T')[0]
-      
-      const dayWithdrawals = withdrawals.filter(w => 
+
+      const dayWithdrawals = withdrawals.filter(w =>
         w.created_at.split('T')[0] === dateStr
       )
 
@@ -287,17 +287,17 @@ export async function GET(request: NextRequest) {
     const calculateStatusStats = (status: string) => {
       const statusWithdrawals = withdrawals.filter(w => w.status === status)
       let todayAmount = 0, weekAmount = 0, monthAmount = 0
-      
+
       statusWithdrawals.forEach(w => {
         const work = Array.isArray(w.works) ? w.works[0] : w.works
         if (!work) return
-        
+
         const casino = Array.isArray(work.casinos) ? work.casinos[0] : work.casinos
         if (!casino) return
-        
+
         const createdAt = new Date(w.created_at)
         let amount = 0
-        
+
         if (status === 'block') {
           // Для заблокированных - общая потеря (сумма выводов)
           amount = convertToUSD(w.withdrawal_amount || 0, casino.currency || 'USD')
@@ -307,12 +307,12 @@ export async function GET(request: NextRequest) {
           const withdrawalUSD = convertToUSD(w.withdrawal_amount || 0, casino.currency || 'USD')
           amount = withdrawalUSD - depositUSD
         }
-        
+
         if (createdAt >= monthAgo) monthAmount += amount
         if (createdAt >= weekAgo) weekAmount += amount
         if (createdAt.toDateString() === today.toDateString()) todayAmount += amount
       })
-      
+
       return {
         today: Math.round(todayAmount * 100) / 100,
         week: Math.round(weekAmount * 100) / 100,
@@ -352,15 +352,15 @@ export async function GET(request: NextRequest) {
 
   } catch (error) {
     console.error('Analytics API error:', error)
-    
+
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'
     console.error('Error details:', {
       message: errorMessage,
       stack: error instanceof Error ? error.stack : 'No stack trace'
     })
-    
+
     return NextResponse.json(
-      { 
+      {
         error: 'Internal server error',
         details: errorMessage,
         timestamp: new Date().toISOString()

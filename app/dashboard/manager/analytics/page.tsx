@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useToast } from '@/components/ui/Toast'
-import { 
+import {
   ChartBarIcon,
   UsersIcon,
   CurrencyDollarIcon,
@@ -61,7 +61,7 @@ type DateRange = '7d' | '30d' | '90d'
 
 export default function ManagerAnalyticsPage() {
   const { addToast } = useToast()
-  
+
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null)
   const [loading, setLoading] = useState(true)
   const [dateRange, setDateRange] = useState<DateRange>('30d')
@@ -73,10 +73,10 @@ export default function ManagerAnalyticsPage() {
   async function loadAnalytics() {
     try {
       setLoading(true)
-      
+
       // Загружаем реальные данные из API
       const response = await fetch(`/api/manager/analytics?dateRange=${dateRange}`)
-      
+
       if (!response.ok) {
         throw new Error('Не удалось загрузить данные аналитики')
       }
@@ -126,7 +126,7 @@ export default function ManagerAnalyticsPage() {
           <h1 className="text-2xl font-bold text-gray-900">Аналитика команды</h1>
           <p className="text-gray-600">Детальная статистика работы Junior сотрудников</p>
         </div>
-        
+
         <select
           value={dateRange}
           onChange={(e) => setDateRange(e.target.value as DateRange)}
@@ -331,7 +331,7 @@ export default function ManagerAnalyticsPage() {
                 </span>
               </div>
             </div>
-            
+
             <div className="text-center">
               <p className="text-sm font-medium text-gray-500">За неделю</p>
               <p className="text-2xl font-bold text-blue-600">
@@ -345,7 +345,7 @@ export default function ManagerAnalyticsPage() {
                 </span>
               </div>
             </div>
-            
+
             <div className="text-center">
               <p className="text-sm font-medium text-gray-500">За месяц</p>
               <p className="text-2xl font-bold text-purple-600">
@@ -428,8 +428,8 @@ export default function ManagerAnalyticsPage() {
                           {performer.successRate}%
                         </div>
                         <div className="ml-2 w-16 bg-gray-200 rounded-full h-2">
-                          <div 
-                            className="bg-green-600 h-2 rounded-full" 
+                          <div
+                            className="bg-green-600 h-2 rounded-full"
                             style={{ width: `${performer.successRate}%` }}
                           ></div>
                         </div>
@@ -502,8 +502,8 @@ export default function ManagerAnalyticsPage() {
                           {casino.successRate}%
                         </div>
                         <div className="ml-2 w-16 bg-gray-200 rounded-full h-2">
-                          <div 
-                            className="bg-blue-600 h-2 rounded-full" 
+                          <div
+                            className="bg-blue-600 h-2 rounded-full"
                             style={{ width: `${casino.successRate}%` }}
                           ></div>
                         </div>
