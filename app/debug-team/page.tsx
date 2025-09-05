@@ -15,7 +15,7 @@ export default function DebugTeamPage() {
       console.log('Team API Response:', data)
     } catch (error) {
       console.error('Team API Error:', error)
-      setTeamData({ error: error.message })
+      setTeamData({ error: error instanceof Error ? error.message : 'Unknown error' })
     } finally {
       setLoading(false)
     }
