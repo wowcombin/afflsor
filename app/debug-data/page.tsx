@@ -18,7 +18,7 @@ export default function DebugDataPage() {
         { name: 'Выводы менеджера', url: '/api/manager/withdrawals' }
       ]
 
-      const testResults = {}
+      const testResults: any = {}
       
       for (const query of queries) {
         try {
