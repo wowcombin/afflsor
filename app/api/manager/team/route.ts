@@ -81,6 +81,9 @@ export async function GET() {
           const startOfMonth = new Date()
           startOfMonth.setDate(1)
           startOfMonth.setHours(0, 0, 0, 0)
+          
+          console.log(`📊 Обрабатываем junior ${junior.id} (${junior.first_name} ${junior.last_name})`)
+          console.log(`📅 Начало месяца: ${startOfMonth.toISOString()}`)
 
           const [
             totalWorksResult,
@@ -180,6 +183,17 @@ export async function GET() {
           const totalWorks = totalWorksResult.count || 0
           const successfulWorks = successfulWorksResult.count || 0
           const successRate = totalWorks > 0 ? Math.round((successfulWorks / totalWorks) * 100) : 0
+          
+          console.log(`📈 Статистика junior ${junior.id}:`, {
+            totalWorks,
+            monthlyWorks: monthlyWorksResult.count || 0,
+            successfulWorks,
+            successRate,
+            assignedCards: assignedCardsResult.count || 0,
+            pendingWithdrawals: pendingWithdrawalsResult.count || 0,
+            totalProfit,
+            monthlyWithdrawalsCount: monthlyWithdrawals?.length || 0
+          })
 
           return {
             ...junior,
