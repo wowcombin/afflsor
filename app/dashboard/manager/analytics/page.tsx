@@ -18,6 +18,7 @@ interface AnalyticsData {
   totalJuniors: number
   activeJuniors: number
   totalWithdrawals: number
+  newWithdrawals: number
   pendingWithdrawals: number
   approvedWithdrawals: number
   rejectedWithdrawals: number
@@ -27,6 +28,12 @@ interface AnalyticsData {
   monthProfit: number
   avgProcessingTime: number
   overdueWithdrawals: number
+  statusStats: {
+    new: { today: number, week: number, month: number }
+    waiting: { today: number, week: number, month: number }
+    received: { today: number, week: number, month: number }
+    block: { today: number, week: number, month: number }
+  }
   topPerformers: Array<{
     id: string
     name: string
@@ -191,34 +198,112 @@ export default function ManagerAnalyticsPage() {
       </div>
 
       {/* Статистика выводов */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div className="card">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between mb-4">
             <div>
               <p className="text-sm font-medium text-gray-500">Ожидают</p>
               <p className="text-3xl font-bold text-yellow-600">{analytics.pendingWithdrawals}</p>
             </div>
             <ClockIcon className="h-8 w-8 text-yellow-600" />
           </div>
+          <div className="space-y-1 text-sm">
+            <div className="flex justify-between">
+              <span className="text-gray-500">Ожидаемый профит:</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">Сегодня:</span>
+              <span className="font-medium">${analytics.statusStats.waiting.today}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">За неделю:</span>
+              <span className="font-medium">${analytics.statusStats.waiting.week}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">За месяц:</span>
+              <span className="font-medium">${analytics.statusStats.waiting.month}</span>
+            </div>
+          </div>
         </div>
 
         <div className="card">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <p className="text-sm font-medium text-gray-500">Новые</p>
+              <p className="text-3xl font-bold text-blue-600">{analytics.newWithdrawals}</p>
+            </div>
+            <ExclamationTriangleIcon className="h-8 w-8 text-blue-600" />
+          </div>
+          <div className="space-y-1 text-sm">
+            <div className="flex justify-between">
+              <span className="text-gray-500">Ожидаемый профит:</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">Сегодня:</span>
+              <span className="font-medium">${analytics.statusStats.new.today}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">За неделю:</span>
+              <span className="font-medium">${analytics.statusStats.new.week}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">За месяц:</span>
+              <span className="font-medium">${analytics.statusStats.new.month}</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="card">
+          <div className="flex items-center justify-between mb-4">
             <div>
               <p className="text-sm font-medium text-gray-500">Одобрено</p>
               <p className="text-3xl font-bold text-green-600">{analytics.approvedWithdrawals}</p>
             </div>
             <CheckCircleIcon className="h-8 w-8 text-green-600" />
           </div>
+          <div className="space-y-1 text-sm">
+            <div className="flex justify-between">
+              <span className="text-gray-500">Профит:</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">Сегодня:</span>
+              <span className="font-medium text-green-600">${analytics.statusStats.received.today}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">За неделю:</span>
+              <span className="font-medium text-green-600">${analytics.statusStats.received.week}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">За месяц:</span>
+              <span className="font-medium text-green-600">${analytics.statusStats.received.month}</span>
+            </div>
+          </div>
         </div>
 
         <div className="card">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between mb-4">
             <div>
-              <p className="text-sm font-medium text-gray-500">Отклонено</p>
+              <p className="text-sm font-medium text-gray-500">Заблокировано</p>
               <p className="text-3xl font-bold text-red-600">{analytics.rejectedWithdrawals}</p>
             </div>
             <XCircleIcon className="h-8 w-8 text-red-600" />
+          </div>
+          <div className="space-y-1 text-sm">
+            <div className="flex justify-between">
+              <span className="text-gray-500">Потеряно средств:</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">Сегодня:</span>
+              <span className="font-medium text-red-600">${analytics.statusStats.block.today}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">За неделю:</span>
+              <span className="font-medium text-red-600">${analytics.statusStats.block.week}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">За месяц:</span>
+              <span className="font-medium text-red-600">${analytics.statusStats.block.month}</span>
+            </div>
           </div>
         </div>
       </div>

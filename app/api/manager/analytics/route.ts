@@ -110,6 +110,7 @@ export async function GET(request: NextRequest) {
 
     // Подсчитываем статистику
     const totalWithdrawals = withdrawals.length
+    const newWithdrawals = withdrawals.filter(w => w.status === 'new').length
     const pendingWithdrawals = withdrawals.filter(w => w.status === 'waiting').length
     const approvedWithdrawals = withdrawals.filter(w => w.status === 'received').length
     const rejectedWithdrawals = withdrawals.filter(w => w.status === 'block').length
@@ -190,14 +191,14 @@ export async function GET(request: NextRequest) {
     // Получаем данные пользователей для топ исполнителей
     const { data: juniorUsersData } = await supabase
       .from('users')
-      .select('id, name, surname, telegram_username')
+      .select('id, first_name, last_name, telegram_username')
       .in('id', Object.keys(juniorStats))
 
     const topPerformers = Object.entries(juniorStats)
       .map(([juniorId, stats]) => {
         const user = juniorUsersData?.find(u => u.id === juniorId)
         const displayName = user?.telegram_username || 
-                           (user?.name && user?.surname ? `${user.name} ${user.surname}` : 'Неизвестно')
+                           (user?.first_name && user?.last_name ? `${user.first_name} ${user.last_name}` : 'Неизвестно')
         
         return {
           id: juniorId,
@@ -282,10 +283,55 @@ export async function GET(request: NextRequest) {
       }
     }).reverse()
 
+    // Детальная статистика по каждому статусу
+    const calculateStatusStats = (status: string) => {
+      const statusWithdrawals = withdrawals.filter(w => w.status === status)
+      let todayAmount = 0, weekAmount = 0, monthAmount = 0
+      
+      statusWithdrawals.forEach(w => {
+        const work = Array.isArray(w.works) ? w.works[0] : w.works
+        if (!work) return
+        
+        const casino = Array.isArray(work.casinos) ? work.casinos[0] : work.casinos
+        if (!casino) return
+        
+        const createdAt = new Date(w.created_at)
+        let amount = 0
+        
+        if (status === 'block') {
+          // Для заблокированных - общая потеря (сумма выводов)
+          amount = convertToUSD(w.withdrawal_amount || 0, casino.currency || 'USD')
+        } else {
+          // Для остальных - профит или ожидаемый профит
+          const depositUSD = convertToUSD(work.deposit_amount || 0, casino.currency || 'USD')
+          const withdrawalUSD = convertToUSD(w.withdrawal_amount || 0, casino.currency || 'USD')
+          amount = withdrawalUSD - depositUSD
+        }
+        
+        if (createdAt >= monthAgo) monthAmount += amount
+        if (createdAt >= weekAgo) weekAmount += amount
+        if (createdAt.toDateString() === today.toDateString()) todayAmount += amount
+      })
+      
+      return {
+        today: Math.round(todayAmount * 100) / 100,
+        week: Math.round(weekAmount * 100) / 100,
+        month: Math.round(monthAmount * 100) / 100
+      }
+    }
+
+    const statusStats = {
+      new: calculateStatusStats('new'),
+      waiting: calculateStatusStats('waiting'),
+      received: calculateStatusStats('received'),
+      block: calculateStatusStats('block')
+    }
+
     const analyticsData = {
       totalJuniors,
       activeJuniors,
       totalWithdrawals,
+      newWithdrawals,
       pendingWithdrawals,
       approvedWithdrawals,
       rejectedWithdrawals,
@@ -295,6 +341,7 @@ export async function GET(request: NextRequest) {
       monthProfit: Math.round(monthProfit * 100) / 100,
       avgProcessingTime: Math.round(avgProcessingTime * 100) / 100,
       overdueWithdrawals,
+      statusStats,
       topPerformers,
       casinoStats: casinoStatsArray,
       dailyStats

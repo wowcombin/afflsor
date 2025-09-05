@@ -675,7 +675,7 @@ export default function WithdrawalsQueue() {
         </div>
         <div className="card">
           <h3 className="text-sm font-medium text-gray-500">
-            {activeTab === 'block' ? 'Потерян профит' : 'Профит'}
+            {activeTab === 'block' ? 'Общая потеря' : 'Профит'}
           </h3>
           <p className={`text-2xl font-bold ${
             activeTab === 'block' 
@@ -684,7 +684,7 @@ export default function WithdrawalsQueue() {
                 ? 'text-success-600' 
                 : 'text-danger-600'
           }`}>
-            ${analytics.totalProfit.toFixed(2)}
+            ${activeTab === 'block' ? analytics.totalWithdrawals.toFixed(2) : analytics.totalProfit.toFixed(2)}
           </p>
         </div>
       </div>
