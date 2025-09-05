@@ -18,5 +18,5 @@ UPDATE users SET role = 'teamlead' WHERE email = 'teamlead@example.com'; -- Пр
 -- Проверяем что роль добавлена
 SELECT enumlabel FROM pg_enum WHERE enumtypid = (SELECT oid FROM pg_type WHERE typname = 'user_role');
 
--- Показываем структуру таблицы users
-\d users;
+-- Показываем структуру таблицы users (команда для psql клиента, не для миграции)
+-- \d users;

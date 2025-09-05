@@ -55,7 +55,7 @@ export async function GET() {
       // Получаем работы команды
       const { data: works } = await supabase
         .from('works')
-        .select('id, deposit_amount, junior_id, casinos(currency)')
+        .select('id, deposit_amount, junior_id, casinos!inner(currency)')
         .in('junior_id', juniorIds)
         .gte('created_at', startOfMonth.toISOString())
 
@@ -77,7 +77,7 @@ export async function GET() {
           successfulWorks++
           
           receivedWithdrawals.forEach(w => {
-            const currency = work.casinos?.currency || 'USD'
+            const currency = (work.casinos as any)?.currency || 'USD'
             const withdrawalUSD = convertToUSDSync(w.withdrawal_amount, currency, rates)
             const depositUSD = convertToUSDSync(work.deposit_amount, currency, rates)
             monthlyProfit += (withdrawalUSD - depositUSD)

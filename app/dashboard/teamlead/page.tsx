@@ -83,36 +83,36 @@ export default function TeamLeadDashboard() {
         <KPICard
           title="Моих Junior'ов"
           value={stats.totalJuniors}
-          subtitle={`${stats.activeJuniors} активных`}
-          icon={UsersIcon}
-          trend={{ value: 0, isPositive: true }}
+          description={`${stats.activeJuniors} активных`}
+          icon={<UsersIcon className="w-6 h-6" />}
+          trend={{ value: 0, direction: 'neutral' }}
           loading={loading}
         />
         
         <KPICard
           title="Профит команды"
           value={`$${stats.monthlyProfit.toFixed(2)}`}
-          subtitle="за месяц"
-          icon={BanknotesIcon}
-          trend={{ value: 0, isPositive: true }}
+          description="за месяц"
+          icon={<BanknotesIcon className="w-6 h-6" />}
+          trend={{ value: 0, direction: 'neutral' }}
           loading={loading}
         />
 
         <KPICard
           title="Моя комиссия"
           value={`$${stats.teamLeadCommission.toFixed(2)}`}
-          subtitle="10% от брутто"
-          icon={TrophyIcon}
-          trend={{ value: 0, isPositive: true }}
+          description="10% от брутто"
+          icon={<TrophyIcon className="w-6 h-6" />}
+          trend={{ value: 0, direction: 'neutral' }}
           loading={loading}
         />
 
         <KPICard
           title="Успешность"
           value={`${stats.successRate}%`}
-          subtitle={`${stats.totalWorks} работ`}
-          icon={CheckCircleIcon}
-          trend={{ value: 0, isPositive: true }}
+          description={`${stats.totalWorks} работ`}
+          icon={<CheckCircleIcon className="w-6 h-6" />}
+          trend={{ value: 0, direction: 'neutral' }}
           loading={loading}
         />
       </div>
