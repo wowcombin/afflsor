@@ -471,15 +471,14 @@ export default function WithdrawalsQueue() {
       label: 'Сумма',
       render: (item: WithdrawalData) => {
         const currency = getCasinoCurrency(item)
-        const withdrawalUSD = convertToUSD(item.withdrawal_amount, currency)
-        const depositUSD = convertToUSD(item.deposit_amount, currency)
+        const symbol = currency === 'USD' ? '$' : currency === 'GBP' ? '£' : currency === 'EUR' ? '€' : currency
         return (
           <div>
             <div className="font-semibold text-lg">
-              ${withdrawalUSD.toFixed(2)}
+              {symbol}{item.withdrawal_amount}
             </div>
             <div className="text-sm text-gray-500">
-              Депозит: ${depositUSD.toFixed(2)}
+              Депозит: {symbol}{item.deposit_amount}
             </div>
           </div>
         )
@@ -489,14 +488,13 @@ export default function WithdrawalsQueue() {
       key: 'profit',
       label: 'Профит',
       render: (item: WithdrawalData) => {
+        const profit = item.withdrawal_amount - item.deposit_amount
         const currency = getCasinoCurrency(item)
-        const withdrawalUSD = convertToUSD(item.withdrawal_amount, currency)
-        const depositUSD = convertToUSD(item.deposit_amount, currency)
-        const profitUSD = withdrawalUSD - depositUSD
+        const symbol = currency === 'USD' ? '$' : currency === 'GBP' ? '£' : currency === 'EUR' ? '€' : currency
 
         return (
-          <div className={`font-semibold ${profitUSD > 0 ? 'text-success-600' : 'text-danger-600'}`}>
-            ${profitUSD.toFixed(2)}
+          <div className={`font-semibold ${profit > 0 ? 'text-success-600' : 'text-danger-600'}`}>
+            {symbol}{profit.toFixed(2)}
           </div>
         )
       }
