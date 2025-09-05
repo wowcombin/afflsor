@@ -3,6 +3,32 @@ import { createClient } from '@/lib/supabase/server'
 
 export const dynamic = 'force-dynamic'
 
+// GET - Получить все выводы
+export async function GET() {
+  try {
+    const supabase = await createClient()
+    
+    const { data: withdrawals, error } = await supabase
+      .from('work_withdrawals')
+      .select('*')
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
+    return NextResponse.json({
+      success: true,
+      data: withdrawals,
+      count: withdrawals?.length || 0
+    })
+
+  } catch (error) {
+    console.error('Get withdrawals error:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}
+
 // POST - Создать новый вывод для работы
 export async function POST(request: Request) {
   try {

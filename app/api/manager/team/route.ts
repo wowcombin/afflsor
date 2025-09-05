@@ -152,12 +152,12 @@ export async function GET() {
             .eq('status', 'received')
             .gte('updated_at', startOfMonth.toISOString())
 
-          // Загружаем курсы валют для конвертации
-          const ratesResponse = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/currency-rates`)
-          let rates: { [key: string]: number } = { USD: 0.95, GBP: 1.21, EUR: 1.05, CAD: 0.69 } // fallback
-          if (ratesResponse.ok) {
-            const ratesData = await ratesResponse.json()
-            rates = ratesData.rates || rates
+          // Используем fallback курсы
+          const rates: { [key: string]: number } = { 
+            USD: 0.95, 
+            GBP: 1.21, 
+            EUR: 1.05, 
+            CAD: 0.69 
           }
 
           // Используем единую функцию конвертации

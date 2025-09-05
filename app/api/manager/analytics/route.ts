@@ -40,12 +40,12 @@ export async function GET(request: NextRequest) {
 
     console.log('Date range:', { dateRange, startDate: startDate.toISOString() })
 
-    // Загружаем курсы валют для конвертации
-    const ratesResponse = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/currency-rates`)
-    let rates: { [key: string]: number } = { USD: 0.95, GBP: 1.21, EUR: 1.05, CAD: 0.69 } // fallback
-    if (ratesResponse.ok) {
-      const ratesData = await ratesResponse.json()
-      rates = ratesData.rates || rates
+    // Используем fallback курсы вместо fetch (избегаем проблем с сетью)
+    const rates: { [key: string]: number } = { 
+      USD: 0.95, 
+      GBP: 1.21, 
+      EUR: 1.05, 
+      CAD: 0.69 
     }
 
     // 1. Получаем общую статистику пользователей
