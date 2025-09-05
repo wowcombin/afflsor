@@ -64,18 +64,27 @@ export async function GET(request: NextRequest) {
     const totalJuniors = usersData?.length || 0
 
     // 2. Получаем активных Junior (те, кто создавал работы за период)
+    // Используем данные из works с JOIN к users для получения junior_id
     const { data: activeJuniorsData, error: activeJuniorsError } = await supabase
       .from('works')
-      .select('junior_id')
+      .select(`
+        users!inner(id, role)
+      `)
       .gte('created_at', startDate.toISOString())
-      .neq('junior_id', null)
+      .eq('users.role', 'junior')
 
     if (activeJuniorsError) {
       console.error('Active juniors error:', activeJuniorsError)
       throw new Error('Failed to fetch active juniors')
     }
 
-    const activeJuniorIds = Array.from(new Set(activeJuniorsData?.map(w => w.junior_id) || []))
+    // Извлекаем уникальные ID Junior из результата
+    const activeJuniorIds = Array.from(new Set(
+      activeJuniorsData?.map(w => {
+        const user = Array.isArray(w.users) ? w.users[0] : w.users
+        return user?.id
+      }).filter(Boolean) || []
+    ))
     const activeJuniors = activeJuniorIds.length
 
     // 3. Получаем статистику выводов
@@ -84,10 +93,9 @@ export async function GET(request: NextRequest) {
       .select(`
         *,
         works!inner(
-          junior_id,
           deposit_amount,
-          deposit_currency,
-          casinos!inner(name, currency)
+          casinos!inner(name, currency),
+          users!inner(id, role)
         )
       `)
       .gte('created_at', startDate.toISOString())
@@ -123,7 +131,7 @@ export async function GET(request: NextRequest) {
       const casino = Array.isArray(work.casinos) ? work.casinos[0] : work.casinos
       if (!casino) return
 
-      const depositUSD = convertToUSD(work.deposit_amount || 0, work.deposit_currency || 'USD')
+      const depositUSD = convertToUSD(work.deposit_amount || 0, casino.currency || 'USD')
       const withdrawalUSD = convertToUSD(w.withdrawal_amount || 0, casino.currency || 'USD')
       const profit = withdrawalUSD - depositUSD
 
@@ -158,22 +166,25 @@ export async function GET(request: NextRequest) {
     
     withdrawals.forEach(w => {
       const work = Array.isArray(w.works) ? w.works[0] : w.works
-      if (!work || !work.junior_id) return
+      if (!work) return
+
+      const user = Array.isArray(work.users) ? work.users[0] : work.users
+      if (!user || !user.id) return
 
       const casino = Array.isArray(work.casinos) ? work.casinos[0] : work.casinos
       if (!casino) return
 
-      const depositUSD = convertToUSD(work.deposit_amount || 0, work.deposit_currency || 'USD')
+      const depositUSD = convertToUSD(work.deposit_amount || 0, casino.currency || 'USD')
       const withdrawalUSD = convertToUSD(w.withdrawal_amount || 0, casino.currency || 'USD')
       const profit = withdrawalUSD - depositUSD
 
-      if (!juniorStats[work.junior_id]) {
-        juniorStats[work.junior_id] = { profit: 0, withdrawals: 0, approved: 0 }
+      if (!juniorStats[user.id]) {
+        juniorStats[user.id] = { profit: 0, withdrawals: 0, approved: 0 }
       }
 
-      juniorStats[work.junior_id].profit += profit
-      juniorStats[work.junior_id].withdrawals += 1
-      if (w.status === 'received') juniorStats[work.junior_id].approved += 1
+      juniorStats[user.id].profit += profit
+      juniorStats[user.id].withdrawals += 1
+      if (w.status === 'received') juniorStats[user.id].approved += 1
     })
 
     // Получаем данные пользователей для топ исполнителей
@@ -210,7 +221,7 @@ export async function GET(request: NextRequest) {
       const casino = Array.isArray(work.casinos) ? work.casinos[0] : work.casinos
       if (!casino) return
 
-      const depositUSD = convertToUSD(work.deposit_amount || 0, work.deposit_currency || 'USD')
+      const depositUSD = convertToUSD(work.deposit_amount || 0, casino.currency || 'USD')
       const withdrawalUSD = convertToUSD(w.withdrawal_amount || 0, casino.currency || 'USD')
       const profit = withdrawalUSD - depositUSD
 
@@ -255,7 +266,7 @@ export async function GET(request: NextRequest) {
         const casino = Array.isArray(work.casinos) ? work.casinos[0] : work.casinos
         if (!casino) return
 
-        const depositUSD = convertToUSD(work.deposit_amount || 0, work.deposit_currency || 'USD')
+        const depositUSD = convertToUSD(work.deposit_amount || 0, casino.currency || 'USD')
         const withdrawalUSD = convertToUSD(w.withdrawal_amount || 0, casino.currency || 'USD')
 
         dayDeposits += depositUSD
