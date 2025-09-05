@@ -80,6 +80,7 @@ export async function middleware(request: NextRequest) {
     if (userData && userData.status === 'active') {
       const roleRoutes = {
         junior: '/dashboard/junior',
+        teamlead: '/dashboard/teamlead',
         manager: '/dashboard/manager',
         tester: '/dashboard/tester',
         hr: '/dashboard/hr',
