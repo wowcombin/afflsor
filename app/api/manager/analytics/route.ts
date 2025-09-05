@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { convertToUSD } from '@/lib/currency'
+import { convertToUSDSync } from '@/lib/currency'
 
 export const dynamic = 'force-dynamic'
 
@@ -40,7 +40,13 @@ export async function GET(request: NextRequest) {
 
     console.log('Date range:', { dateRange, startDate: startDate.toISOString() })
 
-    // Используем единую функцию конвертации из lib/currency.ts
+    // Загружаем курсы валют для конвертации
+    const ratesResponse = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/currency-rates`)
+    let rates: { [key: string]: number } = { USD: 0.95, GBP: 1.21, EUR: 1.05, CAD: 0.69 } // fallback
+    if (ratesResponse.ok) {
+      const ratesData = await ratesResponse.json()
+      rates = ratesData.rates || rates
+    }
 
     // 1. Получаем общую статистику пользователей
     const { data: usersData, error: usersError } = await supabase
@@ -124,8 +130,8 @@ export async function GET(request: NextRequest) {
       const casino = Array.isArray(work.casinos) ? work.casinos[0] : work.casinos
       if (!casino) return
 
-      const depositUSD = convertToUSD(work.deposit_amount || 0, casino.currency || 'USD')
-      const withdrawalUSD = convertToUSD(w.withdrawal_amount || 0, casino.currency || 'USD')
+      const depositUSD = convertToUSDSync(work.deposit_amount || 0, casino.currency || 'USD', rates)
+      const withdrawalUSD = convertToUSDSync(w.withdrawal_amount || 0, casino.currency || 'USD', rates)
       const profit = withdrawalUSD - depositUSD
 
       totalProfit += profit
@@ -167,8 +173,8 @@ export async function GET(request: NextRequest) {
       const casino = Array.isArray(work.casinos) ? work.casinos[0] : work.casinos
       if (!casino) return
 
-      const depositUSD = convertToUSD(work.deposit_amount || 0, casino.currency || 'USD')
-      const withdrawalUSD = convertToUSD(w.withdrawal_amount || 0, casino.currency || 'USD')
+      const depositUSD = convertToUSDSync(work.deposit_amount || 0, casino.currency || 'USD', rates)
+      const withdrawalUSD = convertToUSDSync(w.withdrawal_amount || 0, casino.currency || 'USD', rates)
       const profit = withdrawalUSD - depositUSD
 
       if (!juniorStats[user.id]) {
@@ -214,8 +220,8 @@ export async function GET(request: NextRequest) {
       const casino = Array.isArray(work.casinos) ? work.casinos[0] : work.casinos
       if (!casino) return
 
-      const depositUSD = convertToUSD(work.deposit_amount || 0, casino.currency || 'USD')
-      const withdrawalUSD = convertToUSD(w.withdrawal_amount || 0, casino.currency || 'USD')
+      const depositUSD = convertToUSDSync(work.deposit_amount || 0, casino.currency || 'USD', rates)
+      const withdrawalUSD = convertToUSDSync(w.withdrawal_amount || 0, casino.currency || 'USD', rates)
       const profit = withdrawalUSD - depositUSD
 
       if (!casinoStats[casino.name]) {
@@ -259,8 +265,8 @@ export async function GET(request: NextRequest) {
         const casino = Array.isArray(work.casinos) ? work.casinos[0] : work.casinos
         if (!casino) return
 
-        const depositUSD = convertToUSD(work.deposit_amount || 0, casino.currency || 'USD')
-        const withdrawalUSD = convertToUSD(w.withdrawal_amount || 0, casino.currency || 'USD')
+        const depositUSD = convertToUSDSync(work.deposit_amount || 0, casino.currency || 'USD', rates)
+        const withdrawalUSD = convertToUSDSync(w.withdrawal_amount || 0, casino.currency || 'USD', rates)
 
         dayDeposits += depositUSD
         dayWithdrawalsAmount += withdrawalUSD
@@ -292,11 +298,11 @@ export async function GET(request: NextRequest) {
 
         if (status === 'block') {
           // Для заблокированных - общая потеря (сумма выводов)
-          amount = convertToUSD(w.withdrawal_amount || 0, casino.currency || 'USD')
+          amount = convertToUSDSync(w.withdrawal_amount || 0, casino.currency || 'USD', rates)
         } else {
           // Для остальных - профит или ожидаемый профит
-          const depositUSD = convertToUSD(work.deposit_amount || 0, casino.currency || 'USD')
-          const withdrawalUSD = convertToUSD(w.withdrawal_amount || 0, casino.currency || 'USD')
+          const depositUSD = convertToUSDSync(work.deposit_amount || 0, casino.currency || 'USD', rates)
+          const withdrawalUSD = convertToUSDSync(w.withdrawal_amount || 0, casino.currency || 'USD', rates)
           amount = withdrawalUSD - depositUSD
         }
 

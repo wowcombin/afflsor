@@ -5,7 +5,7 @@ import { useToast } from '@/components/ui/Toast'
 import DataTable, { Column, ActionButton } from '@/components/ui/DataTable'
 import KPICard from '@/components/ui/KPICard'
 import StatusBadge from '@/components/ui/StatusBadge'
-import { convertToUSD, getCasinoCurrency } from '@/lib/currency'
+import { convertToUSDSync, getCasinoCurrency } from '@/lib/currency'
 import { 
   ClockIcon,
   BanknotesIcon,
@@ -265,7 +265,7 @@ export default function JuniorWithdrawalsPage() {
       
       // Конвертируем все депозиты в USD по курсу Google -5%
       const totalDeposits = formattedWorks.reduce((sum: number, w: Work) => {
-        const depositInUSD = convertToUSD(w.deposit_amount, w.casino_currency)
+        const depositInUSD = convertToUSDSync(w.deposit_amount, w.casino_currency, exchangeRates)
         return sum + depositInUSD
       }, 0)
       

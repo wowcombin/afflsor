@@ -6,7 +6,7 @@ import DataTable from '@/components/ui/DataTable'
 import Modal from '@/components/ui/Modal'
 import StatusBadge from '@/components/ui/StatusBadge'
 import { useToast } from '@/components/ui/Toast'
-import { convertToUSD, getCasinoCurrency } from '@/lib/currency'
+import { convertToUSDSync, getCasinoCurrency } from '@/lib/currency'
 import {
   ClockIcon,
   CheckCircleIcon,
@@ -264,13 +264,13 @@ export default function WithdrawalsQueue() {
 
     const totalDeposits = filtered.reduce((sum, w) => {
       const currency = getCasinoCurrency(w)
-      const depositInUSD = convertToUSD(w.deposit_amount, currency)
+      const depositInUSD = convertToUSDSync(w.deposit_amount, currency, exchangeRates?.rates)
       return sum + depositInUSD
     }, 0)
 
     const totalWithdrawals = filtered.reduce((sum, w) => {
       const currency = getCasinoCurrency(w)
-      const withdrawalInUSD = convertToUSD(w.withdrawal_amount, currency)
+      const withdrawalInUSD = convertToUSDSync(w.withdrawal_amount, currency, exchangeRates?.rates)
       return sum + withdrawalInUSD
     }, 0)
 

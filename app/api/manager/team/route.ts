@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
-import { convertToUSD, getCasinoCurrency } from '@/lib/currency'
+import { convertToUSDSync, getCasinoCurrency } from '@/lib/currency'
 
 export const dynamic = 'force-dynamic'
 
@@ -103,7 +103,7 @@ export async function GET() {
               .eq('junior_id', junior.id)
               .gte('created_at', startOfMonth.toISOString()),
             
-            // Успешные работы (с выводами)
+            // Успешные работы (только со статусом received)
             supabase
               .from('work_withdrawals')
               .select(`
@@ -113,7 +113,7 @@ export async function GET() {
                 )
               `, { count: 'exact', head: true })
               .eq('work.junior_id', junior.id)
-              .in('status', ['received', 'approved']),
+              .eq('status', 'received'),
             
             // Назначенные карты
             supabase
@@ -158,14 +158,22 @@ export async function GET() {
               )
             `)
             .eq('work.junior_id', junior.id)
-            .in('status', ['received', 'approved'])
+            .eq('status', 'received')
             .gte('updated_at', startOfMonth.toISOString())
+
+          // Загружаем курсы валют для конвертации
+          const ratesResponse = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/currency-rates`)
+          let rates: { [key: string]: number } = { USD: 0.95, GBP: 1.21, EUR: 1.05, CAD: 0.69 } // fallback
+          if (ratesResponse.ok) {
+            const ratesData = await ratesResponse.json()
+            rates = ratesData.rates || rates
+          }
 
           // Используем единую функцию конвертации
           const totalProfit = (monthlyWithdrawals || []).reduce((sum: number, w: any) => {
             const currency = w.work?.casinos?.currency || 'USD'
-            const withdrawalUSD = convertToUSD(w.withdrawal_amount || 0, currency)
-            const depositUSD = convertToUSD(w.work?.deposit_amount || 0, currency)
+            const withdrawalUSD = convertToUSDSync(w.withdrawal_amount || 0, currency, rates)
+            const depositUSD = convertToUSDSync(w.work?.deposit_amount || 0, currency, rates)
             return sum + (withdrawalUSD - depositUSD)
           }, 0)
 
@@ -176,10 +184,10 @@ export async function GET() {
           return {
             ...junior,
             stats: {
-              total_tests: totalWorks,
-              successful_tests: successfulWorks,
+              total_accounts: totalWorks,
+              successful_accounts: successfulWorks,
               success_rate: successRate,
-              monthly_tests: monthlyWorksResult.count || 0,
+              monthly_accounts: monthlyWorksResult.count || 0,
               assigned_cards: assignedCardsResult.count || 0,
               pending_withdrawals: pendingWithdrawalsResult.count || 0,
               total_profit: totalProfit,
@@ -191,10 +199,10 @@ export async function GET() {
           return {
             ...junior,
             stats: {
-              total_tests: 0,
-              successful_tests: 0,
+              total_accounts: 0,
+              successful_accounts: 0,
               success_rate: 0,
-              monthly_tests: 0,
+              monthly_accounts: 0,
               assigned_cards: 0,
               pending_withdrawals: 0,
               total_profit: 0,
@@ -209,7 +217,7 @@ export async function GET() {
     const teamStats = {
       total_juniors: juniorsWithStats.length,
       active_juniors: juniorsWithStats.filter(j => j.status === 'active').length,
-      total_monthly_tests: juniorsWithStats.reduce((sum, j) => sum + (j.stats?.monthly_tests || 0), 0),
+      total_monthly_accounts: juniorsWithStats.reduce((sum, j) => sum + (j.stats?.monthly_accounts || 0), 0),
       total_monthly_profit: juniorsWithStats.reduce((sum, j) => sum + (j.stats?.total_profit || 0), 0),
       avg_success_rate: juniorsWithStats.length > 0 ? 
         Math.round(juniorsWithStats.reduce((sum, j) => sum + (j.stats?.success_rate || 0), 0) / juniorsWithStats.length) : 0,

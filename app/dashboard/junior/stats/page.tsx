@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import KPICard from '@/components/ui/KPICard'
-import { convertToUSD, getCasinoCurrency } from '@/lib/currency'
+import { convertToUSDSync, getCasinoCurrency } from '@/lib/currency'
 import DataTable from '@/components/ui/DataTable'
 import { 
   BanknotesIcon,
@@ -113,10 +113,10 @@ export default function JuniorStatsPage() {
         }
         
         // Рассчитываем данные
-        const depositUSD = convertToUSD(work.deposit_amount, work.casinos?.currency || 'USD')
+        const depositUSD = convertToUSDSync(work.deposit_amount, work.casinos?.currency || 'USD', exchangeRates)
         const receivedWithdrawals = work.work_withdrawals?.filter((w: any) => w.status === 'received') || []
         const withdrawalsUSD = receivedWithdrawals.reduce((sum: number, w: any) => {
-          return sum + convertToUSD(w.withdrawal_amount, work.casinos?.currency || 'USD')
+          return sum + convertToUSDSync(w.withdrawal_amount, work.casinos?.currency || 'USD', exchangeRates)
         }, 0)
         const workProfit = withdrawalsUSD - depositUSD
         

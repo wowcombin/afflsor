@@ -1,39 +1,95 @@
 /**
  * Единая система конвертации валют для всего приложения
- * Использует курсы с коэффициентом -5% (брутто)
+ * Использует динамические курсы с Google API с коэффициентом -5% (брутто)
  */
 
-// Статичные курсы валют с коэффициентом -5% (как в аналитике)
-const STATIC_RATES: { [key: string]: number } = {
-  'USD': 1,
+// Fallback курсы если API недоступен
+const FALLBACK_RATES: { [key: string]: number } = {
+  'USD': 0.95,
   'GBP': 1.27 * 0.95, // Google rate -5%
   'EUR': 1.09 * 0.95,
   'CAD': 0.74 * 0.95
 }
 
+// Кеш для курсов валют
+let cachedRates: { [key: string]: number } | null = null
+let lastFetch: number = 0
+const CACHE_DURATION = 60 * 60 * 1000 // 1 час
+
+/**
+ * Загружает актуальные курсы валют с API
+ */
+async function fetchCurrencyRates(): Promise<{ [key: string]: number }> {
+  try {
+    const response = await fetch('/api/currency-rates')
+    if (response.ok) {
+      const data = await response.json()
+      if (data.success && data.rates) {
+        return data.rates
+      }
+    }
+  } catch (error) {
+    console.error('Failed to fetch currency rates:', error)
+  }
+  
+  return FALLBACK_RATES
+}
+
+/**
+ * Получает актуальные курсы валют (с кешированием)
+ */
+async function getRates(): Promise<{ [key: string]: number }> {
+  const now = Date.now()
+  
+  // Проверяем кеш
+  if (cachedRates && (now - lastFetch) < CACHE_DURATION) {
+    return cachedRates
+  }
+  
+  // Загружаем новые курсы
+  cachedRates = await fetchCurrencyRates()
+  lastFetch = now
+  
+  return cachedRates
+}
+
 /**
  * Конвертирует сумму в USD с применением коэффициента -5%
- * Использует статичные курсы для консистентности
+ * Использует динамические курсы с Google API
  */
-export function convertToUSD(amount: number, currency: string): number {
+export async function convertToUSD(amount: number, currency: string): Promise<number> {
   if (!amount || amount === 0) return 0
   
-  const rate = STATIC_RATES[currency] || 1
+  const rates = await getRates()
+  const rate = rates[currency] || FALLBACK_RATES[currency] || 1
+  return amount * rate
+}
+
+/**
+ * Синхронная версия конвертации (использует кеш или fallback)
+ * Для использования в компонентах где нельзя использовать async
+ */
+export function convertToUSDSync(amount: number, currency: string, rates?: { [key: string]: number }): number {
+  if (!amount || amount === 0) return 0
+  
+  const currentRates = rates || cachedRates || FALLBACK_RATES
+  const rate = currentRates[currency] || FALLBACK_RATES[currency] || 1
   return amount * rate
 }
 
 /**
  * Получает курс валюты к USD
  */
-export function getCurrencyRate(currency: string): number {
-  return STATIC_RATES[currency] || 1
+export async function getCurrencyRate(currency: string): Promise<number> {
+  const rates = await getRates()
+  return rates[currency] || FALLBACK_RATES[currency] || 1
 }
 
 /**
  * Получает все доступные курсы валют
  */
-export function getAllRates(): { [key: string]: number } {
-  return { ...STATIC_RATES }
+export async function getAllRates(): Promise<{ [key: string]: number }> {
+  return await getRates()
 }
 
 /**

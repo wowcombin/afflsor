@@ -9,10 +9,10 @@ import { User, CasinoTest } from '@/types/database.types'
 
 interface JuniorWithStats extends User {
   stats?: {
-    total_tests: number
-    successful_tests: number
+    total_accounts: number
+    successful_accounts: number
     success_rate: number
-    monthly_tests: number
+    monthly_accounts: number
     assigned_cards: number
     pending_withdrawals: number
     total_profit: number
@@ -81,14 +81,14 @@ export default function TeamManagement() {
       )
     },
     {
-      key: 'stats.monthly_tests',
-      label: 'Тесты за месяц',
+      key: 'stats.monthly_accounts',
+      label: 'Аккаунты за месяц',
       render: (item: JuniorWithStats) => (
         <div className="text-center">
           <div className="text-lg font-semibold text-gray-900">
-            {item.stats?.monthly_tests || 0}
+            {item.stats?.monthly_accounts || 0}
           </div>
-          <div className="text-xs text-gray-500">выполнено</div>
+          <div className="text-xs text-gray-500">создано</div>
         </div>
       )
     },
@@ -107,7 +107,7 @@ export default function TeamManagement() {
               {rate}%
             </div>
             <div className="text-xs text-gray-500">
-              {item.stats?.successful_tests || 0}/{item.stats?.total_tests || 0}
+              {item.stats?.successful_accounts || 0}/{item.stats?.total_accounts || 0}
             </div>
           </div>
         )
@@ -196,7 +196,7 @@ export default function TeamManagement() {
   const teamStats = {
     total_juniors: juniors.length,
     active_juniors: juniors.filter(j => j.status === 'active').length,
-    total_monthly_tests: juniors.reduce((sum, j) => sum + (j.stats?.monthly_tests || 0), 0),
+    total_monthly_accounts: juniors.reduce((sum, j) => sum + (j.stats?.monthly_accounts || 0), 0),
     total_monthly_profit: juniors.reduce((sum, j) => sum + (j.stats?.total_profit || 0), 0),
     avg_success_rate: juniors.length > 0 ? 
       Math.round(juniors.reduce((sum, j) => sum + (j.stats?.success_rate || 0), 0) / juniors.length) : 0,
@@ -231,8 +231,8 @@ export default function TeamManagement() {
           <p className="text-2xl font-bold text-success-600">{teamStats.active_juniors}</p>
         </div>
         <div className="card">
-          <h3 className="text-sm font-medium text-gray-500">Тестов за месяц</h3>
-          <p className="text-2xl font-bold text-primary-600">{teamStats.total_monthly_tests}</p>
+          <h3 className="text-sm font-medium text-gray-500">Аккаунтов за месяц</h3>
+          <p className="text-2xl font-bold text-primary-600">{teamStats.total_monthly_accounts}</p>
         </div>
         <div className="card">
           <h3 className="text-sm font-medium text-gray-500">Средняя успешность</h3>
@@ -269,7 +269,7 @@ export default function TeamManagement() {
             <h4 className="font-medium text-gray-700 mb-2">🏆 Лучшие по успешности</h4>
             <div className="space-y-2">
               {juniors
-                .filter(j => j.stats?.total_tests && j.stats.total_tests > 0)
+                .filter(j => j.stats?.total_accounts && j.stats.total_accounts > 0)
                 .sort((a, b) => (b.stats?.success_rate || 0) - (a.stats?.success_rate || 0))
                 .slice(0, 3)
                 .map((junior, index) => (

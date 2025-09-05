@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import KPICard from '@/components/ui/KPICard'
-import { convertToUSD, getCasinoCurrency } from '@/lib/currency'
+import { convertToUSDSync, getCasinoCurrency } from '@/lib/currency'
 import { 
   BanknotesIcon,
   CheckCircleIcon,
@@ -120,19 +120,19 @@ export default function JuniorDashboard() {
       let expectedProfit = 0 // Ожидаемый профит (включая активные работы)
       
       monthlyWorks.forEach((work: any) => {
-        const depositUSD = convertToUSD(work.deposit_amount, work.casinos?.currency || 'USD')
+        const depositUSD = convertToUSDSync(work.deposit_amount, work.casinos?.currency || 'USD', rates)
         const receivedWithdrawals = work.work_withdrawals?.filter((w: any) => w.status === 'received') || []
         const allWithdrawals = work.work_withdrawals || []
         
         // Фактический профит (только полученные выводы)
         const withdrawalsUSD = receivedWithdrawals.reduce((sum: number, w: any) => {
-          return sum + convertToUSD(w.withdrawal_amount, work.casinos?.currency || 'USD')
+          return sum + convertToUSDSync(w.withdrawal_amount, work.casinos?.currency || 'USD', rates)
         }, 0)
         monthlyProfit += (withdrawalsUSD - depositUSD)
         
         // Ожидаемый профит (все выводы, включая ожидающие)
         const expectedWithdrawalsUSD = allWithdrawals.reduce((sum: number, w: any) => {
-          return sum + convertToUSD(w.withdrawal_amount, work.casinos?.currency || 'USD')
+          return sum + convertToUSDSync(w.withdrawal_amount, work.casinos?.currency || 'USD', rates)
         }, 0)
         expectedProfit += (expectedWithdrawalsUSD - depositUSD)
       })
