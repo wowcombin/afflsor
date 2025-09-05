@@ -689,11 +689,7 @@ export default function WithdrawalsQueue() {
             ${activeTab === 'block' ? analytics.totalWithdrawals.toFixed(2) : analytics.totalProfit.toFixed(2)}
           </p>
         </div>
-      </div>
-
-      {/* Дополнительная статистика для заблокированных */}
-      {activeTab === 'block' && (
-        <div className="grid grid-cols-1 md:grid-cols-1 gap-4 mb-6">
+        {activeTab === 'block' && (
           <div className="card bg-red-50 border-red-200">
             <h3 className="text-sm font-medium text-red-700">Общий процент потерь</h3>
             <p className="text-2xl font-bold text-red-600">
@@ -705,8 +701,9 @@ export default function WithdrawalsQueue() {
               Процент недозаработанного профита от общего оборота
             </p>
           </div>
-        </div>
-      )}
+        )}
+      </div>
+
 
       {/* Фильтры */}
       <div className="card mb-6">
