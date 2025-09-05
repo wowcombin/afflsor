@@ -35,8 +35,25 @@ yarn-error.log*
 next-env.d.ts
 
 # IDE
-.vscode/
 .idea/
 
 # OS
 Thumbs.db
+.DS_Store
+
+# Temporary files
+*.tmp
+*.bak
+*.old
+*~
+
+# Test and debug files
+/app/debug-*
+/app/test-*
+**/debug-*.tsx
+**/test-*.tsx
+
+# SQL debug files
+disable_rls_*.sql
+debug_*.sql
+test_*.sql
