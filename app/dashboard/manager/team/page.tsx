@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import DataTable from '@/components/ui/DataTable'
 import StatusBadge from '@/components/ui/StatusBadge'
+import Modal from '@/components/ui/Modal'
 import { useToast } from '@/components/ui/Toast'
 import { User, CasinoTest } from '@/types/database.types'
 
@@ -27,9 +28,14 @@ export default function TeamManagement() {
   const [loading, setLoading] = useState(true)
   const [editingSalary, setEditingSalary] = useState<JuniorWithStats | null>(null)
   const [newSalaryPercentage, setNewSalaryPercentage] = useState('')
+  const [showTeamLeadModal, setShowTeamLeadModal] = useState(false)
+  const [assigningJunior, setAssigningJunior] = useState<string | null>(null)
+  const [teamLeads, setTeamLeads] = useState<User[]>([])
+  const [selectedTeamLead, setSelectedTeamLead] = useState<string>('')
 
   useEffect(() => {
     fetchTeamData()
+    fetchTeamLeads()
   }, [])
 
   const fetchTeamData = async () => {
@@ -46,6 +52,51 @@ export default function TeamManagement() {
       addToast({ type: 'error', title: 'Ошибка', description: 'Ошибка сети' })
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchTeamLeads = async () => {
+    try {
+      const response = await fetch('/api/users?role=teamlead')
+      const data = await response.json()
+      
+      if (data.success) {
+        setTeamLeads(data.data || [])
+      }
+    } catch (error) {
+      console.error('Error fetching team leads:', error)
+    }
+  }
+
+  const assignJuniorToTeamLead = async () => {
+    if (!assigningJunior || !selectedTeamLead) return
+
+    try {
+      const response = await fetch(`/api/users/${assigningJunior}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          team_lead_id: selectedTeamLead === 'none' ? null : selectedTeamLead 
+        })
+      })
+
+      if (response.ok) {
+        addToast({ 
+          type: 'success', 
+          title: 'Успешно', 
+          description: selectedTeamLead === 'none' ? 
+            'Junior откреплен от Team Lead' : 
+            'Junior назначен к Team Lead' 
+        })
+        await fetchTeamData()
+        setShowTeamLeadModal(false)
+        setAssigningJunior(null)
+        setSelectedTeamLead('')
+      } else {
+        addToast({ type: 'error', title: 'Ошибка', description: 'Не удалось назначить Team Lead' })
+      }
+    } catch (error) {
+      addToast({ type: 'error', title: 'Ошибка', description: 'Ошибка сети' })
     }
   }
 
@@ -220,6 +271,15 @@ export default function TeamManagement() {
       action: (item: JuniorWithStats) => router.push(`/dashboard/manager/cards?assign=${item.id}`),
       variant: 'secondary' as const,
       condition: (item: JuniorWithStats) => item.status === 'active'
+    },
+    {
+      label: 'Team Lead',
+      action: (item: JuniorWithStats) => {
+        setAssigningJunior(item.id)
+        setShowTeamLeadModal(true)
+      },
+      variant: 'warning' as const,
+      condition: (item: JuniorWithStats) => item.role === 'junior'
     }
   ]
 
@@ -422,6 +482,59 @@ export default function TeamManagement() {
           </div>
         </div>
       )}
+
+      {/* Модальное окно назначения Team Lead */}
+      <Modal
+        isOpen={showTeamLeadModal}
+        onClose={() => {
+          setShowTeamLeadModal(false)
+          setAssigningJunior(null)
+          setSelectedTeamLead('')
+        }}
+        title="Назначить Team Lead"
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="form-label">Выберите Team Lead</label>
+            <select
+              value={selectedTeamLead}
+              onChange={(e) => setSelectedTeamLead(e.target.value)}
+              className="form-input w-full"
+            >
+              <option value="">-- Выберите Team Lead --</option>
+              <option value="none">🚫 Убрать Team Lead</option>
+              {teamLeads.map(tl => (
+                <option key={tl.id} value={tl.id}>
+                  👤 {tl.first_name} {tl.last_name}
+                </option>
+              ))}
+            </select>
+            <p className="text-sm text-gray-500 mt-1">
+              Junior будет подчиняться выбранному Team Lead
+            </p>
+          </div>
+
+          <div className="flex gap-3 pt-4">
+            <button
+              onClick={assignJuniorToTeamLead}
+              disabled={!selectedTeamLead}
+              className="btn-primary flex-1 disabled:opacity-50"
+            >
+              Назначить
+            </button>
+            <button
+              onClick={() => {
+                setShowTeamLeadModal(false)
+                setAssigningJunior(null)
+                setSelectedTeamLead('')
+              }}
+              className="btn-secondary flex-1"
+            >
+              Отмена
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   )
 }
