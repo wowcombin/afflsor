@@ -24,11 +24,13 @@ async function fetchExchangeRates() {
     const data = await response.json()
     
     // Конвертируем в наш формат (к USD) и применяем коэффициент 0.95
+    // data.rates содержит курсы FROM USD (например USD->GBP = 0.78)
+    // Нам нужны курсы TO USD (например GBP->USD = 1/0.78 = 1.28)
     const rates = {
-      'USD': 1.0,
-      'EUR': (1 / data.rates.EUR) * 0.95,  // Инвертируем и применяем 0.95
-      'GBP': (1 / data.rates.GBP) * 0.95,  // Инвертируем и применяем 0.95
-      'CAD': (1 / data.rates.CAD) * 0.95   // Инвертируем и применяем 0.95
+      'USD': 0.95,  // USD тоже -5% для брутто
+      'EUR': (1 / data.rates.EUR) * 0.95,  // Инвертируем: EUR->USD и применяем 0.95
+      'GBP': (1 / data.rates.GBP) * 0.95,  // Инвертируем: GBP->USD и применяем 0.95
+      'CAD': (1 / data.rates.CAD) * 0.95   // Инвертируем: CAD->USD и применяем 0.95
     }
 
     return {
@@ -58,13 +60,16 @@ async function fetchExchangeRates() {
 }
 
 // GET - Получить актуальные курсы валют
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const url = new URL(request.url)
+    const forceRefresh = url.searchParams.get('refresh') === 'true'
+    
     const now = Date.now()
     
-    // Проверяем нужно ли обновить кеш
-    if (!cachedRates || (now - lastUpdate) > CACHE_DURATION) {
-      console.log('Fetching fresh exchange rates...')
+    // Проверяем нужно ли обновить кеш (или принудительное обновление)
+    if (!cachedRates || (now - lastUpdate) > CACHE_DURATION || forceRefresh) {
+      console.log('Fetching fresh exchange rates...', forceRefresh ? '(forced)' : '')
       cachedRates = await fetchExchangeRates()
       lastUpdate = now
     }
