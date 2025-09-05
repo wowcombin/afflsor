@@ -120,13 +120,30 @@ export default function WithdrawalsQueue() {
   // Функция конвертации валют с применением коэффициента -5% (брутто)
   function convertToUSD(amount: number, currency: string): number {
     if (!exchangeRates) return amount * 0.95 // Если нет курсов, применяем -5%
-    
+
     if (currency === 'USD') {
       return amount * 0.95 // USD к USD тоже -5% для статистики (брутто)
     }
-    
+
     const rate = exchangeRates[currency] || 1
     return amount * rate // Курсы уже содержат -5% коэффициент
+  }
+
+  // Функция для определения валюты казино
+  const getCasinoCurrency = (item: WithdrawalData): string => {
+    // Используем casino_currency из API если доступно
+    if ((item as any).casino_currency) {
+      return (item as any).casino_currency
+    }
+    // Fallback логика по названию казино
+    const casinoName = item.casino_name.toLowerCase()
+    if (casinoName.includes('uk') || casinoName.includes('british') || casinoName.includes('virgin')) {
+      return 'GBP'
+    }
+    if (casinoName.includes('euro')) {
+      return 'EUR'
+    }
+    return 'USD'
   }
 
   // Функция для копирования промо ссылки
@@ -276,7 +293,7 @@ export default function WithdrawalsQueue() {
       const depositInUSD = convertToUSD(w.deposit_amount, currency)
       return sum + depositInUSD
     }, 0)
-    
+
     const totalWithdrawals = filtered.reduce((sum, w) => {
       const currency = getCasinoCurrency(w)
       const withdrawalInUSD = convertToUSD(w.withdrawal_amount, currency)
@@ -284,7 +301,7 @@ export default function WithdrawalsQueue() {
     }, 0)
 
     const totalProfit = totalWithdrawals - totalDeposits
-    
+
     return {
       totalCount: filtered.length,
       totalDeposits: totalDeposits,
@@ -491,23 +508,6 @@ export default function WithdrawalsQueue() {
     }
   ]
 
-  // Функция для определения валюты казино
-  const getCasinoCurrency = (item: WithdrawalData): string => {
-    // Используем casino_currency из API если доступно
-    if ((item as any).casino_currency) {
-      return (item as any).casino_currency
-    }
-    // Fallback логика по названию казино
-    const casinoName = item.casino_name.toLowerCase()
-    if (casinoName.includes('uk') || casinoName.includes('british') || casinoName.includes('virgin')) {
-      return 'GBP'
-    }
-    if (casinoName.includes('euro')) {
-      return 'EUR'
-    }
-    return 'USD'
-  }
-
   const actions = [
     {
       label: 'Проверить',
@@ -612,8 +612,8 @@ export default function WithdrawalsQueue() {
                 setSelectedWithdrawals([]) // Сбрасываем выделение при смене вкладки
               }}
               className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${activeTab === tab.id
-                  ? 'border-primary-500 text-primary-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                ? 'border-primary-500 text-primary-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
             >
               {tab.label}
@@ -681,10 +681,10 @@ export default function WithdrawalsQueue() {
             {activeTab === 'block' ? 'Общая потеря' : 'Профит'}
           </h3>
           <p className={`text-2xl font-bold ${activeTab === 'block'
-              ? 'text-danger-600'
-              : analytics.totalProfit >= 0
-                ? 'text-success-600'
-                : 'text-danger-600'
+            ? 'text-danger-600'
+            : analytics.totalProfit >= 0
+              ? 'text-success-600'
+              : 'text-danger-600'
             }`}>
             ${activeTab === 'block' ? analytics.totalWithdrawals.toFixed(2) : analytics.totalProfit.toFixed(2)}
           </p>
@@ -697,8 +697,8 @@ export default function WithdrawalsQueue() {
           <div className="card bg-red-50 border-red-200">
             <h3 className="text-sm font-medium text-red-700">Общий процент потерь</h3>
             <p className="text-2xl font-bold text-red-600">
-              {(analytics.totalDeposits + analytics.totalWithdrawals) > 0 
-                ? ((analytics.totalWithdrawals / (analytics.totalDeposits + analytics.totalWithdrawals)) * 100).toFixed(1) 
+              {(analytics.totalDeposits + analytics.totalWithdrawals) > 0
+                ? ((analytics.totalWithdrawals / (analytics.totalDeposits + analytics.totalWithdrawals)) * 100).toFixed(1)
                 : 0}%
             </p>
             <p className="text-xs text-red-600 mt-1">
