@@ -89,9 +89,7 @@ export async function POST(request: Request) {
     const signToken = crypto.randomBytes(32).toString('hex')
     
     // Определяем базовый URL для продакшена или разработки
-    const baseUrl = process.env.VERCEL_URL 
-      ? `https://${process.env.VERCEL_URL}` 
-      : process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://afflsor.com'
     
     const signUrl = `${baseUrl}/nda/sign/${agreement.id}?token=${signToken}`
 
