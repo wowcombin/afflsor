@@ -133,7 +133,7 @@ export default function SignNDAPage() {
       }
 
       console.log('=== ФОРМА: Отправляем запрос ===')
-      const response = await fetch(`/api/nda/simple-debug`, {
+      const response = await fetch(`/api/nda/sign`, {
         method: 'POST',
         body: formDataToSend
       })
@@ -151,10 +151,10 @@ export default function SignNDAPage() {
         addToast({
           type: 'success',
           title: 'Успешно',
-          description: 'Диагностика прошла успешно!'
+          description: 'NDA успешно подписано!'
         })
-        // Не перенаправляем, показываем результат
-        // window.location.href = '/nda/success'
+        // Перенаправляем на страницу успеха
+        window.location.href = '/nda/success'
       } else {
         console.log('=== ФОРМА: Ошибка API ===')
         console.log('Error:', result.error)
