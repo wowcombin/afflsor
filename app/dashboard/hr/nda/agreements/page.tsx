@@ -20,7 +20,7 @@ interface NDARecord {
   issuance_address: string
   issuance_date: string
   residential_address: string
-  signed_date: string
+  signed_at: string
   status: string
   created_at: string
   nda_files?: Array<{
@@ -159,11 +159,11 @@ export default function NDAgreementsPage() {
       )
     },
     {
-      key: 'signed_date',
+      key: 'signed_at',
       label: 'Когда подписан NDA',
       render: (nda: NDARecord) => (
         <div className="text-sm">
-          {nda.signed_date ? new Date(nda.signed_date).toLocaleDateString('ru-RU') : 'Не подписан'}
+          {nda.signed_at ? new Date(nda.signed_at).toLocaleDateString('ru-RU') : 'Не подписан'}
         </div>
       )
     },
@@ -292,7 +292,7 @@ export default function NDAgreementsPage() {
               <div>
                 <label className="text-sm font-medium text-gray-500">Дата подписания</label>
                 <p className="text-gray-900">
-                  {viewingNDA.signed_date ? new Date(viewingNDA.signed_date).toLocaleDateString('ru-RU') : 'Не подписан'}
+                  {viewingNDA.signed_at ? new Date(viewingNDA.signed_at).toLocaleDateString('ru-RU') : 'Не подписан'}
                 </p>
               </div>
             </div>
@@ -308,7 +308,7 @@ export default function NDAgreementsPage() {
                         <DocumentTextIcon className="w-5 h-5 text-gray-400 mr-3" />
                         <div>
                           <p className="font-medium text-gray-900">
-                            {file.file_type === 'signed_nda' && 'Подписанный NDA'}
+                            {file.file_type === 'signature' && 'Электронная подпись'}
                             {file.file_type === 'passport_photo' && 'Фото документа'}
                             {file.file_type === 'selfie_with_passport' && 'Селфи с документом'}
                           </p>

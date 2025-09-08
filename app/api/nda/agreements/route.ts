@@ -42,6 +42,11 @@ export async function GET(request: Request) {
         nda_templates:template_id (
           name,
           version
+        ),
+        nda_files (
+          file_type,
+          file_path,
+          original_filename
         )
       `)
       .order('created_at', { ascending: false })

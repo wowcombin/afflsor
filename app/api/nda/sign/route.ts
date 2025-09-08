@@ -160,7 +160,7 @@ export async function POST(request: NextRequest) {
       .from('nda_agreements')
       .update({
         status: 'signed',
-        signed_date: new Date().toISOString(),
+        signed_at: new Date().toISOString(),
         full_name: fullName,
         date_of_birth: dateOfBirth,
         email: email,

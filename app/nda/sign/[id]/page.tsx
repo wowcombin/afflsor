@@ -121,7 +121,7 @@ export default function SignNDAPage() {
         formDataToSend.append('selfieWithPassport', files.selfieWithPassport)
       }
 
-      const response = await fetch(`/api/nda/test-sign`, {
+      const response = await fetch(`/api/nda/sign`, {
         method: 'POST',
         body: formDataToSend
       })
