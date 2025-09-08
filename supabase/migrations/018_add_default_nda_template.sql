@@ -1,6 +1,6 @@
--- Добавляем базовый шаблон NDA
-INSERT INTO nda_templates (name, content, created_by) VALUES (
-  'Стандартный NDA',
+-- Добавляем базовый шаблон NDA (только если его еще нет)
+INSERT INTO nda_templates (name, content, created_by) 
+SELECT 'Стандартный NDA',
   'ДОГОВІР ПРО НЕРОЗГОЛОШЕННЯ КОНФІДЕНЦІЙНОЇ ІНФОРМАЦІЇ
 
 м. Київ [SIGNATURE_DATE]
@@ -83,4 +83,6 @@ d) підлягає обов''язковому розкриттю на вимо�
 _________________                          _________________
      Підпис                                   Підпис',
   (SELECT auth_id FROM users WHERE role = 'admin' LIMIT 1)
-) ON CONFLICT (name) DO NOTHING;
+WHERE NOT EXISTS (
+  SELECT 1 FROM nda_templates WHERE name = 'Стандартный NDA'
+);
