@@ -87,7 +87,13 @@ export async function POST(request: Request) {
 
     // Генерируем уникальную ссылку для подписания
     const signToken = crypto.randomBytes(32).toString('hex')
-    const signUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/nda/sign/${agreement.id}?token=${signToken}`
+    
+    // Определяем базовый URL для продакшена или разработки
+    const baseUrl = process.env.VERCEL_URL 
+      ? `https://${process.env.VERCEL_URL}` 
+      : process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+    
+    const signUrl = `${baseUrl}/nda/sign/${agreement.id}?token=${signToken}`
 
     // Сохраняем токен доступа
     await supabase
