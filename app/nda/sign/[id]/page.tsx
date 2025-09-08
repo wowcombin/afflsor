@@ -20,7 +20,7 @@ export default function SignNDAPage() {
   const params = useParams()
   const searchParams = useSearchParams()
   const { addToast } = useToast()
-  
+
   const [ndaData, setNdaData] = useState<NDAData | null>(null)
   const [loading, setLoading] = useState(true)
   const [signing, setSigning] = useState(false)
@@ -53,7 +53,7 @@ export default function SignNDAPage() {
     try {
       const response = await fetch(`/api/nda/sign/${agreementId}?token=${token}`)
       const data = await response.json()
-      
+
       if (data.success) {
         setNdaData(data.data)
         setFormData(prev => ({
@@ -77,7 +77,7 @@ export default function SignNDAPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!formData.agreed) {
       addToast({ type: 'error', title: 'Ошибка', description: 'Необходимо согласиться с условиями NDA' })
       return
@@ -97,22 +97,22 @@ export default function SignNDAPage() {
 
     try {
       const formDataToSend = new FormData()
-      
+
       // Добавляем ID соглашения
       formDataToSend.append('agreementId', agreementId)
-      
+
       // Добавляем данные формы
       Object.entries(formData).forEach(([key, value]) => {
         if (key !== 'agreed') {
           formDataToSend.append(key, value.toString())
         }
       })
-      
+
       // Добавляем подпись
       if (signature) {
         formDataToSend.append('signature', signature)
       }
-      
+
       // Добавляем файлы
       if (files.passportPhoto) {
         formDataToSend.append('passportPhoto', files.passportPhoto)
@@ -129,10 +129,10 @@ export default function SignNDAPage() {
       const result = await response.json()
 
       if (result.success) {
-        addToast({ 
-          type: 'success', 
-          title: 'Успешно', 
-          description: 'NDA успешно подписано!' 
+        addToast({
+          type: 'success',
+          title: 'Успешно',
+          description: 'NDA успешно подписано!'
         })
         // Перенаправляем на страницу успеха
         window.location.href = '/nda/success'
@@ -183,7 +183,7 @@ export default function SignNDAPage() {
           <h1 className="text-3xl font-bold text-center mb-8">
             Подписание соглашения о неразглашении
           </h1>
-          
+
           {/* Контент NDA */}
           <div className="mb-8 p-6 border rounded-lg bg-gray-50 max-h-96 overflow-y-auto">
             <div className="whitespace-pre-line text-sm leading-relaxed">
@@ -194,7 +194,7 @@ export default function SignNDAPage() {
                 .replace(/\[PASSPORT\]/g, formData.documentNumber || '[ПАСПОРТ]')
               }
             </div>
-            
+
             {/* Подписи сторон */}
             <div className="mt-8 pt-6 border-t border-gray-300">
               <div className="grid grid-cols-2 gap-8">
@@ -205,16 +205,43 @@ export default function SignNDAPage() {
                     <div className="text-sm">Андрій Головач</div>
                     <div className="text-xs text-gray-600 mt-1">Директор</div>
                   </div>
-                  
+
                   {/* Подпись директора (изображение или текст) */}
                   <div className="h-16 border-b border-gray-400 mb-2 flex items-end justify-center">
-                    <div className="text-2xl font-bold italic text-blue-900 transform -rotate-3" style={{ fontFamily: 'cursive' }}>
-                      АНГОЛ
-                    </div>
+                    <svg 
+                      width="120" 
+                      height="50" 
+                      viewBox="0 0 120 50" 
+                      className="mb-1"
+                    >
+                      <path 
+                        d="M10 35 Q15 10 25 15 Q35 20 45 12 Q55 5 65 18 Q75 30 85 15 Q95 8 105 25 Q110 35 115 20" 
+                        stroke="#1e3a8a" 
+                        strokeWidth="2" 
+                        fill="none" 
+                        strokeLinecap="round" 
+                        strokeLinejoin="round"
+                      />
+                      <path 
+                        d="M20 25 L25 35 M30 20 L35 40 M50 15 L55 35 M70 10 L75 30 M90 20 L95 40" 
+                        stroke="#1e3a8a" 
+                        strokeWidth="1.5" 
+                        strokeLinecap="round"
+                      />
+                      <ellipse 
+                        cx="60" 
+                        cy="25" 
+                        rx="50" 
+                        ry="15" 
+                        stroke="#1e3a8a" 
+                        strokeWidth="1.5" 
+                        fill="none"
+                      />
+                    </svg>
                   </div>
                   <div className="text-xs text-gray-500">(підпис)</div>
                 </div>
-                
+
                 {/* Место для подписи сотрудника */}
                 <div className="text-center">
                   <div className="mb-4">
@@ -222,7 +249,7 @@ export default function SignNDAPage() {
                     <div className="text-sm">{formData.fullName || '[ИМЯ]'}</div>
                     <div className="text-xs text-gray-600 mt-1">Співробітник</div>
                   </div>
-                  
+
                   {/* Место для подписи сотрудника */}
                   <div className="h-16 border-b border-gray-400 mb-2 flex items-end justify-center">
                     {signature ? (
@@ -234,7 +261,7 @@ export default function SignNDAPage() {
                   <div className="text-xs text-gray-500">(підпис)</div>
                 </div>
               </div>
-              
+
               <div className="text-center mt-4 text-xs text-gray-600">
                 Дата підписання: {new Date().toLocaleDateString('uk-UA')}
               </div>
@@ -254,7 +281,7 @@ export default function SignNDAPage() {
                   required
                 />
               </div>
-              
+
               <div>
                 <label className="form-label">Дата рождения *</label>
                 <input
@@ -369,7 +396,7 @@ export default function SignNDAPage() {
                 required
               />
               <label htmlFor="agreed" className="text-sm text-gray-700">
-                Я прочитал(а) и согласен(на) с условиями соглашения о неразглашении. 
+                Я прочитал(а) и согласен(на) с условиями соглашения о неразглашении.
                 Понимаю свои обязательства и ответственность за нарушение условий договора.
               </label>
             </div>
