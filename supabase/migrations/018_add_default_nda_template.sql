@@ -82,7 +82,7 @@ d) підлягає обов''язковому розкриттю на вимо�
 
 _________________                          _________________
      Підпис                                   Підпис',
-  (SELECT auth_id FROM users WHERE role = 'admin' LIMIT 1)
+  NULL
 WHERE NOT EXISTS (
   SELECT 1 FROM nda_templates WHERE name = 'Стандартный NDA'
 );
