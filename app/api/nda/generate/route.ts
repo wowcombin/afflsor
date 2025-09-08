@@ -34,21 +34,22 @@ export async function POST(request: Request) {
       expires_in_days = 30 
     } = body
 
-    if (!user_id || !template_id || !full_name || !email) {
+    if (!template_id || !full_name || !email) {
       return NextResponse.json({ 
-        error: 'user_id, template_id, full_name, and email are required' 
+        error: 'template_id, full_name, and email are required' 
       }, { status: 400 })
     }
 
-    // Проверяем существование пользователя
-    const { data: targetUser } = await supabase
-      .from('users')
-      .select('id, email, first_name, last_name')
-      .eq('id', user_id)
-      .single()
-
-    if (!targetUser) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    // Проверяем существование пользователя (опционально)
+    let targetUser = null
+    if (user_id) {
+      const { data } = await supabase
+        .from('users')
+        .select('id, email, first_name, last_name')
+        .eq('id', user_id)
+        .single()
+      
+      targetUser = data
     }
 
     // Проверяем шаблон
@@ -86,13 +87,13 @@ export async function POST(request: Request) {
 
     // Генерируем уникальную ссылку для подписания
     const signToken = crypto.randomBytes(32).toString('hex')
-    const signUrl = `${process.env.NEXT_PUBLIC_APP_URL}/nda/sign/${agreement.id}?token=${signToken}`
+    const signUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/nda/sign/${agreement.id}?token=${signToken}`
 
-    // Сохраняем токен (в реальном проекте лучше в отдельной таблице)
+    // Сохраняем токен доступа
     await supabase
       .from('nda_agreements')
       .update({ 
-        signature_data: JSON.stringify({ sign_token: signToken }) 
+        access_token: signToken
       })
       .eq('id', agreement.id)
 

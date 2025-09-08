@@ -32,10 +32,14 @@ export default function GenerateNDAPage() {
   const [templates, setTemplates] = useState<Template[]>([])
   const [loading, setLoading] = useState(true)
   const [generating, setGenerating] = useState(false)
-  const [selectedUser, setSelectedUser] = useState<string>('')
+  const [formData, setFormData] = useState({
+    email: '',
+    full_name: ''
+  })
   const [selectedTemplate, setSelectedTemplate] = useState<string>('')
   const [generatedLinks, setGeneratedLinks] = useState<Array<{
-    user: User
+    email: string
+    full_name: string
     link: string
     created_at: string
   }>>([])
@@ -46,7 +50,7 @@ export default function GenerateNDAPage() {
 
   const fetchData = async () => {
     try {
-      // Получаем пользователей без NDA
+      // Получаем пользователей без NDA для статистики
       const usersResponse = await fetch('/api/users')
       const usersData = await usersResponse.json()
       
@@ -73,25 +77,29 @@ export default function GenerateNDAPage() {
   }
 
   const generateNDALink = async () => {
-    if (!selectedUser || !selectedTemplate) {
-      addToast({ type: 'error', title: 'Ошибка', description: 'Выберите сотрудника и шаблон' })
+    if (!formData.email || !formData.full_name || !selectedTemplate) {
+      addToast({ type: 'error', title: 'Ошибка', description: 'Заполните все поля и выберите шаблон' })
+      return
+    }
+
+    // Проверяем валидность email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(formData.email)) {
+      addToast({ type: 'error', title: 'Ошибка', description: 'Введите корректный email адрес' })
       return
     }
 
     setGenerating(true)
 
     try {
-      const user = users.find(u => u.id === selectedUser)
-      if (!user) return
-
       const response = await fetch('/api/nda/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          user_id: selectedUser,
+          user_id: null, // Для будущих сотрудников
           template_id: selectedTemplate,
-          full_name: `${user.first_name} ${user.last_name}`,
-          email: user.email
+          full_name: formData.full_name,
+          email: formData.email
         })
       })
 
@@ -99,7 +107,8 @@ export default function GenerateNDAPage() {
 
       if (result.success) {
         setGeneratedLinks(prev => [{
-          user,
+          email: formData.email,
+          full_name: formData.full_name,
           link: result.data.sign_url,
           created_at: new Date().toISOString()
         }, ...prev])
@@ -110,10 +119,10 @@ export default function GenerateNDAPage() {
           description: 'Ссылка для подписания NDA создана' 
         })
         
-        // Сбрасываем выбор пользователя
-        setSelectedUser('')
+        // Сбрасываем форму
+        setFormData({ email: '', full_name: '' })
         
-        // Обновляем список пользователей
+        // Обновляем статистику
         await fetchData()
       } else {
         addToast({ type: 'error', title: 'Ошибка', description: result.error })
@@ -143,15 +152,15 @@ export default function GenerateNDAPage() {
       {/* Статистика */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="card">
-          <h3 className="text-sm font-medium text-gray-500">Сотрудников без NDA</h3>
-          <p className="text-2xl font-bold text-danger-600">{users.length}</p>
+          <h3 className="text-sm font-medium text-gray-500">Текущих сотрудников без NDA</h3>
+          <p className="text-2xl font-bold text-warning-600">{users.length}</p>
         </div>
         <div className="card">
           <h3 className="text-sm font-medium text-gray-500">Активных шаблонов</h3>
           <p className="text-2xl font-bold text-primary-600">{templates.length}</p>
         </div>
         <div className="card">
-          <h3 className="text-sm font-medium text-gray-500">Создано ссылок</h3>
+          <h3 className="text-sm font-medium text-gray-500">Создано ссылок сегодня</h3>
           <p className="text-2xl font-bold text-success-600">{generatedLinks.length}</p>
         </div>
       </div>
@@ -160,34 +169,42 @@ export default function GenerateNDAPage() {
       <div className="card">
         <div className="card-header">
           <h3 className="text-lg font-semibold text-gray-900">Создать NDA для сотрудника</h3>
-          <p className="text-sm text-gray-500">Выберите сотрудника и шаблон для генерации ссылки подписания</p>
+          <p className="text-sm text-gray-500">Введите данные сотрудника и выберите шаблон для генерации ссылки подписания</p>
         </div>
         <div className="card-body">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
-              <label className="form-label">Выберите сотрудника *</label>
-              <select
-                value={selectedUser}
-                onChange={(e) => setSelectedUser(e.target.value)}
+              <label className="form-label">Email сотрудника *</label>
+              <input
+                type="email"
+                value={formData.email}
+                onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
                 className="form-input w-full"
+                placeholder="example@company.com"
                 disabled={generating}
-              >
-                <option value="">-- Выберите сотрудника --</option>
-                {users.map(user => (
-                  <option key={user.id} value={user.id}>
-                    {user.first_name} {user.last_name} ({user.email}) - {user.role}
-                  </option>
-                ))}
-              </select>
-              {users.length === 0 && (
-                <p className="text-sm text-gray-500 mt-2">
-                  Все сотрудники уже подписали NDA
-                </p>
-              )}
+              />
+              <p className="text-sm text-gray-500 mt-1">
+                Email для отправки ссылки на подписание
+              </p>
             </div>
 
             <div>
-              <label className="form-label">Выберите шаблон *</label>
+              <label className="form-label">Полное имя *</label>
+              <input
+                type="text"
+                value={formData.full_name}
+                onChange={(e) => setFormData(prev => ({ ...prev, full_name: e.target.value }))}
+                className="form-input w-full"
+                placeholder="Иван Иванов"
+                disabled={generating}
+              />
+              <p className="text-sm text-gray-500 mt-1">
+                ФИО сотрудника для договора
+              </p>
+            </div>
+
+            <div>
+              <label className="form-label">Шаблон NDA *</label>
               <select
                 value={selectedTemplate}
                 onChange={(e) => setSelectedTemplate(e.target.value)}
@@ -202,7 +219,7 @@ export default function GenerateNDAPage() {
                 ))}
               </select>
               {templates.length === 0 && (
-                <p className="text-sm text-gray-500 mt-2">
+                <p className="text-sm text-red-500 mt-1">
                   Нет активных шаблонов
                 </p>
               )}
@@ -212,7 +229,7 @@ export default function GenerateNDAPage() {
           <div className="flex justify-end pt-6">
             <button
               onClick={generateNDALink}
-              disabled={!selectedUser || !selectedTemplate || generating || users.length === 0}
+              disabled={!formData.email || !formData.full_name || !selectedTemplate || generating}
               className="btn-primary disabled:opacity-50"
             >
               <DocumentTextIcon className="w-5 h-5 mr-2" />
@@ -238,9 +255,9 @@ export default function GenerateNDAPage() {
                       <UserIcon className="w-5 h-5 text-gray-400 mr-3" />
                       <div>
                         <p className="font-medium text-gray-900">
-                          {item.user.first_name} {item.user.last_name}
+                          {item.full_name}
                         </p>
-                        <p className="text-sm text-gray-500">{item.user.email}</p>
+                        <p className="text-sm text-gray-500">{item.email}</p>
                       </div>
                     </div>
                     <div className="flex items-center text-sm text-gray-500">
@@ -277,11 +294,12 @@ export default function GenerateNDAPage() {
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
         <h3 className="font-medium text-blue-900 mb-3">📋 Инструкции по использованию</h3>
         <div className="text-sm text-blue-800 space-y-2">
-          <div>• Выберите сотрудника из списка тех, кто еще не подписал NDA</div>
+          <div>• Введите email и полное имя будущего сотрудника</div>
           <div>• Выберите подходящий шаблон соглашения</div>
-          <div>• Скопируйте созданную ссылку и отправьте сотруднику</div>
-          <div>• Сотрудник заполнит форму и загрузит необходимые документы</div>
+          <div>• Скопируйте созданную ссылку и отправьте кандидату</div>
+          <div>• Кандидат заполнит форму и загрузит необходимые документы</div>
           <div>• После подписания вы получите уведомление и сможете просмотреть детали в разделе "Соглашения"</div>
+          <div>• Система подходит как для текущих сотрудников, так и для кандидатов на трудоустройство</div>
         </div>
       </div>
     </div>
