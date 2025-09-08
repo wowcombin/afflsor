@@ -48,7 +48,6 @@ export default function NDAgreementsPage() {
       const data = await response.json()
       
       if (data.success) {
-        console.log('NDA agreements data:', data.data)
         setNdaRecords(data.data)
       } else {
         addToast({ type: 'error', title: 'Ошибка', description: data.error })
@@ -61,14 +60,13 @@ export default function NDAgreementsPage() {
   }
 
   const viewNDADetails = (nda: NDARecord) => {
-    console.log('Viewing NDA details:', nda)
-    console.log('NDA files:', nda.nda_files)
     setViewingNDA(nda)
     setShowViewModal(true)
   }
 
   const deleteNDA = async (nda: NDARecord) => {
-    if (!confirm(`Вы уверены, что хотите удалить NDA для ${nda.full_name}?`)) {
+    const statusText = nda.status === 'signed' ? 'подписанное' : 'неподписанное'
+    if (!confirm(`Вы уверены, что хотите удалить ${statusText} NDA соглашение для ${nda.full_name}?\n\nЭто действие удалит все связанные файлы и нельзя будет отменить.`)) {
       return
     }
 
@@ -188,8 +186,7 @@ export default function NDAgreementsPage() {
       label: 'Удалить',
       action: (nda: NDARecord) => deleteNDA(nda),
       variant: 'danger' as const,
-      icon: TrashIcon,
-      condition: (nda: NDARecord) => nda.status !== 'signed'
+      icon: TrashIcon
     }
   ]
 

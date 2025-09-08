@@ -101,10 +101,10 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: 'Agreement ID is required' }, { status: 400 })
     }
 
-    // Проверяем, что NDA не подписан
+    // Проверяем существование соглашения
     const { data: agreement, error: checkError } = await supabase
       .from('nda_agreements')
-      .select('status')
+      .select('status, user_id')
       .eq('id', agreementId)
       .single()
 
@@ -112,10 +112,49 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: 'Agreement not found' }, { status: 404 })
     }
 
-    if (agreement.status === 'signed') {
-      return NextResponse.json({ 
-        error: 'Нельзя удалить подписанное NDA соглашение' 
-      }, { status: 400 })
+    // Получаем связанные файлы для удаления из Storage
+    const { data: files } = await supabase
+      .from('nda_files')
+      .select('file_path')
+      .eq('agreement_id', agreementId)
+
+    // Удаляем файлы из Storage
+    if (files && files.length > 0) {
+      const filePaths = files.map(f => f.file_path)
+      const { error: storageError } = await supabase.storage
+        .from('nda-files')
+        .remove(filePaths)
+      
+      if (storageError) {
+        console.error('Storage delete error:', storageError)
+        // Не прерываем процесс, просто логируем ошибку
+      }
+    }
+
+    // Удаляем записи файлов из базы
+    const { error: filesDeleteError } = await supabase
+      .from('nda_files')
+      .delete()
+      .eq('agreement_id', agreementId)
+
+    if (filesDeleteError) {
+      console.error('Files delete error:', filesDeleteError)
+    }
+
+    // Обновляем пользователя (убираем связь с NDA)
+    if (agreement.user_id) {
+      const { error: userUpdateError } = await supabase
+        .from('users')
+        .update({
+          nda_signed: false,
+          nda_signed_date: null,
+          nda_agreement_id: null
+        })
+        .eq('id', agreement.user_id)
+
+      if (userUpdateError) {
+        console.error('User update error:', userUpdateError)
+      }
     }
 
     // Удаляем соглашение
