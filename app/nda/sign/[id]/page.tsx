@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
 import { useToast } from '@/components/ui/Toast'
+import SignaturePad from '@/components/ui/SignaturePad'
 
 interface NDAData {
   id: string
@@ -34,10 +35,10 @@ export default function SignNDAPage() {
     agreed: false
   })
   const [files, setFiles] = useState({
-    signedNdaFile: null as File | null,
     passportPhoto: null as File | null,
     selfieWithPassport: null as File | null
   })
+  const [signature, setSignature] = useState<string | null>(null)
 
   const agreementId = params.id as string
   const token = searchParams.get('token')
@@ -82,8 +83,13 @@ export default function SignNDAPage() {
       return
     }
 
-    if (!files.signedNdaFile || !files.passportPhoto || !files.selfieWithPassport) {
-      addToast({ type: 'error', title: 'Ошибка', description: 'Необходимо загрузить все документы' })
+    if (!signature) {
+      addToast({ type: 'error', title: 'Ошибка', description: 'Необходимо поставить электронную подпись' })
+      return
+    }
+
+    if (!files.passportPhoto || !files.selfieWithPassport) {
+      addToast({ type: 'error', title: 'Ошибка', description: 'Необходимо загрузить фото документа и селфи' })
       return
     }
 
@@ -102,10 +108,12 @@ export default function SignNDAPage() {
         }
       })
       
-      // Добавляем файлы
-      if (files.signedNdaFile) {
-        formDataToSend.append('signedNdaFile', files.signedNdaFile)
+      // Добавляем подпись
+      if (signature) {
+        formDataToSend.append('signature', signature)
       }
+      
+      // Добавляем файлы
       if (files.passportPhoto) {
         formDataToSend.append('passportPhoto', files.passportPhoto)
       }
@@ -185,6 +193,51 @@ export default function SignNDAPage() {
                 .replace(/\[ADDRESS\]/g, formData.residentialAddress || '[АДРЕС]')
                 .replace(/\[PASSPORT\]/g, formData.documentNumber || '[ПАСПОРТ]')
               }
+            </div>
+            
+            {/* Подписи сторон */}
+            <div className="mt-8 pt-6 border-t border-gray-300">
+              <div className="grid grid-cols-2 gap-8">
+                {/* Подпись директора */}
+                <div className="text-center">
+                  <div className="mb-4">
+                    <div className="text-sm font-medium mb-2">Сторона – Роботодавець</div>
+                    <div className="text-sm">Андрій Головач</div>
+                    <div className="text-xs text-gray-600 mt-1">Директор</div>
+                  </div>
+                  
+                  {/* Подпись директора (изображение или текст) */}
+                  <div className="h-16 border-b border-gray-400 mb-2 flex items-end justify-center">
+                    <div className="text-lg font-signature italic text-blue-800">
+                      Андрій Головач
+                    </div>
+                  </div>
+                  <div className="text-xs text-gray-500">(підпис)</div>
+                </div>
+                
+                {/* Место для подписи сотрудника */}
+                <div className="text-center">
+                  <div className="mb-4">
+                    <div className="text-sm font-medium mb-2">Сторона – Працівник</div>
+                    <div className="text-sm">{formData.fullName || '[ИМЯ]'}</div>
+                    <div className="text-xs text-gray-600 mt-1">Співробітник</div>
+                  </div>
+                  
+                  {/* Место для подписи сотрудника */}
+                  <div className="h-16 border-b border-gray-400 mb-2 flex items-end justify-center">
+                    {signature ? (
+                      <img src={signature} alt="Подпись" className="max-h-12 max-w-full" />
+                    ) : (
+                      <div className="text-xs text-gray-400">Место для подписи</div>
+                    )}
+                  </div>
+                  <div className="text-xs text-gray-500">(підпис)</div>
+                </div>
+              </div>
+              
+              <div className="text-center mt-4 text-xs text-gray-600">
+                Дата підписання: {new Date().toLocaleDateString('uk-UA')}
+              </div>
             </div>
           </div>
 
@@ -269,22 +322,13 @@ export default function SignNDAPage() {
               />
             </div>
 
-            {/* Загрузка файлов */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div>
-                <label className="form-label">Подписанный NDA (PDF) *</label>
-                <input
-                  type="file"
-                  accept="application/pdf"
-                  onChange={(e) => handleFileChange('signedNdaFile', e.target.files?.[0] || null)}
-                  className="form-input"
-                  required
-                />
-                <p className="text-sm text-gray-500 mt-1">
-                  Скачайте, подпишите и загрузите PDF файл
-                </p>
-              </div>
+            {/* Электронная подпись */}
+            <div className="mb-6">
+              <SignaturePad onSignatureChange={setSignature} />
+            </div>
 
+            {/* Загрузка файлов */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="form-label">Фото документа *</label>
                 <input

@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
     const issuanceAddress = formData.get('issuanceAddress') as string
     const issuanceDate = formData.get('issuanceDate') as string
     const residentialAddress = formData.get('residentialAddress') as string
-    const signedNdaFile = formData.get('signedNdaFile') as File
+    const signature = formData.get('signature') as string
     const passportPhoto = formData.get('passportPhoto') as File
     const selfieWithPassport = formData.get('selfieWithPassport') as File
 
@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
       agreementId, 
       fullName, 
       email,
-      hasSignedNda: !!signedNdaFile,
+      hasSignature: !!signature,
       hasPassportPhoto: !!passportPhoto,
       hasSelfie: !!selfieWithPassport
     })
@@ -37,10 +37,16 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // Проверяем файлы
-    if (!signedNdaFile || !passportPhoto || !selfieWithPassport) {
+    // Проверяем подпись и файлы
+    if (!signature) {
       return NextResponse.json({ 
-        error: 'Все файлы обязательны для загрузки' 
+        error: 'Электронная подпись обязательна' 
+      }, { status: 400 })
+    }
+
+    if (!passportPhoto || !selfieWithPassport) {
+      return NextResponse.json({ 
+        error: 'Фото документа и селфи обязательны для загрузки' 
       }, { status: 400 })
     }
 
@@ -68,15 +74,18 @@ export async function POST(request: NextRequest) {
     const timestamp = Date.now()
     const filePrefix = `nda/${agreementId}/${timestamp}`
 
-    // Загружаем подписанный NDA
-    const { data: ndaUpload, error: ndaUploadError } = await supabase.storage
+    // Сохраняем подпись как изображение
+    const signatureBuffer = Buffer.from(signature.split(',')[1], 'base64')
+    const { data: signatureUpload, error: signatureUploadError } = await supabase.storage
       .from('nda-files')
-      .upload(`${filePrefix}/signed-nda.pdf`, signedNdaFile)
+      .upload(`${filePrefix}/signature.png`, signatureBuffer, {
+        contentType: 'image/png'
+      })
 
-    if (ndaUploadError) {
-      console.error('NDA upload error:', ndaUploadError)
+    if (signatureUploadError) {
+      console.error('Signature upload error:', signatureUploadError)
       return NextResponse.json({ 
-        error: 'Ошибка загрузки подписанного NDA' 
+        error: 'Ошибка сохранения подписи' 
       }, { status: 500 })
     }
 
@@ -108,9 +117,9 @@ export async function POST(request: NextRequest) {
     const fileRecords = [
       {
         agreement_id: agreementId,
-        file_type: 'signed_nda',
-        file_path: ndaUpload.path,
-        original_filename: signedNdaFile.name
+        file_type: 'signature',
+        file_path: signatureUpload.path,
+        original_filename: 'signature.png'
       },
       {
         agreement_id: agreementId,
