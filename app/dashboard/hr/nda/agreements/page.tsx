@@ -48,6 +48,7 @@ export default function NDAgreementsPage() {
       const data = await response.json()
       
       if (data.success) {
+        console.log('NDA agreements data:', data.data)
         setNdaRecords(data.data)
       } else {
         addToast({ type: 'error', title: 'Ошибка', description: data.error })
@@ -60,6 +61,8 @@ export default function NDAgreementsPage() {
   }
 
   const viewNDADetails = (nda: NDARecord) => {
+    console.log('Viewing NDA details:', nda)
+    console.log('NDA files:', nda.nda_files)
     setViewingNDA(nda)
     setShowViewModal(true)
   }
