@@ -58,7 +58,13 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // Публичные маршруты (не требуют аутентификации)
-  const publicRoutes = ['/auth/login', '/auth/register', '/auth/reset-password']
+  const publicRoutes = [
+    '/auth/login', 
+    '/auth/register', 
+    '/auth/reset-password',
+    '/nda/sign',  // Страницы подписания NDA
+    '/nda/success' // Страница успешного подписания
+  ]
   const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route))
 
   // Если пользователь не аутентифицирован и пытается попасть на защищенную страницу
