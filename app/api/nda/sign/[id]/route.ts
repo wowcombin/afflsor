@@ -9,7 +9,7 @@ export async function GET(
     // Создаем анонимный клиент для публичного доступа
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     )
     const { searchParams } = new URL(request.url)
     const token = searchParams.get('token')
