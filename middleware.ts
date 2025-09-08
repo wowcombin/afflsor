@@ -63,7 +63,9 @@ export async function middleware(request: NextRequest) {
     '/auth/register', 
     '/auth/reset-password',
     '/nda/sign',  // Страницы подписания NDA
-    '/nda/success' // Страница успешного подписания
+    '/nda/success', // Страница успешного подписания
+    '/api/nda/sign', // API для подписания NDA
+    '/api/nda/test-connection' // Тестовый API
   ]
   const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route))
 
