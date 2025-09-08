@@ -12,9 +12,10 @@ export async function GET(
     
     const agreementId = params.id
 
-    console.log('NDA Sign GET API called:', { agreementId, hasToken: !!token })
+    console.log('NDA Sign GET API called:', { agreementId, hasToken: !!token, token })
 
     if (!token) {
+      console.log('No token provided')
       return NextResponse.json({ 
         error: 'Токен доступа обязателен' 
       }, { status: 400 })
@@ -40,6 +41,8 @@ export async function GET(
       `)
       .eq('id', agreementId)
       .single()
+
+    console.log('Agreement query result:', { agreement, agreementError })
 
     if (agreementError || !agreement) {
       console.error('Agreement not found:', agreementError)
