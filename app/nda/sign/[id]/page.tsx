@@ -208,8 +208,8 @@ export default function SignNDAPage() {
                   
                   {/* Подпись директора (изображение или текст) */}
                   <div className="h-16 border-b border-gray-400 mb-2 flex items-end justify-center">
-                    <div className="text-lg font-signature italic text-blue-800">
-                      Андрій Головач
+                    <div className="text-2xl font-bold italic text-blue-900 transform -rotate-3" style={{ fontFamily: 'cursive' }}>
+                      АНГОЛ
                     </div>
                   </div>
                   <div className="text-xs text-gray-500">(підпис)</div>
