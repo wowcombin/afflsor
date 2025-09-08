@@ -22,9 +22,11 @@ export interface Column<T = any> {
 export interface ActionButton<T = any> {
   label: string
   action: (item: T) => void | Promise<void>
-  variant?: 'primary' | 'secondary' | 'success' | 'warning' | 'danger'
+  variant?: 'primary' | 'secondary' | 'success' | 'warning' | 'danger' | 'ghost'
   condition?: (item: T) => boolean
   loading?: boolean
+  icon?: React.ComponentType<{ className?: string }>
+  tooltip?: string
 }
 
 interface DataTableProps<T = any> {
@@ -262,24 +264,39 @@ export default function DataTable<T extends Record<string, any>>({
                       <div className="flex justify-end space-x-2">
                         {actions
                           .filter(action => !action.condition || action.condition(item))
-                          .map((action, actionIndex) => (
-                            <button
-                              key={actionIndex}
-                              onClick={() => action.action(item)}
-                              disabled={action.loading}
-                              className={clsx(
-                                'btn text-xs px-2 py-1',
-                                action.variant === 'primary' && 'btn-primary',
-                                action.variant === 'secondary' && 'btn-secondary',
-                                action.variant === 'success' && 'btn-success',
-                                action.variant === 'warning' && 'btn-warning',
-                                action.variant === 'danger' && 'btn-danger',
-                                !action.variant && 'btn-secondary'
-                              )}
-                            >
-                              {action.loading ? 'Загрузка...' : action.label}
-                            </button>
-                          ))}
+                          .map((action, actionIndex) => {
+                            const IconComponent = action.icon
+                            const isIconOnly = !action.label && IconComponent
+                            
+                            return (
+                              <button
+                                key={actionIndex}
+                                onClick={() => action.action(item)}
+                                disabled={action.loading}
+                                title={action.tooltip || action.label}
+                                className={clsx(
+                                  'btn',
+                                  isIconOnly ? 'p-1.5' : 'text-xs px-2 py-1',
+                                  action.variant === 'primary' && 'btn-primary',
+                                  action.variant === 'secondary' && 'btn-secondary',
+                                  action.variant === 'success' && 'btn-success',
+                                  action.variant === 'warning' && 'btn-warning',
+                                  action.variant === 'danger' && 'btn-danger',
+                                  action.variant === 'ghost' && 'text-gray-600 hover:text-gray-900 hover:bg-gray-100 border-0 bg-transparent',
+                                  !action.variant && 'btn-secondary'
+                                )}
+                              >
+                                {action.loading ? (
+                                  <div className="w-4 h-4 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin"></div>
+                                ) : (
+                                  <>
+                                    {IconComponent && <IconComponent className={clsx('w-4 h-4', action.label && 'mr-1')} />}
+                                    {action.label}
+                                  </>
+                                )}
+                              </button>
+                            )
+                          })}
                       </div>
                     </td>
                   )}

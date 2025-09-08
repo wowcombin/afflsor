@@ -177,16 +177,18 @@ export default function NDAgreementsPage() {
 
   const actions = [
     {
-      label: 'Просмотр',
+      label: '',
       action: (nda: NDARecord) => viewNDADetails(nda),
-      variant: 'primary' as const,
-      icon: EyeIcon
+      variant: 'ghost' as const,
+      icon: EyeIcon,
+      tooltip: 'Просмотр'
     },
     {
-      label: 'Удалить',
+      label: '',
       action: (nda: NDARecord) => deleteNDA(nda),
-      variant: 'danger' as const,
-      icon: TrashIcon
+      variant: 'ghost' as const,
+      icon: TrashIcon,
+      tooltip: 'Удалить'
     }
   ]
 
