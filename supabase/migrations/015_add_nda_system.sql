@@ -87,9 +87,9 @@ ALTER TABLE users ADD COLUMN nda_signed BOOLEAN DEFAULT FALSE;
 ALTER TABLE users ADD COLUMN nda_signed_date TIMESTAMP WITH TIME ZONE;
 ALTER TABLE users ADD COLUMN nda_agreement_id UUID REFERENCES nda_agreements(id);
 
--- Вставляем базовый шаблон NDA
+-- Вставляем базовый шаблон NDA (упрощенная версия без украинского текста)
 INSERT INTO nda_templates (name, content, version, is_active) VALUES (
-'Стандартный NDA Xbsidian Co.',
+'Standard NDA Template',
 '<!DOCTYPE html>
 <html>
 <head>
@@ -105,30 +105,36 @@ INSERT INTO nda_templates (name, content, version, is_active) VALUES (
 </head>
 <body>
     <div class="header">
-        <h1>ДОГОВІР ПРО НЕРОЗГОЛОШЕННЯ КОНФІДЕНЦІЙНОЇ ІНФОРМАЦІЇ</h1>
-        <p>м. Київ [SIGNATURE_DATE]</p>
+        <h1>NON-DISCLOSURE AGREEMENT</h1>
+        <p>Date: [SIGNATURE_DATE]</p>
     </div>
     
     <div class="section">
-        <p>Компанія «Xbsidian Co.», надалі – "Роботодавець", представлена директором Андрієм Головачем, який діє на підставі Статуту, зареєстрована за адресою: м. Київ, Просп. Європейського Союзу, 64.</p>
-        
-        <p>Працівник <strong>[FULL_NAME]</strong>, паспортні дані <strong>[PASSPORT]</strong>, надалі іменований "Співробітник", який проживає за адресою: <strong>[ADDRESS]</strong>.</p>
+        <p>Company: Xbsidian Co., represented by Director Andrii Holovach</p>
+        <p>Employee: <strong>[FULL_NAME]</strong></p>
+        <p>Document: <strong>[PASSPORT]</strong></p>
+        <p>Address: <strong>[ADDRESS]</strong></p>
     </div>
     
-    <!-- Весь остальной текст NDA -->
     <div class="section">
-        <h2>1. ПРЕДМЕТ ДОГОВОРУ</h2>
-        <p>1.1. Сторони погодили, що будь-яка інформація (незалежно від форми, носія чи способу отримання), до якої Працівник має або матиме доступ, отримує, створює чи дізнається під час виконання трудових обов'язків, є конфіденційною та становить «Конфіденційну інформацію» Роботодавця.</p>
-        <!-- ... остальной контент ... -->
+        <h2>1. SUBJECT OF AGREEMENT</h2>
+        <p>1.1. The parties agree that any information accessed by the Employee is confidential.</p>
+        <p>1.2. This includes but is not limited to: financial data, technical documentation, business plans.</p>
+    </div>
+    
+    <div class="section">
+        <h2>2. OBLIGATIONS</h2>
+        <p>2.1. Employee agrees to maintain confidentiality of all information.</p>
+        <p>2.2. Employee will not disclose information to third parties.</p>
     </div>
     
     <div class="signature-block">
         <div>
-            <p>Сторона – Роботодавець</p>
-            <div class="signature">Андрій Головач</div>
+            <p>Company Representative</p>
+            <div class="signature">Andrii Holovach</div>
         </div>
         <div>
-            <p>Сторона – Працівник</p>
+            <p>Employee</p>
             <div class="signature">[FULL_NAME]</div>
         </div>
     </div>
