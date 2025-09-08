@@ -25,6 +25,7 @@ export async function POST(request: NextRequest) {
       fullName, 
       email,
       hasSignature: !!signature,
+      signatureLength: signature?.length,
       hasPassportPhoto: !!passportPhoto,
       hasSelfie: !!selfieWithPassport
     })
@@ -75,7 +76,11 @@ export async function POST(request: NextRequest) {
     const filePrefix = `nda/${agreementId}/${timestamp}`
 
     // Сохраняем подпись как изображение
-    const signatureBuffer = Buffer.from(signature.split(',')[1], 'base64')
+    let signatureData = signature
+    if (signature.includes(',')) {
+      signatureData = signature.split(',')[1]
+    }
+    const signatureBuffer = Buffer.from(signatureData, 'base64')
     const { data: signatureUpload, error: signatureUploadError } = await supabase.storage
       .from('nda-files')
       .upload(`${filePrefix}/signature.png`, signatureBuffer, {
