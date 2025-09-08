@@ -7,7 +7,8 @@ import Modal from '@/components/ui/Modal'
 import { useToast } from '@/components/ui/Toast'
 import { 
   EyeIcon,
-  DocumentTextIcon
+  DocumentTextIcon,
+  TrashIcon
 } from '@heroicons/react/24/outline'
 
 interface NDARecord {
@@ -61,6 +62,41 @@ export default function NDAgreementsPage() {
   const viewNDADetails = (nda: NDARecord) => {
     setViewingNDA(nda)
     setShowViewModal(true)
+  }
+
+  const deleteNDA = async (nda: NDARecord) => {
+    if (!confirm(`Вы уверены, что хотите удалить NDA для ${nda.full_name}?`)) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/nda/agreements?id=${nda.id}`, {
+        method: 'DELETE'
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        addToast({ 
+          type: 'success', 
+          title: 'Успех', 
+          description: 'NDA соглашение удалено' 
+        })
+        fetchAgreements() // Обновляем список
+      } else {
+        addToast({ 
+          type: 'error', 
+          title: 'Ошибка', 
+          description: data.error || 'Не удалось удалить NDA' 
+        })
+      }
+    } catch (error) {
+      addToast({ 
+        type: 'error', 
+        title: 'Ошибка', 
+        description: 'Произошла ошибка при удалении NDA' 
+      })
+    }
   }
 
   const getFileUrl = (filePath: string) => {
@@ -144,6 +180,13 @@ export default function NDAgreementsPage() {
       action: (nda: NDARecord) => viewNDADetails(nda),
       variant: 'primary' as const,
       icon: EyeIcon
+    },
+    {
+      label: 'Удалить',
+      action: (nda: NDARecord) => deleteNDA(nda),
+      variant: 'danger' as const,
+      icon: TrashIcon,
+      condition: (nda: NDARecord) => nda.status !== 'signed'
     }
   ]
 
