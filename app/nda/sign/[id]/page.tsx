@@ -96,17 +96,6 @@ export default function SignNDAPage() {
     setSigning(true)
 
     try {
-      console.log('=== ФОРМА: Начало отправки ===')
-      console.log('agreementId:', agreementId)
-      console.log('formData:', formData)
-      console.log('signature length:', signature?.length)
-      console.log('files:', {
-        passportPhoto: files.passportPhoto?.name,
-        passportPhotoSize: files.passportPhoto?.size,
-        selfieWithPassport: files.selfieWithPassport?.name,
-        selfieSize: files.selfieWithPassport?.size
-      })
-
       const formDataToSend = new FormData()
 
       // Добавляем ID соглашения
@@ -132,22 +121,14 @@ export default function SignNDAPage() {
         formDataToSend.append('selfieWithPassport', files.selfieWithPassport)
       }
 
-      console.log('=== ФОРМА: Отправляем запрос ===')
       const response = await fetch(`/api/nda/sign`, {
         method: 'POST',
         body: formDataToSend
       })
 
-      console.log('=== ФОРМА: Получен ответ ===')
-      console.log('Response status:', response.status)
-      console.log('Response ok:', response.ok)
-
       const result = await response.json()
-      console.log('=== ФОРМА: Результат ===')
-      console.log('Result:', result)
 
       if (result.success) {
-        console.log('=== ФОРМА: Успех! ===')
         addToast({
           type: 'success',
           title: 'Успешно',
@@ -156,14 +137,9 @@ export default function SignNDAPage() {
         // Перенаправляем на страницу успеха
         window.location.href = '/nda/success'
       } else {
-        console.log('=== ФОРМА: Ошибка API ===')
-        console.log('Error:', result.error)
-        console.log('Details:', result.details)
         addToast({ type: 'error', title: 'Ошибка', description: result.error })
       }
     } catch (error) {
-      console.log('=== ФОРМА: Критическая ошибка ===')
-      console.log('Error:', error)
       addToast({ type: 'error', title: 'Ошибка', description: 'Не удалось подписать NDA' })
     } finally {
       setSigning(false)
