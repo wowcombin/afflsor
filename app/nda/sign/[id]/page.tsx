@@ -24,18 +24,19 @@ export default function SignNDAPage() {
   const [loading, setLoading] = useState(true)
   const [signing, setSigning] = useState(false)
   const [formData, setFormData] = useState({
-    full_name: '',
-    birth_date: '',
-    document_number: '',
-    document_type: 'passport',
-    document_issued_by: '',
-    document_issued_date: '',
-    address: '',
+    fullName: '',
+    dateOfBirth: '',
+    email: '',
+    documentNumber: '',
+    issuanceAddress: '',
+    issuanceDate: '',
+    residentialAddress: '',
     agreed: false
   })
   const [files, setFiles] = useState({
-    passport_photo: null as File | null,
-    selfie_with_passport: null as File | null
+    signedNdaFile: null as File | null,
+    passportPhoto: null as File | null,
+    selfieWithPassport: null as File | null
   })
 
   const agreementId = params.id as string
@@ -56,7 +57,7 @@ export default function SignNDAPage() {
         setNdaData(data.data)
         setFormData(prev => ({
           ...prev,
-          full_name: data.data.full_name || '',
+          fullName: data.data.full_name || '',
           email: data.data.email || ''
         }))
       } else {
@@ -81,7 +82,7 @@ export default function SignNDAPage() {
       return
     }
 
-    if (!files.passport_photo || !files.selfie_with_passport) {
+    if (!files.signedNdaFile || !files.passportPhoto || !files.selfieWithPassport) {
       addToast({ type: 'error', title: 'Ошибка', description: 'Необходимо загрузить все документы' })
       return
     }
@@ -91,22 +92,28 @@ export default function SignNDAPage() {
     try {
       const formDataToSend = new FormData()
       
+      // Добавляем ID соглашения
+      formDataToSend.append('agreementId', agreementId)
+      
       // Добавляем данные формы
       Object.entries(formData).forEach(([key, value]) => {
-        formDataToSend.append(key, value.toString())
+        if (key !== 'agreed') {
+          formDataToSend.append(key, value.toString())
+        }
       })
       
       // Добавляем файлы
-      if (files.passport_photo) {
-        formDataToSend.append('passport_photo', files.passport_photo)
+      if (files.signedNdaFile) {
+        formDataToSend.append('signedNdaFile', files.signedNdaFile)
       }
-      if (files.selfie_with_passport) {
-        formDataToSend.append('selfie_with_passport', files.selfie_with_passport)
+      if (files.passportPhoto) {
+        formDataToSend.append('passportPhoto', files.passportPhoto)
       }
-      
-      formDataToSend.append('token', token || '')
+      if (files.selfieWithPassport) {
+        formDataToSend.append('selfieWithPassport', files.selfieWithPassport)
+      }
 
-      const response = await fetch(`/api/nda/sign/${agreementId}`, {
+      const response = await fetch(`/api/nda/sign`, {
         method: 'POST',
         body: formDataToSend
       })
@@ -174,10 +181,10 @@ export default function SignNDAPage() {
             <div 
               dangerouslySetInnerHTML={{ 
                 __html: ndaData.template.content
-                  .replace(/\[FULL_NAME\]/g, formData.full_name)
+                  .replace(/\[FULL_NAME\]/g, formData.fullName)
                   .replace(/\[SIGNATURE_DATE\]/g, new Date().toLocaleDateString('uk-UA'))
-                  .replace(/\[ADDRESS\]/g, formData.address)
-                  .replace(/\[PASSPORT\]/g, formData.document_number)
+                  .replace(/\[ADDRESS\]/g, formData.residentialAddress)
+                  .replace(/\[PASSPORT\]/g, formData.documentNumber)
               }} 
             />
           </div>
@@ -189,8 +196,8 @@ export default function SignNDAPage() {
                 <label className="form-label">Полное имя *</label>
                 <input
                   type="text"
-                  value={formData.full_name}
-                  onChange={(e) => setFormData(prev => ({ ...prev, full_name: e.target.value }))}
+                  value={formData.fullName}
+                  onChange={(e) => setFormData(prev => ({ ...prev, fullName: e.target.value }))}
                   className="form-input"
                   required
                 />
@@ -200,43 +207,41 @@ export default function SignNDAPage() {
                 <label className="form-label">Дата рождения *</label>
                 <input
                   type="date"
-                  value={formData.birth_date}
-                  onChange={(e) => setFormData(prev => ({ ...prev, birth_date: e.target.value }))}
+                  value={formData.dateOfBirth}
+                  onChange={(e) => setFormData(prev => ({ ...prev, dateOfBirth: e.target.value }))}
                   className="form-input"
                   required
                 />
               </div>
 
               <div>
-                <label className="form-label">Тип документа *</label>
-                <select
-                  value={formData.document_type}
-                  onChange={(e) => setFormData(prev => ({ ...prev, document_type: e.target.value }))}
+                <label className="form-label">Email *</label>
+                <input
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
                   className="form-input"
-                >
-                  <option value="passport">Паспорт</option>
-                  <option value="id_card">ID карта</option>
-                  <option value="driver_license">Водительские права</option>
-                </select>
+                  required
+                />
               </div>
 
               <div>
                 <label className="form-label">Номер документа *</label>
                 <input
                   type="text"
-                  value={formData.document_number}
-                  onChange={(e) => setFormData(prev => ({ ...prev, document_number: e.target.value }))}
+                  value={formData.documentNumber}
+                  onChange={(e) => setFormData(prev => ({ ...prev, documentNumber: e.target.value }))}
                   className="form-input"
                   required
                 />
               </div>
 
               <div>
-                <label className="form-label">Кем выдан *</label>
+                <label className="form-label">Адрес выдачи *</label>
                 <input
                   type="text"
-                  value={formData.document_issued_by}
-                  onChange={(e) => setFormData(prev => ({ ...prev, document_issued_by: e.target.value }))}
+                  value={formData.issuanceAddress}
+                  onChange={(e) => setFormData(prev => ({ ...prev, issuanceAddress: e.target.value }))}
                   className="form-input"
                   required
                 />
@@ -246,8 +251,8 @@ export default function SignNDAPage() {
                 <label className="form-label">Дата выдачи *</label>
                 <input
                   type="date"
-                  value={formData.document_issued_date}
-                  onChange={(e) => setFormData(prev => ({ ...prev, document_issued_date: e.target.value }))}
+                  value={formData.issuanceDate}
+                  onChange={(e) => setFormData(prev => ({ ...prev, issuanceDate: e.target.value }))}
                   className="form-input"
                   required
                 />
@@ -257,8 +262,8 @@ export default function SignNDAPage() {
             <div>
               <label className="form-label">Адрес проживания *</label>
               <textarea
-                value={formData.address}
-                onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
+                value={formData.residentialAddress}
+                onChange={(e) => setFormData(prev => ({ ...prev, residentialAddress: e.target.value }))}
                 className="form-input"
                 rows={3}
                 required
@@ -266,13 +271,27 @@ export default function SignNDAPage() {
             </div>
 
             {/* Загрузка файлов */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div>
+                <label className="form-label">Подписанный NDA (PDF) *</label>
+                <input
+                  type="file"
+                  accept="application/pdf"
+                  onChange={(e) => handleFileChange('signedNdaFile', e.target.files?.[0] || null)}
+                  className="form-input"
+                  required
+                />
+                <p className="text-sm text-gray-500 mt-1">
+                  Скачайте, подпишите и загрузите PDF файл
+                </p>
+              </div>
+
               <div>
                 <label className="form-label">Фото документа *</label>
                 <input
                   type="file"
                   accept="image/*"
-                  onChange={(e) => handleFileChange('passport_photo', e.target.files?.[0] || null)}
+                  onChange={(e) => handleFileChange('passportPhoto', e.target.files?.[0] || null)}
                   className="form-input"
                   required
                 />
@@ -286,7 +305,7 @@ export default function SignNDAPage() {
                 <input
                   type="file"
                   accept="image/*"
-                  onChange={(e) => handleFileChange('selfie_with_passport', e.target.files?.[0] || null)}
+                  onChange={(e) => handleFileChange('selfieWithPassport', e.target.files?.[0] || null)}
                   className="form-input"
                   required
                 />

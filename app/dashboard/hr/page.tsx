@@ -41,12 +41,18 @@ export default function HRDashboard() {
       {/* Быстрые действия */}
       <div className="card">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">HR операции</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <button 
             onClick={() => router.push('/dashboard/hr/users')}
             className="btn-primary"
           >
             Управление сотрудниками
+          </button>
+          <button 
+            onClick={() => router.push('/dashboard/hr/nda')}
+            className="btn-primary"
+          >
+            Управление NDA
           </button>
           <button 
             onClick={() => router.push('/dashboard/hr/reports')}
