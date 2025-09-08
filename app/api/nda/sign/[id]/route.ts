@@ -21,6 +21,15 @@ export async function GET(
       }, { status: 400 })
     }
 
+    // Сначала проверим существует ли соглашение вообще
+    const { data: basicAgreement, error: basicError } = await supabase
+      .from('nda_agreements')
+      .select('*')
+      .eq('id', agreementId)
+      .single()
+
+    console.log('Basic agreement check:', { basicAgreement, basicError })
+
     // Получаем соглашение с шаблоном
     const { data: agreement, error: agreementError } = await supabase
       .from('nda_agreements')
