@@ -12,23 +12,13 @@ export async function GET(
     
     const agreementId = params.id
 
-    console.log('NDA Sign GET API called:', { agreementId, hasToken: !!token, token })
+    console.log('NDA Sign GET API called:', { agreementId, hasToken: !!token })
 
     if (!token) {
-      console.log('No token provided')
       return NextResponse.json({ 
         error: 'Токен доступа обязателен' 
       }, { status: 400 })
     }
-
-    // Сначала проверим существует ли соглашение вообще
-    const { data: basicAgreement, error: basicError } = await supabase
-      .from('nda_agreements')
-      .select('*')
-      .eq('id', agreementId)
-      .single()
-
-    console.log('Basic agreement check:', { basicAgreement, basicError })
 
     // Получаем соглашение с шаблоном
     const { data: agreement, error: agreementError } = await supabase
@@ -42,7 +32,7 @@ export async function GET(
         expires_at,
         full_name,
         email,
-        nda_templates (
+        nda_templates!template_id (
           id,
           name,
           content
@@ -50,8 +40,6 @@ export async function GET(
       `)
       .eq('id', agreementId)
       .single()
-
-    console.log('Agreement query result:', { agreement, agreementError })
 
     if (agreementError || !agreement) {
       console.error('Agreement not found:', agreementError)
