@@ -178,15 +178,14 @@ export default function SignNDAPage() {
           
           {/* Контент NDA */}
           <div className="mb-8 p-6 border rounded-lg bg-gray-50 max-h-96 overflow-y-auto">
-            <div 
-              dangerouslySetInnerHTML={{ 
-                __html: ndaData.template.content
-                  .replace(/\[FULL_NAME\]/g, formData.fullName)
-                  .replace(/\[SIGNATURE_DATE\]/g, new Date().toLocaleDateString('uk-UA'))
-                  .replace(/\[ADDRESS\]/g, formData.residentialAddress)
-                  .replace(/\[PASSPORT\]/g, formData.documentNumber)
-              }} 
-            />
+            <div className="whitespace-pre-line text-sm leading-relaxed">
+              {ndaData.template.content
+                .replace(/\[FULL_NAME\]/g, formData.fullName || '[ИМЯ]')
+                .replace(/\[SIGNATURE_DATE\]/g, new Date().toLocaleDateString('uk-UA'))
+                .replace(/\[ADDRESS\]/g, formData.residentialAddress || '[АДРЕС]')
+                .replace(/\[PASSPORT\]/g, formData.documentNumber || '[ПАСПОРТ]')
+              }
+            </div>
           </div>
 
           {/* Форма подписания */}

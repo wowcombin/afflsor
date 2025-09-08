@@ -32,7 +32,7 @@ export async function GET(
         expires_at,
         full_name,
         email,
-        nda_templates!template_id (
+        nda_templates (
           id,
           name,
           content
