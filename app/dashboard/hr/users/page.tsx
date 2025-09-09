@@ -264,15 +264,20 @@ export default function HRUsersPage() {
 
   const columns: Column<User>[] = [
     {
-      key: 'email',
-      label: 'Email',
+      key: 'telegram_info',
+      label: 'Telegram / Имя',
       sortable: true,
       filterable: true,
       render: (user) => (
         <div>
-          <div className="font-medium text-gray-900">{user.email}</div>
+          <div className="font-medium text-gray-900">
+            {user.telegram_username ? `@${user.telegram_username.replace('@', '')}` : 'Не указан'}
+          </div>
           <div className="text-sm text-gray-500">
-            {user.first_name} {user.last_name}
+            {user.first_name || user.last_name 
+              ? `${user.first_name || ''} ${user.last_name || ''}`.trim()
+              : user.email
+            }
           </div>
         </div>
       )
