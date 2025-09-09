@@ -99,7 +99,7 @@ export async function PATCH(
     console.log(`  - role: ${role}`)
 
     // Валидация роли
-    if (role && !['junior', 'manager', 'teamlead', 'tester', 'hr', 'cfo', 'admin'].includes(role)) {
+    if (role && !['junior', 'manager', 'teamlead', 'tester', 'hr', 'cfo', 'admin', 'ceo', 'qa_assistant'].includes(role)) {
       return NextResponse.json({ error: 'Некорректная роль' }, { status: 400 })
     }
 

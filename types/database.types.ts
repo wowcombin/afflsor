@@ -1,6 +1,6 @@
 // Типы для Afflsor ERP System v2.0 - согласно реальной структуре БД
 
-export type UserRole = 'junior' | 'manager' | 'teamlead' | 'tester' | 'hr' | 'cfo' | 'admin'
+export type UserRole = 'junior' | 'manager' | 'teamlead' | 'tester' | 'hr' | 'cfo' | 'admin' | 'ceo' | 'qa_assistant'
 export type UserStatus = 'active' | 'inactive' | 'terminated'
 export type CardType = 'grey' | 'gold' | 'platinum' | 'black'
 export type CardStatus = 'active' | 'inactive' | 'blocked' | 'expired'

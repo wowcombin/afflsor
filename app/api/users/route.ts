@@ -110,7 +110,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Email, пароль и роль обязательны' }, { status: 400 })
     }
 
-    if (!['junior', 'manager', 'teamlead', 'tester', 'hr', 'cfo', 'admin'].includes(role)) {
+    if (!['junior', 'manager', 'teamlead', 'tester', 'hr', 'cfo', 'admin', 'ceo', 'qa_assistant'].includes(role)) {
       return NextResponse.json({ error: 'Некорректная роль' }, { status: 400 })
     }
 

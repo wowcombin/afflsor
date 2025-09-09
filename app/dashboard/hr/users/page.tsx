@@ -282,11 +282,24 @@ export default function HRUsersPage() {
       label: 'Роль',
       sortable: true,
       filterable: true,
-      render: (user) => (
-        <span className="capitalize font-medium text-primary-600">
-          {user.role}
-        </span>
-      )
+      render: (user) => {
+        const roleLabels = {
+          'junior': 'Junior',
+          'manager': 'Manager (Coordinator)',
+          'teamlead': 'Team Lead',
+          'tester': 'Manual QA',
+          'qa_assistant': 'QA Assistant',
+          'hr': 'HR',
+          'cfo': 'CFO',
+          'ceo': 'CEO',
+          'admin': 'Admin'
+        }
+        return (
+          <span className="font-medium text-primary-600">
+            {roleLabels[user.role as keyof typeof roleLabels] || user.role}
+          </span>
+        )
+      }
     },
     {
       key: 'team_lead',
@@ -480,20 +493,22 @@ export default function HRUsersPage() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="form-label">Роль *</label>
-              <select
-                value={newUserForm.role}
-                onChange={(e) => setNewUserForm({ ...newUserForm, role: e.target.value as User['role'] })}
-                className="form-input"
-                required
-              >
-                <option value="junior">Junior</option>
-                <option value="manager">Manager</option>
-                <option value="teamlead">Team Lead</option>
-                <option value="tester">Tester</option>
-                <option value="hr">HR</option>
-                <option value="cfo">CFO</option>
-                <option value="admin">Admin</option>
-              </select>
+                <select
+                  value={newUserForm.role}
+                  onChange={(e) => setNewUserForm({ ...newUserForm, role: e.target.value as User['role'] })}
+                  className="form-input"
+                  required
+                >
+                  <option value="junior">Junior</option>
+                  <option value="manager">Manager (Coordinator)</option>
+                  <option value="teamlead">Team Lead</option>
+                  <option value="tester">Manual QA</option>
+                  <option value="qa_assistant">QA Assistant</option>
+                  <option value="hr">HR</option>
+                  <option value="cfo">CFO</option>
+                  <option value="ceo">CEO</option>
+                  <option value="admin">Admin</option>
+                </select>
             </div>
             <div>
               <label className="form-label">Telegram</label>
@@ -607,11 +622,13 @@ export default function HRUsersPage() {
                   className="form-input"
                 >
                   <option value="junior">Junior</option>
-                  <option value="manager">Manager</option>
+                  <option value="manager">Manager (Coordinator)</option>
                   <option value="teamlead">Team Lead</option>
-                  <option value="tester">Tester</option>
+                  <option value="tester">Manual QA</option>
+                  <option value="qa_assistant">QA Assistant</option>
                   <option value="hr">HR</option>
                   <option value="cfo">CFO</option>
+                  <option value="ceo">CEO</option>
                   <option value="admin">Admin</option>
                 </select>
               </div>
