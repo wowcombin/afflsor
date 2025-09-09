@@ -1,0 +1,2042 @@
+​​12: Полная структура базы данных
+12.1 Основные таблицы системы
+12.1.1 Пользователи и аутентификация
+sql
+-- Таблица пользователей
+CREATE TABLE users (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    auth_id UUID UNIQUE NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    role role_type NOT NULL DEFAULT 'junior',
+    status user_status NOT NULL DEFAULT 'active',
+    first_name VARCHAR(100),
+    last_name VARCHAR(100),
+    telegram_username VARCHAR(100),
+    usdt_wallet VARCHAR(100),
+    salary_percentage NUMERIC(5,2) DEFAULT 10,
+    salary_bonus NUMERIC(10,2) DEFAULT 0,
+    max_concurrent_sessions INTEGER DEFAULT 3,
+    session_timeout_minutes INTEGER DEFAULT 15,
+    timezone VARCHAR(50) DEFAULT 'UTC',
+    nda_signed BOOLEAN DEFAULT FALSE,
+    nda_signed_date TIMESTAMPTZ,
+    nda_signed_ip INET,
+    totp_secret VARCHAR(32),
+    totp_enabled BOOLEAN DEFAULT FALSE,
+    terminated_date DATE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    created_by UUID REFERENCES users(id),
+    updated_by UUID REFERENCES users(id),
+    CONSTRAINT check_percentage CHECK (salary_percentage >= 0 AND salary_percentage <= 100),
+    CONSTRAINT check_bonus CHECK (salary_bonus >= 0)
+);
+
+-- Индексы для пользователей
+CREATE INDEX idx_users_role ON users(role) WHERE status = 'active';
+CREATE INDEX idx_users_email ON users(email);
+CREATE INDEX idx_users_auth_id ON users(auth_id);
+CREATE INDEX idx_users_status ON users(status);
+CREATE INDEX idx_users_created_at ON users(created_at DESC);
+
+-- Таблица сессий
+CREATE TABLE user_sessions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token VARCHAR(255) UNIQUE NOT NULL,
+    ip_address INET,
+    user_agent TEXT,
+    last_activity TIMESTAMPTZ DEFAULT NOW(),
+    last_heartbeat TIMESTAMPTZ DEFAULT NOW(),
+    expires_at TIMESTAMPTZ NOT NULL,
+    is_active BOOLEAN DEFAULT TRUE,
+    terminated_reason VARCHAR(50),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT check_expiry CHECK (expires_at > created_at)
+);
+
+-- Индексы для сессий
+CREATE INDEX idx_sessions_user ON user_sessions(user_id) WHERE is_active = TRUE;
+CREATE INDEX idx_sessions_token ON user_sessions(token) WHERE is_active = TRUE;
+CREATE INDEX idx_sessions_expires ON user_sessions(expires_at) WHERE is_active = TRUE;
+
+-- Таблица сброса паролей
+CREATE TABLE password_resets (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token VARCHAR(255) UNIQUE NOT NULL,
+    used BOOLEAN DEFAULT FALSE,
+    expires_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_password_resets_token ON password_resets(token) WHERE used = FALSE;
+CREATE INDEX idx_password_resets_expires ON password_resets(expires_at);
+12.1.2 Банки и банковские аккаунты
+sql
+-- Таблица банков
+CREATE TABLE banks (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(100) NOT NULL,
+    country VARCHAR(2),
+    currency VARCHAR(3) DEFAULT 'USD',
+    status bank_status DEFAULT 'active',
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_banks_status ON banks(status);
+
+-- Таблица банковских аккаунтов
+CREATE TABLE bank_accounts (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    bank_id UUID NOT NULL REFERENCES banks(id),
+    holder_name VARCHAR(255) NOT NULL,
+    login_credentials TEXT,
+    balance NUMERIC(12,2) DEFAULT 0 CHECK (balance >= 0),
+    balance_updated_at TIMESTAMPTZ,
+    balance_updated_by UUID REFERENCES users(id),
+    status bank_account_status DEFAULT 'active',
+    blocked_reason TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    created_by UUID REFERENCES users(id)
+);
+
+CREATE INDEX idx_bank_accounts_bank ON bank_accounts(bank_id);
+CREATE INDEX idx_bank_accounts_status ON bank_accounts(status);
+CREATE INDEX idx_bank_accounts_balance ON bank_accounts(balance) WHERE status = 'active';
+12.1.3 Карты
+sql
+-- Таблица карт (публичные данные)
+CREATE TABLE cards (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    bank_account_id UUID NOT NULL REFERENCES bank_accounts(id),
+    card_number_display VARCHAR(25),
+    card_number_mask VARCHAR(25),
+    card_bin VARCHAR(6),
+    card_last4 VARCHAR(4),
+    exp_month INTEGER CHECK (exp_month BETWEEN 1 AND 12),
+    exp_year INTEGER CHECK (exp_year >= 2020),
+    type card_type DEFAULT 'grey',
+    status card_status DEFAULT 'active',
+    card_hash VARCHAR(64),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    created_by UUID REFERENCES users(id),
+    updated_by UUID REFERENCES users(id),
+    CONSTRAINT unique_card_hash UNIQUE (card_hash)
+);
+
+-- Индексы для карт
+CREATE INDEX idx_cards_bank_account ON cards(bank_account_id);
+CREATE INDEX idx_cards_status ON cards(status);
+CREATE INDEX idx_cards_type ON cards(type);
+CREATE INDEX idx_cards_bin ON cards(card_bin);
+CREATE INDEX idx_cards_expiry ON cards(exp_year, exp_month);
+CREATE UNIQUE INDEX idx_cards_unique_combo 
+    ON cards(bank_account_id, card_bin, card_last4, exp_month, exp_year);
+
+-- Таблица секретов карт (зашифрованные данные)
+CREATE TABLE card_secrets (
+    card_id UUID PRIMARY KEY REFERENCES cards(id) ON DELETE CASCADE,
+    pan_enc TEXT NOT NULL,
+    cvv_enc TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- История статусов карт
+CREATE TABLE card_status_history (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    card_id UUID NOT NULL REFERENCES cards(id) ON DELETE CASCADE,
+    old_status card_status,
+    new_status card_status NOT NULL,
+    changed_by UUID NOT NULL REFERENCES users(id),
+    changed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    reason TEXT,
+    ip_address INET,
+    user_agent TEXT
+);
+
+CREATE INDEX idx_card_status_history_card ON card_status_history(card_id, changed_at DESC);
+
+-- Назначения карт
+CREATE TABLE card_assignments (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    card_id UUID NOT NULL REFERENCES cards(id),
+    casino_id UUID NOT NULL REFERENCES casinos(id),
+    junior_id UUID NOT NULL REFERENCES users(id),
+    assigned_by UUID NOT NULL REFERENCES users(id),
+    status assignment_status DEFAULT 'assigned',
+    assigned_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT unique_active_assignment UNIQUE (card_id, casino_id, junior_id)
+);
+
+CREATE INDEX idx_assignments_card ON card_assignments(card_id);
+CREATE INDEX idx_assignments_casino ON card_assignments(casino_id);
+CREATE INDEX idx_assignments_junior ON card_assignments(junior_id);
+CREATE INDEX idx_assignments_status ON card_assignments(status);
+
+-- Лимиты розовых карт
+CREATE TABLE pink_cards_daily (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    bank_account_id UUID NOT NULL REFERENCES bank_accounts(id),
+    date DATE NOT NULL,
+    user_timezone VARCHAR(50) DEFAULT 'UTC',
+    total_limit INTEGER DEFAULT 5,
+    used_today INTEGER DEFAULT 0,
+    carried_over INTEGER DEFAULT 0,
+    version INTEGER DEFAULT 0,
+    CONSTRAINT unique_daily_limit UNIQUE (bank_account_id, date),
+    CONSTRAINT check_limit CHECK (used_today <= total_limit)
+);
+
+CREATE INDEX idx_pink_cards_daily_date ON pink_cards_daily(date);
+CREATE INDEX idx_pink_cards_daily_account ON pink_cards_daily(bank_account_id);
+
+-- Токены показа карт
+CREATE TABLE card_reveal_tokens (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    card_id UUID NOT NULL REFERENCES cards(id),
+    user_id UUID NOT NULL REFERENCES users(id),
+    token VARCHAR(255) UNIQUE NOT NULL,
+    context JSONB,
+    expires_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_reveal_tokens_expires ON card_reveal_tokens(expires_at);
+
+-- Логи доступа к картам
+CREATE TABLE card_access_log (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    card_id UUID NOT NULL REFERENCES cards(id),
+    user_id UUID NOT NULL REFERENCES users(id),
+    action VARCHAR(50) NOT NULL,
+    context JSONB,
+    ip_address INET,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_card_access_user ON card_access_log(user_id, created_at DESC);
+CREATE INDEX idx_card_access_card ON card_access_log(card_id, created_at DESC);
+12.1.4 Казино
+sql
+-- Таблица казино
+CREATE TABLE casinos (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(100) NOT NULL,
+    url VARCHAR(255),
+    status casino_status DEFAULT 'checking',
+    test_result test_result,
+    test_completed_at TIMESTAMPTZ,
+    test_completed_by UUID REFERENCES users(id),
+    allowed_bins TEXT[],
+    manual TEXT,
+    manual_version INTEGER DEFAULT 0,
+    currency VARCHAR(3) DEFAULT 'USD',
+    auto_approve_enabled BOOLEAN DEFAULT FALSE,
+    auto_approve_limit NUMERIC(10,2) DEFAULT 200,
+    max_withdrawal_multiplier NUMERIC DEFAULT 5,
+    max_withdrawal_amount NUMERIC DEFAULT 10000,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    created_by UUID REFERENCES users(id)
+);
+
+CREATE INDEX idx_casinos_status ON casinos(status);
+CREATE INDEX idx_casinos_name ON casinos(name);
+CREATE INDEX idx_casinos_bins ON casinos USING GIN (allowed_bins);
+
+-- История изменений мануалов
+CREATE TABLE casino_manual_history (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    casino_id UUID NOT NULL REFERENCES casinos(id),
+    version INTEGER NOT NULL,
+    manual TEXT NOT NULL,
+    changed_by UUID NOT NULL REFERENCES users(id),
+    changed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    change_summary TEXT,
+    UNIQUE(casino_id, version)
+);
+
+CREATE INDEX idx_manual_history_casino ON casino_manual_history(casino_id, version DESC);
+12.1.5 Работы и выводы
+sql
+-- Таблица работ (депозитов)
+CREATE TABLE works (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    junior_id UUID NOT NULL REFERENCES users(id),
+    casino_id UUID NOT NULL REFERENCES casinos(id),
+    card_id UUID NOT NULL REFERENCES cards(id),
+    assignment_id UUID REFERENCES card_assignments(id),
+    deposit_amount NUMERIC(10,2) NOT NULL CHECK (deposit_amount > 0),
+    casino_username VARCHAR(100),
+    casino_password TEXT,
+    status work_status DEFAULT 'active',
+    completed_at TIMESTAMPTZ,
+    completion_reason TEXT,
+    work_date DATE DEFAULT CURRENT_DATE,
+    deposit_date TIMESTAMPTZ DEFAULT NOW(),
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Индексы для работ
+CREATE INDEX idx_works_junior ON works(junior_id);
+CREATE INDEX idx_works_casino ON works(casino_id);
+CREATE INDEX idx_works_card ON works(card_id);
+CREATE INDEX idx_works_date ON works(work_date DESC);
+CREATE INDEX idx_works_status ON works(status);
+
+-- Хэш для предотвращения дубликатов
+ALTER TABLE works ADD COLUMN work_hash VARCHAR(64) GENERATED ALWAYS AS (
+    encode(digest(
+        casino_id::text || card_id::text || deposit_amount::text || work_date::text,
+        'sha256'
+    ), 'hex')
+) STORED;
+
+CREATE UNIQUE INDEX idx_works_no_duplicates 
+    ON works(junior_id, work_hash) 
+    WHERE created_at > NOW() - INTERVAL '5 minutes';
+
+-- Таблица выводов
+CREATE TABLE work_withdrawals (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    work_id UUID NOT NULL REFERENCES works(id),
+    withdrawal_amount NUMERIC(10,2) CHECK (withdrawal_amount > 0),
+    status withdrawal_status NOT NULL DEFAULT 'new',
+    previous_status withdrawal_status,
+    status_updated_at TIMESTAMPTZ,
+    status_updated_by UUID REFERENCES users(id),
+    checked_by UUID REFERENCES users(id),
+    checked_at TIMESTAMPTZ,
+    alarm_message TEXT,
+    alert_status alert_status,
+    resolved_at TIMESTAMPTZ,
+    resolved_by UUID REFERENCES users(id),
+    version INTEGER DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Индексы для выводов
+CREATE INDEX idx_withdrawals_work ON work_withdrawals(work_id);
+CREATE INDEX idx_withdrawals_status ON work_withdrawals(status);
+CREATE INDEX idx_withdrawals_created ON work_withdrawals(created_at);
+CREATE INDEX idx_withdrawals_queue ON work_withdrawals(status, created_at) 
+    WHERE status IN ('new', 'waiting');
+
+-- История изменений выводов
+CREATE TABLE works_history (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    withdrawal_id UUID NOT NULL REFERENCES work_withdrawals(id),
+    old_status withdrawal_status,
+    new_status withdrawal_status NOT NULL,
+    changed_by UUID NOT NULL REFERENCES users(id),
+    changed_at TIMESTAMPTZ DEFAULT NOW(),
+    comment TEXT
+);
+
+CREATE INDEX idx_works_history_withdrawal ON works_history(withdrawal_id, changed_at DESC);
+
+-- Споры по выводам
+CREATE TABLE disputes (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    withdrawal_id UUID NOT NULL REFERENCES work_withdrawals(id),
+    raised_by UUID NOT NULL REFERENCES users(id),
+    reason TEXT NOT NULL,
+    status VARCHAR(20) DEFAULT 'open' CHECK (status IN ('open','reviewing','resolved','rejected')),
+    resolution TEXT,
+    resolved_by UUID REFERENCES users(id),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    resolved_at TIMESTAMPTZ
+);
+
+CREATE INDEX idx_disputes_withdrawal ON disputes(withdrawal_id);
+CREATE INDEX idx_disputes_status ON disputes(status);
+12.2 Финансовые таблицы
+sql
+-- Расчеты зарплат
+CREATE TABLE salary_calculations (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id),
+    month DATE NOT NULL,
+    gross_profit NUMERIC(10,2) DEFAULT 0,
+    test_profit NUMERIC(10,2) DEFAULT 0,
+    base_salary NUMERIC(10,2) DEFAULT 0,
+    bonus NUMERIC(10,2) DEFAULT 0,
+    penalties NUMERIC(10,2) DEFAULT 0,
+    total_salary NUMERIC(10,2) DEFAULT 0,
+    paid BOOLEAN DEFAULT FALSE,
+    paid_amount NUMERIC(10,2) DEFAULT 0,
+    payment_transaction_id UUID,
+    calculation_snapshot JSONB NOT NULL DEFAULT '{}',
+    is_final BOOLEAN DEFAULT FALSE,
+    can_modify BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT unique_salary_month UNIQUE (user_id, month)
+);
+
+CREATE INDEX idx_salary_user ON salary_calculations(user_id);
+CREATE INDEX idx_salary_month ON salary_calculations(month);
+CREATE INDEX idx_salary_paid ON salary_calculations(paid);
+
+-- Расходы
+CREATE TABLE expenses (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    expense_type expense_type NOT NULL,
+    amount NUMERIC(10,2) NOT NULL CHECK (amount > 0),
+    currency VARCHAR(3) DEFAULT 'USD',
+    description TEXT,
+    receipt_url TEXT,
+    expense_date DATE DEFAULT CURRENT_DATE,
+    created_by UUID NOT NULL REFERENCES users(id),
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_expenses_type ON expenses(expense_type);
+CREATE INDEX idx_expenses_date ON expenses(expense_date DESC);
+
+-- USDT переводы
+CREATE TABLE usdt_transfers (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    from_user_id UUID REFERENCES users(id),
+    to_user_id UUID NOT NULL REFERENCES users(id),
+    amount NUMERIC(10,2) NOT NULL CHECK (amount > 0),
+    transfer_type usdt_transfer_type NOT NULL,
+    status transfer_status DEFAULT 'pending',
+    wallet_address VARCHAR(100),
+    transaction_hash VARCHAR(100),
+    network VARCHAR(20) DEFAULT 'TRON',
+    fee NUMERIC(10,4),
+    retry_count INTEGER DEFAULT 0,
+    error_message TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    confirmed_at TIMESTAMPTZ
+);
+
+CREATE INDEX idx_transfers_to_user ON usdt_transfers(to_user_id);
+CREATE INDEX idx_transfers_status ON usdt_transfers(status);
+CREATE INDEX idx_transfers_type ON usdt_transfers(transfer_type);
+
+-- Курсы валют
+CREATE TABLE exchange_rates (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    from_currency VARCHAR(3) NOT NULL,
+    to_currency VARCHAR(3) NOT NULL,
+    rate NUMERIC(10,6) NOT NULL,
+    valid_from TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    valid_to TIMESTAMPTZ,
+    source VARCHAR(50),
+    UNIQUE(from_currency, to_currency, valid_from)
+);
+
+CREATE INDEX idx_exchange_rates_lookup ON exchange_rates(from_currency, to_currency, valid_from DESC);
+
+-- Дневные лимиты
+CREATE TABLE daily_limits (
+    user_id UUID NOT NULL REFERENCES users(id),
+    limit_date DATE NOT NULL,
+    total_deposits NUMERIC(10,2) DEFAULT 0,
+    total_withdrawals NUMERIC(10,2) DEFAULT 0,
+    deposit_count INTEGER DEFAULT 0,
+    withdrawal_count INTEGER DEFAULT 0,
+    PRIMARY KEY (user_id, limit_date)
+);
+
+CREATE INDEX idx_daily_limits_user_date ON daily_limits(user_id, limit_date DESC);
+12.3 Управленческие таблицы
+sql
+-- Задачи
+CREATE TABLE tasks (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    priority task_priority DEFAULT 'medium',
+    status task_status DEFAULT 'new',
+    deadline TIMESTAMPTZ,
+    created_by UUID NOT NULL REFERENCES users(id),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_tasks_status ON tasks(status);
+CREATE INDEX idx_tasks_deadline ON tasks(deadline) WHERE status NOT IN ('done', 'cancelled');
+CREATE INDEX idx_tasks_created_by ON tasks(created_by);
+
+-- Назначения задач
+CREATE TABLE task_assignees (
+    task_id UUID NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id),
+    assigned_at TIMESTAMPTZ DEFAULT NOW(),
+    PRIMARY KEY (task_id, user_id)
+);
+
+CREATE INDEX idx_task_assignees_user ON task_assignees(user_id);
+
+-- Алерты
+CREATE TABLE alerts (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    type VARCHAR(50) NOT NULL,
+    severity alert_severity DEFAULT 'medium',
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    status alert_status DEFAULT 'open',
+    assigned_to UUID REFERENCES users(id),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    acknowledged_at TIMESTAMPTZ,
+    resolved_at TIMESTAMPTZ,
+    resolved_by UUID REFERENCES users(id)
+);
+
+CREATE INDEX idx_alerts_status ON alerts(status);
+CREATE INDEX idx_alerts_severity ON alerts(severity);
+CREATE INDEX idx_alerts_assigned ON alerts(assigned_to) WHERE status IN ('open', 'acknowledged');
+
+-- HR комментарии
+CREATE TABLE hr_comments (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    employee_id UUID NOT NULL REFERENCES users(id),
+    hr_id UUID NOT NULL REFERENCES users(id),
+    comment_type hr_comment_type NOT NULL,
+    comment TEXT NOT NULL,
+    is_private BOOLEAN DEFAULT FALSE,
+    requires_action BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_hr_comments_employee ON hr_comments(employee_id);
+CREATE INDEX idx_hr_comments_type ON hr_comments(comment_type);
+CREATE INDEX idx_hr_comments_visibility ON hr_comments(is_private);
+
+-- NDA шаблоны
+CREATE TABLE nda_templates (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    version INTEGER NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    content TEXT NOT NULL,
+    language VARCHAR(5) DEFAULT 'en',
+    effective_from DATE NOT NULL,
+    effective_to DATE,
+    created_by UUID NOT NULL REFERENCES users(id),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    is_active BOOLEAN DEFAULT TRUE,
+    UNIQUE(version, language)
+);
+
+CREATE INDEX idx_nda_templates_active ON nda_templates(is_active, effective_from);
+
+-- Подписанные NDA
+CREATE TABLE user_nda_signatures (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id),
+    nda_template_id UUID NOT NULL REFERENCES nda_templates(id),
+    signed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    ip_address INET NOT NULL,
+    user_agent TEXT,
+    signature_data JSONB,
+    revoked BOOLEAN DEFAULT FALSE,
+    revoked_at TIMESTAMPTZ,
+    revoked_reason TEXT,
+    UNIQUE(user_id, nda_template_id)
+);
+
+CREATE INDEX idx_user_nda_active ON user_nda_signatures(user_id) WHERE revoked = FALSE;
+
+-- Уведомления
+CREATE TABLE notifications (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id),
+    type VARCHAR(50) NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    message TEXT,
+    priority notification_priority DEFAULT 'normal',
+    action_url TEXT,
+    related_entity_id UUID,
+    read_status BOOLEAN DEFAULT FALSE,
+    read_at TIMESTAMPTZ,
+    push_sent BOOLEAN DEFAULT FALSE,
+    push_sent_at TIMESTAMPTZ,
+    push_error TEXT,
+    retry_count INTEGER DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_notifications_user ON notifications(user_id, created_at DESC);
+CREATE INDEX idx_notifications_unread ON notifications(user_id) WHERE read_status = FALSE;
+CREATE INDEX idx_notifications_push ON notifications(push_sent, created_at) WHERE push_sent = FALSE;
+12.4 Системные таблицы
+sql
+-- Аудит лог
+CREATE TABLE audit_log (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID REFERENCES users(id),
+    action VARCHAR(100) NOT NULL,
+    table_name VARCHAR(50),
+    record_id UUID,
+    old_values JSONB,
+    new_values JSONB,
+    ip_address INET,
+    user_agent TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_audit_user ON audit_log(user_id, created_at DESC);
+CREATE INDEX idx_audit_table ON audit_log(table_name, created_at DESC);
+CREATE INDEX idx_audit_action ON audit_log(action, created_at DESC);
+CREATE INDEX idx_audit_created ON audit_log(created_at DESC);
+
+-- Попытки доступа
+CREATE TABLE access_attempts (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id),
+    table_name VARCHAR(50) NOT NULL,
+    record_id UUID,
+    action VARCHAR(20) NOT NULL,
+    granted BOOLEAN NOT NULL,
+    reason TEXT,
+    context JSONB,
+    ip_address INET,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_access_attempts_user_date ON access_attempts(user_id, created_at DESC);
+CREATE INDEX idx_access_attempts_denied ON access_attempts(granted, created_at) WHERE granted = FALSE;
+
+-- История сущностей
+CREATE TABLE entity_history (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    entity_type VARCHAR(50) NOT NULL,
+    entity_id UUID NOT NULL,
+    operation VARCHAR(20) NOT NULL,
+    version INTEGER NOT NULL DEFAULT 1,
+    data_snapshot JSONB NOT NULL,
+    changed_by UUID REFERENCES users(id),
+    changed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    is_current BOOLEAN DEFAULT TRUE
+);
+
+CREATE INDEX idx_entity_history_lookup ON entity_history(entity_type, entity_id, is_current);
+CREATE INDEX idx_entity_history_time ON entity_history(entity_type, changed_at DESC);
+
+-- Идемпотентность
+CREATE TABLE idempotency_keys (
+    key VARCHAR(255) PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES users(id),
+    request_path VARCHAR(255) NOT NULL,
+    request_hash VARCHAR(64) NOT NULL,
+    request_body JSONB,
+    response_body JSONB,
+    status_code INTEGER,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    expires_at TIMESTAMPTZ DEFAULT NOW() + INTERVAL '24 hours'
+);
+
+CREATE INDEX idx_idempotency_expires ON idempotency_keys(expires_at);
+CREATE INDEX idx_idempotency_user ON idempotency_keys(user_id, created_at DESC);
+
+-- Лимиты операций
+CREATE TABLE operation_limits (
+    user_id UUID NOT NULL REFERENCES users(id),
+    operation_type VARCHAR(50) NOT NULL,
+    period_start TIMESTAMPTZ NOT NULL,
+    count INTEGER NOT NULL DEFAULT 0,
+    max_allowed INTEGER NOT NULL,
+    PRIMARY KEY (user_id, operation_type, period_start)
+);
+
+CREATE INDEX idx_operation_limits_user ON operation_limits(user_id, period_start DESC);
+
+-- История бэкапов
+CREATE TABLE backup_history (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    backup_type VARCHAR(50) NOT NULL,
+    status VARCHAR(50) NOT NULL,
+    storage_path TEXT,
+    backup_size BIGINT,
+    compression_ratio NUMERIC(5,2),
+    started_at TIMESTAMPTZ DEFAULT NOW(),
+    completed_at TIMESTAMPTZ,
+    error_message TEXT
+);
+
+CREATE INDEX idx_backup_history_status ON backup_history(status, created_at DESC);
+
+-- Системные настройки
+CREATE TABLE system_settings_typed (
+    key VARCHAR(50) PRIMARY KEY,
+    value_type VARCHAR(20) CHECK (value_type IN ('integer', 'numeric', 'boolean', 'text', 'json')),
+    value_int INTEGER,
+    value_numeric NUMERIC(20,4),
+    value_bool BOOLEAN,
+    value_text TEXT,
+    value_json JSONB,
+    description TEXT,
+    updated_by UUID REFERENCES users(id),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT check_single_value CHECK (
+        (value_int IS NOT NULL)::int +
+        (value_numeric IS NOT NULL)::int +
+        (value_bool IS NOT NULL)::int +
+        (value_text IS NOT NULL)::int +
+        (value_json IS NOT NULL)::int = 1
+    )
+);
+
+-- Системные метрики
+CREATE TABLE system_metrics (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    metric_type VARCHAR(50) NOT NULL,
+    metric_name VARCHAR(100) NOT NULL,
+    value NUMERIC,
+    unit VARCHAR(20),
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_system_metrics_type ON system_metrics(metric_type, created_at DESC);
+12.5 Представления (Views)
+sql
+-- Активные выводы для менеджеров
+CREATE OR REPLACE VIEW active_withdrawals AS
+SELECT 
+    ww.id,
+    ww.work_id,
+    ww.withdrawal_amount,
+    ww.status,
+    ww.created_at,
+    EXTRACT(EPOCH FROM (NOW() - ww.created_at))/60 as waiting_minutes,
+    w.deposit_amount,
+    w.junior_id,
+    u.first_name || ' ' || u.last_name as junior_name,
+    c.name as casino_name,
+    ca.card_number_mask,
+    (ww.withdrawal_amount - w.deposit_amount) as profit
+FROM work_withdrawals ww
+JOIN works w ON w.id = ww.work_id
+JOIN users u ON u.id = w.junior_id
+JOIN casinos c ON c.id = w.casino_id
+JOIN cards ca ON ca.id = w.card_id
+WHERE ww.status IN ('new', 'waiting');
+
+-- Доступные карты для junior с учетом баланса
+CREATE OR REPLACE VIEW available_cards_for_junior AS
+SELECT 
+    c.*,
+    ca.junior_id,
+    ca.casino_id,
+    ba.balance as bank_balance,
+    CASE 
+        WHEN ba.balance >= 10 THEN TRUE
+        ELSE FALSE
+    END as is_available
+FROM cards c
+JOIN card_assignments ca ON ca.card_id = c.id
+JOIN bank_accounts ba ON ba.id = c.bank_account_id
+WHERE c.status = 'active'
+    AND ca.status IN ('assigned', 'in_use')
+    AND ba.status = 'active';
+
+-- Месячная статистика junior'ов
+CREATE MATERIALIZED VIEW junior_monthly_stats AS
+SELECT 
+    u.id as junior_id,
+    u.first_name || ' ' || u.last_name as name,
+    date_trunc('month', w.work_date) as month,
+    COUNT(DISTINCT w.id) as total_works,
+    COUNT(DISTINCT ww.id) as total_withdrawals,
+    COUNT(DISTINCT ww.id) FILTER (WHERE ww.status = 'received') as successful_withdrawals,
+    SUM(w.deposit_amount) as total_deposits,
+    SUM(ww.withdrawal_amount) FILTER (WHERE ww.status = 'received') as total_withdrawn,
+    SUM(ww.withdrawal_amount - w.deposit_amount) FILTER (WHERE ww.status = 'received') as profit,
+    ROUND(
+        COUNT(DISTINCT ww.id) FILTER (WHERE ww.status = 'received')::numeric / 
+        NULLIF(COUNT(DISTINCT ww.id), 0) * 100, 2
+    ) as success_rate
+FROM users u
+LEFT JOIN works w ON w.junior_id = u.id
+LEFT JOIN work_withdrawals ww ON ww.work_id = w.id
+WHERE u.role = 'junior'
+GROUP BY u.id, u.first_name, u.last_name, date_trunc('month', w.work_date);
+
+CREATE UNIQUE INDEX ON junior_monthly_stats(junior_id, month);
+
+-- Статистика сотрудников (включая уволенных)
+CREATE OR REPLACE VIEW employee_statistics AS
+SELECT 
+    u.*,
+    CASE WHEN u.status = 'terminated' THEN 'Уволен ' || u.terminated_date::TEXT
+         ELSE 'Активен' END as status_display,
+    (SELECT COUNT(*) FROM works w WHERE w.junior_id = u.id) as total_works,
+    (SELECT COALESCE(SUM(ww.withdrawal_amount - w.deposit_amount), 0)
+     FROM works w
+     JOIN work_withdrawals ww ON ww.work_id = w.id
+     WHERE w.junior_id = u.id AND ww.status = 'received') as total_profit
+FROM users u
+WHERE u.role IN ('junior', 'tester');
+
+-- Активные пользователи (без уволенных)
+CREATE OR REPLACE VIEW active_users AS
+SELECT * FROM users 
+WHERE status = 'active';
+
+-- Текущие NDA пользователей
+CREATE OR REPLACE VIEW user_current_nda AS
+SELECT 
+    u.id as user_id,
+    u.email,
+    n.version as nda_version,
+    n.title as nda_title,
+    s.signed_at,
+    s.ip_address
+FROM users u
+LEFT JOIN user_nda_signatures s ON s.user_id = u.id AND s.revoked = FALSE
+LEFT JOIN nda_templates n ON n.id = s.nda_template_id
+WHERE u.nda_signed = TRUE;
+12.6 Функции и процедуры
+sql
+-- Функция создания сессии с контролем
+CREATE OR REPLACE FUNCTION create_user_session(
+    p_user_id UUID,
+    p_token TEXT,
+    p_ip INET,
+    p_user_agent TEXT
+) RETURNS UUID AS $$
+DECLARE
+    v_session_id UUID;
+    v_max_sessions INTEGER;
+    v_timeout_minutes INTEGER;
+    v_active_count INTEGER;
+BEGIN
+    SELECT max_concurrent_sessions, session_timeout_minutes 
+    INTO v_max_sessions, v_timeout_minutes
+    FROM users WHERE id = p_user_id;
+    
+    -- Закрываем истекшие сессии
+    UPDATE user_sessions
+    SET is_active = FALSE,
+        terminated_reason = 'timeout'
+    WHERE user_id = p_user_id
+        AND is_active = TRUE
+        AND last_heartbeat < NOW() - (v_timeout_minutes || ' minutes')::INTERVAL;
+    
+    -- Считаем активные сессии
+    SELECT COUNT(*) INTO v_active_count
+    FROM user_sessions
+    WHERE user_id = p_user_id AND is_active = TRUE;
+    
+    -- Если превышен лимит, закрываем старейшую
+    IF v_active_count >= v_max_sessions THEN
+        UPDATE user_sessions
+        SET is_active = FALSE,
+            terminated_reason = 'max_sessions_reached'
+        WHERE id = (
+            SELECT id FROM user_sessions
+            WHERE user_id = p_user_id AND is_active = TRUE
+            ORDER BY last_heartbeat ASC
+            LIMIT 1
+        );
+    END IF;
+    
+    -- Создаем новую сессию
+    INSERT INTO user_sessions(user_id, token, ip_address, user_agent, expires_at)
+    VALUES (
+        p_user_id, 
+        p_token, 
+        p_ip, 
+        p_user_agent,
+        NOW() + (v_timeout_minutes || ' minutes')::INTERVAL
+    )
+    RETURNING id INTO v_session_id;
+    
+    RETURN v_session_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Функция проверки вывода с блокировкой
+CREATE OR REPLACE FUNCTION check_withdrawal_safe_v2(
+    p_withdrawal_id UUID,
+    p_checker_id UUID,
+    p_new_status withdrawal_status,
+    p_comment TEXT DEFAULT NULL
+) RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_lock_id BIGINT;
+    v_status withdrawal_status;
+    v_work_id UUID;
+    v_updated BOOLEAN := FALSE;
+BEGIN
+    -- Генерируем уникальный ID для блокировки
+    v_lock_id := ('x' || substr(md5(p_withdrawal_id::text), 1, 15))::bit(60)::bigint;
+    
+    -- Эксклюзивная блокировка на транзакцию
+    IF NOT pg_try_advisory_xact_lock(v_lock_id) THEN
+        RAISE EXCEPTION 'Could not acquire lock for withdrawal %', p_withdrawal_id;
+    END IF;
+    
+    -- Теперь безопасно работаем с данными
+    SELECT status, work_id INTO v_status, v_work_id
+    FROM work_withdrawals
+    WHERE id = p_withdrawal_id;
+    
+    IF v_status NOT IN ('new','waiting') THEN
+        RETURN FALSE;
+    END IF;
+    
+    UPDATE work_withdrawals
+    SET status = p_new_status,
+        previous_status = v_status,
+        status_updated_at = NOW(),
+        status_updated_by = p_checker_id,
+        checked_at = NOW(),
+        checked_by = p_checker_id,
+        alarm_message = p_comment
+    WHERE id = p_withdrawal_id
+    RETURNING TRUE INTO v_updated;
+    
+    RETURN COALESCE(v_updated, FALSE);
+END;
+$$;
+
+-- Функция обновления баланса банка
+CREATE OR REPLACE FUNCTION update_bank_balance(
+    p_account_id UUID,
+    p_new_balance NUMERIC,
+    p_user_id UUID,
+    p_comment TEXT DEFAULT NULL
+) RETURNS BOOLEAN AS $$
+DECLARE
+    v_user_role role_type;
+    v_old_balance NUMERIC;
+BEGIN
+    SELECT role INTO v_user_role FROM users WHERE id = p_user_id;
+    
+    IF v_user_role NOT IN ('cfo', 'manager', 'hr') THEN
+        RAISE EXCEPTION 'Insufficient privileges to update bank balance';
+    END IF;
+    
+    SELECT balance INTO v_old_balance FROM bank_accounts WHERE id = p_account_id;
+    
+    UPDATE bank_accounts
+    SET balance = p_new_balance,
+        balance_updated_at = NOW(),
+        balance_updated_by = p_user_id
+    WHERE id = p_account_id;
+    
+    INSERT INTO audit_log(user_id, action, table_name, record_id, old_values, new_values)
+    VALUES (
+        p_user_id, 
+        'UPDATE_BANK_BALANCE', 
+        'bank_accounts', 
+        p_account_id,
+        jsonb_build_object('balance', v_old_balance),
+        jsonb_build_object('balance', p_new_balance, 'comment', p_comment)
+    );
+    
+    RETURN TRUE;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Функция показа PAN/CVV с аудитом
+CREATE OR REPLACE FUNCTION reveal_card_pan_cvv(
+    p_card_id UUID,
+    p_user_id UUID,
+    p_context JSONB DEFAULT '{}',
+    p_reason TEXT DEFAULT NULL,
+    p_totp_ok BOOLEAN DEFAULT FALSE
+) RETURNS TABLE(
+    pan TEXT,
+    cvv TEXT,
+    exp_month INTEGER,
+    exp_year INTEGER,
+    ttl_seconds INTEGER
+) AS $$
+DECLARE
+    v_role role_type;
+    v_token UUID;
+BEGIN
+    SELECT role INTO v_role FROM users WHERE id = p_user_id;
+    
+    -- Проверка прав доступа
+    IF v_role = 'junior' THEN
+        IF NOT EXISTS (
+            SELECT 1 FROM card_assignments
+            WHERE card_id = p_card_id AND junior_id = p_user_id
+        ) THEN
+            RAISE EXCEPTION 'Access denied';
+        END IF;
+    ELSIF v_role NOT IN ('manager', 'cfo', 'admin', 'ceo') THEN
+        RAISE EXCEPTION 'Access denied';
+    END IF;
+    
+    -- Логирование доступа
+    INSERT INTO card_access_log(card_id, user_id, action, context, ip_address)
+    VALUES (p_card_id, p_user_id, 'reveal', p_context, inet_client_addr());
+    
+    -- Создание токена
+    INSERT INTO card_reveal_tokens(card_id, user_id, token, context, expires_at)
+    VALUES (p_card_id, p_user_id, uuid_generate_v4(), p_context, NOW() + INTERVAL '60 seconds')
+    RETURNING token INTO v_token;
+    
+    -- Возврат расшифрованных данных
+    RETURN QUERY
+    SELECT 
+        pgp_sym_decrypt(cs.pan_enc::bytea, current_setting('app.encryption_key')) as pan,
+        pgp_sym_decrypt(cs.cvv_enc::bytea, current_setting('app.encryption_key')) as cvv,
+        c.exp_month,
+        c.exp_year,
+        60 as ttl_seconds
+    FROM cards c
+    JOIN card_secrets cs ON cs.card_id = c.id
+    WHERE c.id = p_card_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Функция получения карт для депозита
+CREATE OR REPLACE FUNCTION get_cards_for_deposit(
+    p_junior_id UUID,
+    p_casino_id UUID
+) RETURNS TABLE (
+    card_id UUID,
+    card_number_masked VARCHAR(25),
+    exp_date VARCHAR(7),
+    bank_name VARCHAR(100),
+    bank_balance NUMERIC,
+    is_available BOOLEAN
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        c.id,
+        c.card_number_mask,
+        c.exp_month || '/' || c.exp_year,
+        b.name,
+        ba.balance,
+        ba.balance >= 10
+    FROM cards c
+    JOIN card_assignments ca ON ca.card_id = c.id
+    JOIN bank_accounts ba ON ba.id = c.bank_account_id
+    JOIN banks b ON b.id = ba.bank_id
+    WHERE ca.junior_id = p_junior_id
+        AND ca.casino_id = p_casino_id
+        AND ca.status IN ('assigned', 'in_use')
+        AND c.status = 'active'
+        AND ba.status = 'active'
+        AND ba.balance >= 10
+    ORDER BY ba.balance DESC;
+END;
+$$ LANGUAGE plpgsql STABLE;
+
+-- Функция проверки BIN совместимости
+CREATE OR REPLACE FUNCTION check_bin_compatibility(
+    p_card_id UUID,
+    p_casino_id UUID
+) RETURNS BOOLEAN AS $$
+DECLARE
+    v_card_bin VARCHAR(6);
+    v_allowed_bins TEXT[];
+BEGIN
+    SELECT card_bin INTO v_card_bin FROM cards WHERE id = p_card_id;
+    SELECT allowed_bins INTO v_allowed_bins FROM casinos WHERE id = p_casino_id;
+    
+    IF v_allowed_bins IS NULL OR array_length(v_allowed_bins, 1) = 0 THEN
+        RETURN TRUE;
+    END IF;
+    
+    RETURN v_card_bin = ANY(v_allowed_bins);
+END;
+$$ LANGUAGE plpgsql;
+12.7 Триггеры
+sql
+-- Триггер обновления updated_at
+CREATE OR REPLACE FUNCTION update_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Применяем ко всем таблицам с updated_at
+CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+CREATE TRIGGER update_cards_updated_at BEFORE UPDATE ON cards
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+-- ... и т.д. для всех таблиц
+
+-- Триггер каскадной блокировки банковского аккаунта
+CREATE OR REPLACE FUNCTION cascade_bank_account_block() 
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.status = 'blocked' AND OLD.status != 'blocked' THEN
+        UPDATE cards 
+        SET status = 'blocked',
+            updated_at = NOW()
+        WHERE bank_account_id = NEW.id 
+            AND status != 'blocked';
+        
+        UPDATE work_withdrawals ww
+        SET status = 'block',
+            alarm_message = 'Bank account blocked: ' || NEW.blocked_reason,
+            status_updated_at = NOW()
+        FROM works w
+        JOIN cards c ON c.id = w.card_id
+        WHERE c.bank_account_id = NEW.id
+            AND ww.work_id = w.id
+            AND ww.status IN ('new','waiting');
+            
+        INSERT INTO notifications (user_id, type, title, message, priority)
+        SELECT DISTINCT w.junior_id, 'bank_block', 
+               'Банковский аккаунт заблокирован',
+               'Карты банка ' || (SELECT name FROM banks WHERE id = NEW.bank_id) || ' заблокированы',
+               'high'
+        FROM works w
+        JOIN cards c ON c.id = w.card_id
+        WHERE c.bank_account_id = NEW.id
+            AND w.junior_id IS NOT NULL;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_cascade_bank_block
+AFTER UPDATE ON bank_accounts
+FOR EACH ROW EXECUTE FUNCTION cascade_bank_account_block();
+
+-- Триггер изменения баланса банка
+CREATE OR REPLACE FUNCTION handle_balance_change()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.balance < 10 AND OLD.balance >= 10 THEN
+        UPDATE card_assignments ca
+        SET status = 'temporarily_unavailable'
+        FROM cards c
+        WHERE c.id = ca.card_id
+            AND c.bank_account_id = NEW.id
+            AND ca.status = 'assigned';
+        
+        INSERT INTO notifications(user_id, type, title, message, priority)
+        SELECT DISTINCT ca.junior_id, 'bank_block', 
+               'Карты временно недоступны',
+               'Баланс банка ' || (SELECT name FROM banks WHERE id = NEW.bank_id) || ' ниже минимума',
+               'high'
+        FROM card_assignments ca
+        JOIN cards c ON c.id = ca.card_id
+        WHERE c.bank_account_id = NEW.id;
+        
+    ELSIF NEW.balance >= 10 AND OLD.balance < 10 THEN
+        UPDATE card_assignments ca
+        SET status = 'assigned'
+        FROM cards c
+        WHERE c.id = ca.card_id
+            AND c.bank_account_id = NEW.id
+            AND ca.status = 'temporarily_unavailable';
+            
+        INSERT INTO notifications(user_id, type, title, message, priority)
+        SELECT DISTINCT ca.junior_id, 'system', 
+               'Карты снова доступны',
+               'Баланс банка ' || (SELECT name FROM banks WHERE id = NEW.bank_id) || ' восстановлен',
+               'medium'
+        FROM card_assignments ca
+        JOIN cards c ON c.id = ca.card_id
+        WHERE c.bank_account_id = NEW.id;
+    END IF;
+    
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_balance_change
+AFTER UPDATE OF balance ON bank_accounts
+FOR EACH ROW EXECUTE FUNCTION handle_balance_change();
+
+-- Триггер логирования изменения статуса карты
+CREATE OR REPLACE FUNCTION log_card_status_change()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.status IS DISTINCT FROM OLD.status THEN
+        INSERT INTO card_status_history(card_id, old_status, new_status, changed_by, ip_address)
+        VALUES (
+            NEW.id, 
+            OLD.status, 
+            NEW.status,
+            COALESCE(NEW.updated_by, NEW.created_by),
+            inet_client_addr()
+        );
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_card_status_history
+AFTER UPDATE ON cards
+FOR EACH ROW EXECUTE FUNCTION log_card_status_change();
+
+-- Триггер валидации назначения карт
+CREATE OR REPLACE FUNCTION validate_card_assignment()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NOT check_bin_compatibility(NEW.card_id, NEW.casino_id) THEN
+        RAISE EXCEPTION 'Card BIN % is not allowed for this casino', 
+            (SELECT card_bin FROM cards WHERE id = NEW.card_id);
+    END IF;
+    
+    IF EXISTS (
+        SELECT 1 FROM cards 
+        WHERE id = NEW.card_id 
+        AND (status = 'expired' OR status = 'blocked')
+    ) THEN
+        RAISE EXCEPTION 'Cannot assign expired or blocked card';
+    END IF;
+    
+    IF NOT EXISTS (
+        SELECT 1 FROM users 
+        WHERE id = NEW.junior_id 
+        AND status = 'active'
+    ) THEN
+        RAISE EXCEPTION 'Cannot assign card to inactive user';
+    END IF;
+    
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_validate_assignment
+BEFORE INSERT OR UPDATE ON card_assignments
+FOR EACH ROW EXECUTE FUNCTION validate_card_assignment();
+
+-- Триггер валидации создания work
+CREATE OR REPLACE FUNCTION validate_work_creation()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NOT check_bin_compatibility(NEW.card_id, NEW.casino_id) THEN
+        RAISE EXCEPTION 'Card BIN incompatible with casino';
+    END IF;
+    
+    IF NOT EXISTS (
+        SELECT 1 FROM card_assignments
+        WHERE card_id = NEW.card_id
+            AND casino_id = NEW.casino_id
+            AND junior_id = NEW.junior_id
+            AND status IN ('assigned', 'in_use')
+    ) THEN
+        RAISE EXCEPTION 'No valid card assignment found for this work';
+    END IF;
+    
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_validate_work
+BEFORE INSERT ON works
+FOR EACH ROW EXECUTE FUNCTION validate_work_creation();
+
+-- Триггер валидации суммы вывода
+CREATE OR REPLACE FUNCTION validate_withdrawal_amount()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_deposit NUMERIC;
+    v_max_multiplier NUMERIC;
+    v_max_amount NUMERIC;
+    v_total_previous NUMERIC;
+BEGIN
+    SELECT w.deposit_amount, c.max_withdrawal_multiplier, c.max_withdrawal_amount
+    INTO v_deposit, v_max_multiplier, v_max_amount
+    FROM works w
+    JOIN casinos c ON c.id = w.casino_id
+    WHERE w.id = NEW.work_id;
+    
+    IF NEW.withdrawal_amount > (v_deposit * COALESCE(v_max_multiplier, 5)) THEN
+        RAISE EXCEPTION 'Withdrawal exceeds maximum multiplier (% * % = %)', 
+                        v_deposit, v_max_multiplier, v_deposit * v_max_multiplier;
+    END IF;
+    
+    IF NEW.withdrawal_amount > COALESCE(v_max_amount, 10000) THEN
+        RAISE EXCEPTION 'Withdrawal exceeds casino maximum: %', v_max_amount;
+    END IF;
+    
+    SELECT COALESCE(SUM(withdrawal_amount), 0) INTO v_total_previous
+    FROM work_withdrawals
+    WHERE work_id = NEW.work_id 
+        AND id != COALESCE(NEW.id, '00000000-0000-0000-0000-000000000000'::UUID)
+        AND status != 'block';
+    
+    IF (v_total_previous + NEW.withdrawal_amount) > (v_deposit * 10) THEN
+        RAISE EXCEPTION 'Total withdrawals exceed reasonable limit';
+    END IF;
+    
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_validate_withdrawal_amount
+BEFORE INSERT OR UPDATE ON work_withdrawals
+FOR EACH ROW EXECUTE FUNCTION validate_withdrawal_amount();
+
+-- Триггер обработки выплаты зарплаты
+CREATE OR REPLACE FUNCTION process_salary_payment()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.paid = TRUE AND OLD.paid = FALSE THEN
+        NEW.paid_amount = NEW.total_salary;
+        NEW.total_salary = 0;
+        
+        INSERT INTO usdt_transfers(from_user_id, to_user_id, amount, transfer_type, status)
+        VALUES (
+            (SELECT id FROM users WHERE role = 'cfo' LIMIT 1),
+            NEW.user_id,
+            NEW.paid_amount,
+            'salary',
+            'confirmed'
+        ) RETURNING id INTO NEW.payment_transaction_id;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_salary_payment
+BEFORE UPDATE ON salary_calculations
+FOR EACH ROW EXECUTE FUNCTION process_salary_payment();
+
+-- Триггер отправки push-уведомлений
+CREATE OR REPLACE FUNCTION send_push_notification()
+RETURNS TRIGGER AS $$
+BEGIN
+    PERFORM pg_notify(
+        'notifications_' || NEW.user_id::text,
+        json_build_object(
+            'id', NEW.id,
+            'type', NEW.type,
+            'title', NEW.title,
+            'message', NEW.message,
+            'priority', NEW.priority,
+            'action_url', NEW.action_url
+        )::text
+    );
+    
+    NEW.push_sent := TRUE;
+    NEW.push_sent_at := NOW();
+    
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_send_push
+AFTER INSERT ON notifications
+FOR EACH ROW EXECUTE FUNCTION send_push_notification();
+
+-- Триггер сохранения истории сущностей
+CREATE OR REPLACE FUNCTION save_entity_history()
+RETURNS TRIGGER AS $$
+BEGIN
+    UPDATE entity_history 
+    SET is_current = FALSE 
+    WHERE entity_type = TG_TABLE_NAME 
+        AND entity_id = NEW.id 
+        AND is_current = TRUE;
+    
+    INSERT INTO entity_history(entity_type, entity_id, operation, data_snapshot, changed_by, version)
+    VALUES (
+        TG_TABLE_NAME,
+        NEW.id,
+        TG_OP,
+        to_jsonb(NEW),
+        COALESCE(NEW.updated_by, NEW.created_by),
+        COALESCE((SELECT MAX(version) + 1 FROM entity_history WHERE entity_id = NEW.id), 1)
+    );
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Применяем к критичным таблицам
+CREATE TRIGGER trg_history_users AFTER INSERT OR UPDATE ON users
+FOR EACH ROW EXECUTE FUNCTION save_entity_history();
+
+CREATE TRIGGER trg_history_cards AFTER INSERT OR UPDATE ON cards
+FOR EACH ROW EXECUTE FUNCTION save_entity_history();
+
+CREATE TRIGGER trg_history_withdrawals AFTER INSERT OR UPDATE ON work_withdrawals
+FOR EACH ROW EXECUTE FUNCTION save_entity_history();
+
+-- Триггер переназначения при увольнении
+CREATE OR REPLACE FUNCTION reassign_on_termination()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_replacement_id UUID;
+BEGIN
+    IF NEW.status = 'terminated' AND OLD.status != 'terminated' THEN
+        SELECT id INTO v_replacement_id
+        FROM users 
+        WHERE role IN ('manager', 'admin') 
+            AND status = 'active'
+        ORDER BY created_at
+        LIMIT 1;
+        
+        UPDATE alerts 
+        SET assigned_to = v_replacement_id,
+            updated_at = NOW()
+        WHERE assigned_to = NEW.id 
+            AND status IN ('open', 'acknowledged', 'in_progress');
+        
+        UPDATE task_assignees 
+        SET user_id = v_replacement_id
+        WHERE user_id = NEW.id
+            AND task_id IN (
+                SELECT id FROM tasks WHERE status IN ('new', 'in_progress', 'review')
+            );
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_reassign_on_termination
+AFTER UPDATE ON users
+FOR EACH ROW EXECUTE FUNCTION reassign_on_termination();
+
+-- Триггер предотвращения изменения критичных полей
+CREATE OR REPLACE FUNCTION prevent_critical_field_changes()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF TG_OP = 'UPDATE' THEN
+        IF OLD.deposit_amount != NEW.deposit_amount THEN
+            RAISE EXCEPTION 'Cannot modify deposit_amount after creation';
+        END IF;
+        IF OLD.withdrawal_amount != NEW.withdrawal_amount AND OLD.status = 'received' THEN
+            RAISE EXCEPTION 'Cannot modify withdrawal_amount after verification';
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_prevent_changes_works
+BEFORE UPDATE ON works
+FOR EACH ROW EXECUTE FUNCTION prevent_critical_field_changes();
+
+CREATE TRIGGER trg_prevent_changes_withdrawals  
+BEFORE UPDATE ON work_withdrawals
+FOR EACH ROW EXECUTE FUNCTION prevent_critical_field_changes();
+12.8 Политики безопасности (RLS)
+sql
+-- Включаем RLS для всех таблиц
+ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE cards ENABLE ROW LEVEL SECURITY;
+ALTER TABLE works ENABLE ROW LEVEL SECURITY;
+ALTER TABLE work_withdrawals ENABLE ROW LEVEL SECURITY;
+-- ... и т.д. для всех таблиц
+
+-- Функция получения роли текущего пользователя
+CREATE OR REPLACE FUNCTION current_user_role()
+RETURNS role_type AS $$
+    SELECT role FROM users WHERE auth_id = auth.uid()
+$$ LANGUAGE SQL STABLE;
+
+-- Функция получения ID текущего пользователя
+CREATE OR REPLACE FUNCTION current_user_id()
+RETURNS UUID AS $$
+    SELECT id FROM users WHERE auth_id = auth.uid()
+$$ LANGUAGE SQL STABLE;
+
+-- Политики для Junior
+CREATE POLICY junior_see_own_works ON works
+    FOR SELECT 
+    USING (junior_id = current_user_id() AND current_user_role() = 'junior');
+
+CREATE POLICY junior_create_works ON works
+    FOR INSERT 
+    WITH CHECK (junior_id = current_user_id() AND current_user_role() = 'junior');
+
+CREATE POLICY junior_see_own_withdrawals ON work_withdrawals
+    FOR SELECT
+    USING (
+        work_id IN (SELECT id FROM works WHERE junior_id = current_user_id())
+        AND current_user_role() = 'junior'
+    );
+
+-- Политики для Manager
+CREATE POLICY manager_see_all_withdrawals ON work_withdrawals
+    FOR SELECT
+    USING (current_user_role() = 'manager');
+
+CREATE POLICY manager_update_withdrawals ON work_withdrawals
+    FOR UPDATE
+    USING (current_user_role() = 'manager' AND status IN ('new', 'waiting'));
+
+CREATE POLICY manager_see_team_data ON works
+    FOR SELECT 
+    USING (
+        junior_id IN (
+            SELECT ca.junior_id FROM card_assignments ca
+            WHERE ca.assigned_by = current_user_id()
+        ) AND current_user_role() = 'manager'
+    );
+
+-- Политики для HR
+CREATE POLICY hr_see_all_users ON users
+    FOR SELECT
+    USING (current_user_role() = 'hr');
+
+CREATE POLICY hr_create_users ON users
+    FOR INSERT
+    WITH CHECK (current_user_role() = 'hr');
+
+CREATE POLICY hr_update_users ON users
+    FOR UPDATE
+    USING (current_user_role() = 'hr');
+
+-- Политики для CFO
+CREATE POLICY cfo_all_finances ON salary_calculations
+    FOR ALL
+    USING (current_user_role() IN ('cfo', 'ceo'));
+
+CREATE POLICY cfo_manage_cards ON cards
+    FOR ALL
+    USING (current_user_role() IN ('cfo', 'ceo'));
+
+CREATE POLICY cfo_manage_banks ON bank_accounts
+    FOR ALL
+    USING (current_user_role() IN ('cfo', 'ceo'));
+
+-- Политики для CEO/Admin - полный доступ
+CREATE POLICY admin_all_access_users ON users
+    FOR ALL
+    USING (current_user_role() IN ('ceo', 'admin'));
+
+CREATE POLICY admin_all_access_cards ON cards
+    FOR ALL
+    USING (current_user_role() IN ('ceo', 'admin'));
+
+-- ... аналогично для всех таблиц
+
+-- Политики для общих таблиц
+CREATE POLICY all_see_notifications ON notifications
+    FOR SELECT
+    USING (user_id = current_user_id());
+
+CREATE POLICY all_see_casinos ON casinos
+    FOR SELECT
+    USING (TRUE);
+
+-- Политики видимости карт с учетом баланса
+CREATE POLICY junior_see_available_cards ON available_cards_for_junior
+    FOR SELECT
+    USING (junior_id = current_user_id() AND is_available = TRUE);
+12.9 Инициализация и миграции
+sql
+-- Создание расширений
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+CREATE EXTENSION IF NOT EXISTS "pg_trgm";
+CREATE EXTENSION IF NOT EXISTS "pg_cron";
+
+-- Создание типов
+CREATE TYPE role_type AS ENUM ('junior', 'tester', 'manager', 'hr', 'cfo', 'ceo', 'admin');
+CREATE TYPE user_status AS ENUM ('active', 'inactive', 'terminated');
+CREATE TYPE card_status AS ENUM ('active', 'blocked', 'expired', 'temporarily_unavailable');
+CREATE TYPE card_type AS ENUM ('grey', 'pink');
+CREATE TYPE withdrawal_status AS ENUM ('new', 'waiting', 'received', 'problem', 'block');
+CREATE TYPE work_status AS ENUM ('active', 'completed', 'cancelled', 'under_review');
+CREATE TYPE assignment_status AS ENUM ('assigned', 'in_use', 'completed', 'problem', 'temporarily_unavailable');
+CREATE TYPE bank_status AS ENUM ('active', 'inactive', 'blocked');
+CREATE TYPE bank_account_status AS ENUM ('active', 'blocked');
+CREATE TYPE casino_status AS ENUM ('checking', 'active', 'inactive', 'blocked');
+CREATE TYPE test_result AS ENUM ('approved', 'rejected');
+CREATE TYPE task_priority AS ENUM ('low', 'medium', 'high', 'critical');
+CREATE TYPE task_status AS ENUM ('new', 'in_progress', 'review', 'done', 'cancelled');
+CREATE TYPE alert_severity AS ENUM ('low', 'medium', 'high', 'critical');
+CREATE TYPE alert_status AS ENUM ('open', 'acknowledged', 'in_progress', 'resolved', 'closed');
+CREATE TYPE hr_comment_type AS ENUM ('positive', 'neutral', 'negative', 'note');
+CREATE TYPE notification_priority AS ENUM ('low', 'normal', 'high', 'critical');
+CREATE TYPE expense_type AS ENUM ('goods', 'bases', 'docs', 'banks', 'drawings', 'licenses', 'other');
+CREATE TYPE usdt_transfer_type AS ENUM ('daily', 'salary', 'other');
+CREATE TYPE transfer_status AS ENUM ('pending', 'confirmed', 'failed');
+
+-- Инициализация системных настроек
+INSERT INTO system_settings_typed (key, value_type, value_int, description) VALUES
+   ('session_timeout', 'integer', 15, 'Таймаут сессии в минутах'),
+   ('max_concurrent_sessions', 'integer', 3, 'Максимум параллельных сессий'),
+   ('auto_approve_limit', 'numeric', 200.00, 'Лимит автоматического подтверждения'),
+   ('pink_cards_daily_limit', 'integer', 5, 'Дневной лимит розовых карт'),
+   ('max_cards_per_junior', 'integer', 10, 'Максимум карт на junior'),
+   ('max_daily_deposits', 'numeric', 5000.00, 'Максимальная сумма депозитов в день'),
+   ('withdrawal_sla_warning', 'integer', 15, 'Предупреждение SLA (минут)'),
+   ('withdrawal_sla_critical', 'integer', 60, 'Критический SLA (минут)'),
+   ('withdrawal_sla_autoblock', 'integer', 240, 'Автоблокировка SLA (минут)');
+
+-- Создание первоначального администратора
+INSERT INTO users (auth_id, email, role, status, first_name, last_name) VALUES
+   (uuid_generate_v4(), 'admin@example.com', 'admin', 'active', 'System', 'Administrator');
+
+-- Планировщик задач (pg_cron)
+SELECT cron.schedule('expire-cards', '0 1 * * *', 'SELECT auto_expire_cards()');
+SELECT cron.schedule('escalate-withdrawals', '*/5 * * * *', 'SELECT escalate_pending_withdrawals()');
+SELECT cron.schedule('daily-stats', '0 23 * * *', 'SELECT calculate_daily_stats()');
+SELECT cron.schedule('monthly-salaries', '0 2 1 * *', 'SELECT auto_calculate_salaries()');
+SELECT cron.schedule('cleanup-expired', '*/10 * * * *', 'SELECT cleanup_expired_data()');
+SELECT cron.schedule('rotate-logs', '0 3 * * 0', 'SELECT rotate_audit_logs()');
+SELECT cron.schedule('detect-anomalies', '*/30 * * * *', 'SELECT detect_anomalies()');
+SELECT cron.schedule('monitor-health', '*/5 * * * *', 'SELECT monitor_system_health()');
+SELECT cron.schedule('auto-backup', '0 3 * * *', 'SELECT auto_backup()');
+SELECT cron.schedule('task-reminders', '0 * * * *', 'SELECT send_task_reminders()');
+12.10 Индексы производительности
+sql
+-- Составные индексы для частых запросов
+CREATE INDEX idx_withdrawals_manager_queue ON work_withdrawals(status, created_at, checked_by)
+    WHERE status IN ('new', 'waiting');
+
+CREATE INDEX idx_works_junior_active ON works(junior_id, status, work_date DESC)
+    WHERE status = 'active';
+
+CREATE INDEX idx_cards_available ON cards(bank_account_id, status, type)
+    WHERE status = 'active';
+
+CREATE INDEX idx_notifications_unread_priority ON notifications(user_id, priority DESC, created_at DESC)
+    WHERE read_status = FALSE;
+
+CREATE INDEX idx_salary_unpaid ON salary_calculations(month, paid, user_id)
+    WHERE paid = FALSE;
+
+-- Индексы для текстового поиска
+CREATE INDEX idx_users_search ON users USING gin(
+    to_tsvector('russian', coalesce(first_name, '') || ' ' || coalesce(last_name, '') || ' ' || coalesce(email, ''))
+);
+
+CREATE INDEX idx_casinos_search ON casinos USING gin(
+    to_tsvector('english', name || ' ' || coalesce(manual, ''))
+);
+
+-- Индексы для JSONB полей
+CREATE INDEX idx_audit_log_old_values ON audit_log USING gin(old_values);
+CREATE INDEX idx_audit_log_new_values ON audit_log USING gin(new_values);
+CREATE INDEX idx_notifications_context ON notifications USING gin(related_entity_id);
+
+-- Частичные индексы для оптимизации
+CREATE INDEX idx_active_sessions ON user_sessions(user_id, last_heartbeat)
+    WHERE is_active = TRUE;
+
+CREATE INDEX idx_pending_transfers ON usdt_transfers(status, created_at)
+    WHERE status = 'pending';
+
+CREATE INDEX idx_open_alerts ON alerts(severity DESC, created_at)
+    WHERE status IN ('open', 'acknowledged');
+
+CREATE INDEX idx_upcoming_deadlines ON tasks(deadline)
+    WHERE status NOT IN ('done', 'cancelled') AND deadline IS NOT NULL;
+12.11 Партиционирование больших таблиц
+sql
+-- Партиционирование audit_log по месяцам
+CREATE TABLE audit_log_partitioned (LIKE audit_log INCLUDING ALL) 
+PARTITION BY RANGE (created_at);
+
+-- Создание партиций на год вперед
+DO $$
+DECLARE
+    start_date date := '2025-01-01';
+    end_date date;
+    partition_name text;
+BEGIN
+    FOR i IN 0..11 LOOP
+        end_date := start_date + interval '1 month';
+        partition_name := 'audit_log_' || to_char(start_date, 'YYYY_MM');
+        
+        EXECUTE format('
+            CREATE TABLE %I PARTITION OF audit_log_partitioned
+            FOR VALUES FROM (%L) TO (%L)',
+            partition_name, start_date, end_date
+        );
+        
+        start_date := end_date;
+    END LOOP;
+END $$;
+
+-- Партиционирование notifications по пользователям (hash)
+CREATE TABLE notifications_partitioned (LIKE notifications INCLUDING ALL)
+PARTITION BY HASH (user_id);
+
+CREATE TABLE notifications_p0 PARTITION OF notifications_partitioned
+    FOR VALUES WITH (modulus 4, remainder 0);
+CREATE TABLE notifications_p1 PARTITION OF notifications_partitioned
+    FOR VALUES WITH (modulus 4, remainder 1);
+CREATE TABLE notifications_p2 PARTITION OF notifications_partitioned
+    FOR VALUES WITH (modulus 4, remainder 2);
+CREATE TABLE notifications_p3 PARTITION OF notifications_partitioned
+    FOR VALUES WITH (modulus 4, remainder 3);
+
+-- Партиционирование work_withdrawals по дате
+CREATE TABLE work_withdrawals_partitioned (LIKE work_withdrawals INCLUDING ALL)
+PARTITION BY RANGE (created_at);
+
+-- Автоматическое создание партиций
+CREATE OR REPLACE FUNCTION create_monthly_partition()
+RETURNS void AS $$
+DECLARE
+    partition_date date;
+    partition_name text;
+    start_date date;
+    end_date date;
+BEGIN
+    partition_date := date_trunc('month', CURRENT_DATE + interval '1 month');
+    partition_name := 'work_withdrawals_' || to_char(partition_date, 'YYYY_MM');
+    start_date := partition_date;
+    end_date := partition_date + interval '1 month';
+    
+    -- Проверяем существование партиции
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_tables 
+        WHERE tablename = partition_name
+    ) THEN
+        EXECUTE format('
+            CREATE TABLE %I PARTITION OF work_withdrawals_partitioned
+            FOR VALUES FROM (%L) TO (%L)',
+            partition_name, start_date, end_date
+        );
+    END IF;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Запускаем ежемесячно
+SELECT cron.schedule('create-partitions', '0 0 25 * *', 'SELECT create_monthly_partition()');
+12.12 Оптимизированные функции для отчетов
+sql
+-- Функция расчета профита за период
+CREATE OR REPLACE FUNCTION calculate_profit_for_period(
+    p_date_from DATE,
+    p_date_to DATE,
+    p_junior_id UUID DEFAULT NULL
+) RETURNS TABLE(
+    junior_id UUID,
+    junior_name TEXT,
+    total_deposits NUMERIC,
+    total_withdrawals NUMERIC,
+    profit NUMERIC,
+    success_rate NUMERIC,
+    operations_count INTEGER
+) AS $$
+BEGIN
+    RETURN QUERY
+    WITH withdrawal_stats AS (
+        SELECT 
+            w.junior_id,
+            w.id as work_id,
+            w.deposit_amount,
+            MAX(CASE WHEN ww.status = 'received' THEN ww.withdrawal_amount ELSE 0 END) as withdrawal_amount,
+            BOOL_OR(ww.status = 'received') as is_successful
+        FROM works w
+        LEFT JOIN work_withdrawals ww ON ww.work_id = w.id
+        WHERE w.work_date BETWEEN p_date_from AND p_date_to
+            AND (p_junior_id IS NULL OR w.junior_id = p_junior_id)
+        GROUP BY w.junior_id, w.id, w.deposit_amount
+    )
+    SELECT 
+        ws.junior_id,
+        u.first_name || ' ' || u.last_name as junior_name,
+        SUM(ws.deposit_amount) as total_deposits,
+        SUM(ws.withdrawal_amount) as total_withdrawals,
+        SUM(ws.withdrawal_amount - ws.deposit_amount) as profit,
+        ROUND(AVG(CASE WHEN ws.is_successful THEN 100.0 ELSE 0.0 END), 2) as success_rate,
+        COUNT(*)::INTEGER as operations_count
+    FROM withdrawal_stats ws
+    JOIN users u ON u.id = ws.junior_id
+    GROUP BY ws.junior_id, u.first_name, u.last_name
+    ORDER BY profit DESC;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Функция генерации матрицы Casino×Junior
+CREATE OR REPLACE FUNCTION generate_casino_junior_matrix(
+    p_month DATE DEFAULT date_trunc('month', CURRENT_DATE)
+) RETURNS TABLE(
+    casino_id UUID,
+    casino_name TEXT,
+    junior_id UUID,
+    junior_name TEXT,
+    profit NUMERIC,
+    operations_count INTEGER
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        c.id as casino_id,
+        c.name as casino_name,
+        j.id as junior_id,
+        j.first_name || ' ' || j.last_name as junior_name,
+        COALESCE(SUM(ww.withdrawal_amount - w.deposit_amount), 0) as profit,
+        COUNT(DISTINCT w.id)::INTEGER as operations_count
+    FROM casinos c
+    CROSS JOIN users j
+    LEFT JOIN works w ON w.casino_id = c.id 
+        AND w.junior_id = j.id
+        AND date_trunc('month', w.work_date) = p_month
+    LEFT JOIN work_withdrawals ww ON ww.work_id = w.id 
+        AND ww.status = 'received'
+    WHERE j.role = 'junior' 
+        AND j.status = 'active'
+        AND c.status = 'active'
+    GROUP BY c.id, c.name, j.id, j.first_name, j.last_name
+    ORDER BY c.name, j.first_name;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Функция анализа эффективности карт
+CREATE OR REPLACE FUNCTION analyze_cards_efficiency(
+    p_bank_id UUID DEFAULT NULL
+) RETURNS TABLE(
+    card_id UUID,
+    card_mask VARCHAR(25),
+    bank_name TEXT,
+    total_operations INTEGER,
+    total_profit NUMERIC,
+    success_rate NUMERIC,
+    avg_profit_per_operation NUMERIC,
+    last_used DATE
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        c.id as card_id,
+        c.card_number_mask as card_mask,
+        b.name as bank_name,
+        COUNT(DISTINCT w.id)::INTEGER as total_operations,
+        COALESCE(SUM(ww.withdrawal_amount - w.deposit_amount), 0) as total_profit,
+        ROUND(
+            COUNT(DISTINCT ww.id) FILTER (WHERE ww.status = 'received')::NUMERIC / 
+            NULLIF(COUNT(DISTINCT ww.id), 0) * 100, 2
+        ) as success_rate,
+        ROUND(
+            COALESCE(SUM(ww.withdrawal_amount - w.deposit_amount), 0) / 
+            NULLIF(COUNT(DISTINCT w.id), 0), 2
+        ) as avg_profit_per_operation,
+        MAX(w.work_date) as last_used
+    FROM cards c
+    JOIN bank_accounts ba ON ba.id = c.bank_account_id
+    JOIN banks b ON b.id = ba.bank_id
+    LEFT JOIN works w ON w.card_id = c.id
+    LEFT JOIN work_withdrawals ww ON ww.work_id = w.id AND ww.status = 'received'
+    WHERE (p_bank_id IS NULL OR ba.bank_id = p_bank_id)
+    GROUP BY c.id, c.card_number_mask, b.name
+    ORDER BY total_profit DESC;
+END;
+$$ LANGUAGE plpgsql;
+12.13 Функции для системных операций
+sql
+-- Автоматическое истечение карт
+CREATE OR REPLACE FUNCTION auto_expire_cards()
+RETURNS void AS $$
+BEGIN
+    UPDATE cards 
+    SET status = 'expired' 
+    WHERE status != 'expired'
+        AND (exp_year < EXTRACT(YEAR FROM CURRENT_DATE) 
+             OR (exp_year = EXTRACT(YEAR FROM CURRENT_DATE) 
+                 AND exp_month < EXTRACT(MONTH FROM CURRENT_DATE)));
+    
+    UPDATE card_assignments
+    SET status = 'completed'
+    WHERE card_id IN (SELECT id FROM cards WHERE status = 'expired')
+        AND status IN ('assigned', 'in_use');
+END;
+$$ LANGUAGE plpgsql;
+
+-- Эскалация ожидающих выводов
+CREATE OR REPLACE FUNCTION escalate_pending_withdrawals()
+RETURNS void AS $$
+DECLARE
+    v_withdrawal RECORD;
+BEGIN
+    -- 15 минут - уведомление
+    FOR v_withdrawal IN 
+        SELECT * FROM work_withdrawals 
+        WHERE status = 'waiting' 
+            AND created_at < NOW() - INTERVAL '15 minutes'
+            AND created_at > NOW() - INTERVAL '1 hour'
+    LOOP
+        INSERT INTO notifications(user_id, type, title, message, priority)
+        SELECT id, 'withdrawal', 'Вывод требует внимания', 
+               'Вывод #' || substring(v_withdrawal.id::text, 1, 8) || ' ожидает более 15 минут', 
+               'high'
+        FROM users WHERE role = 'manager';
+    END LOOP;
+    
+    -- 1 час - критический алерт
+    FOR v_withdrawal IN 
+        SELECT * FROM work_withdrawals 
+        WHERE status = 'waiting' 
+            AND created_at < NOW() - INTERVAL '1 hour'
+            AND created_at > NOW() - INTERVAL '4 hours'
+    LOOP
+        INSERT INTO alerts(type, severity, title, description, status)
+        VALUES ('withdrawal_delay', 'critical', 
+                'Критическая задержка вывода',
+                'Вывод #' || substring(v_withdrawal.id::text, 1, 8) || ' не обработан более часа',
+                'open');
+    END LOOP;
+    
+    -- 4 часа - автоблокировка
+    UPDATE work_withdrawals
+    SET status = 'block',
+        alarm_message = 'Автоблокировка: превышен SLA 4 часа'
+    WHERE status = 'waiting'
+        AND created_at < NOW() - INTERVAL '4 hours';
+END;
+$$ LANGUAGE plpgsql;
+
+-- Расчет дневной статистики
+CREATE OR REPLACE FUNCTION calculate_daily_stats()
+RETURNS void AS $$
+BEGIN
+    INSERT INTO daily_limits (user_id, limit_date, total_deposits, deposit_count, total_withdrawals, withdrawal_count)
+    SELECT 
+        w.junior_id,
+        CURRENT_DATE,
+        COALESCE(SUM(w.deposit_amount), 0),
+        COUNT(DISTINCT w.id),
+        COALESCE(SUM(ww.withdrawal_amount), 0),
+        COUNT(DISTINCT ww.id)
+    FROM works w
+    LEFT JOIN work_withdrawals ww ON ww.work_id = w.id
+    WHERE w.work_date = CURRENT_DATE
+    GROUP BY w.junior_id
+    ON CONFLICT (user_id, limit_date) 
+    DO UPDATE SET 
+        total_deposits = EXCLUDED.total_deposits,
+        deposit_count = EXCLUDED.deposit_count,
+        total_withdrawals = EXCLUDED.total_withdrawals,
+        withdrawal_count = EXCLUDED.withdrawal_count;
+    
+    REFRESH MATERIALIZED VIEW CONCURRENTLY junior_monthly_stats;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Автоматический расчет зарплат
+CREATE OR REPLACE FUNCTION auto_calculate_salaries()
+RETURNS void AS $$
+DECLARE
+    v_user RECORD;
+    v_profit NUMERIC;
+    v_salary NUMERIC;
+    v_month DATE;
+BEGIN
+    v_month := date_trunc('month', CURRENT_DATE - INTERVAL '1 month');
+    
+    FOR v_user IN 
+        SELECT * FROM users 
+        WHERE role IN ('junior', 'tester') 
+            AND status = 'active'
+    LOOP
+        SELECT COALESCE(SUM(ww.withdrawal_amount - w.deposit_amount), 0)
+        INTO v_profit
+        FROM works w
+        JOIN work_withdrawals ww ON ww.work_id = w.id
+        WHERE w.junior_id = v_user.id
+            AND ww.status = 'received'
+            AND w.work_date >= v_month
+            AND w.work_date < v_month + INTERVAL '1 month';
+        
+        v_salary := (v_profit * v_user.salary_percentage / 100) + v_user.salary_bonus;
+        
+        INSERT INTO salary_calculations(
+            user_id, month, gross_profit, base_salary, 
+            bonus, total_salary
+        ) VALUES (
+            v_user.id,
+            v_month,
+            v_profit,
+            v_profit * v_user.salary_percentage / 100,
+            v_user.salary_bonus,
+            v_salary
+        ) ON CONFLICT (user_id, month) DO UPDATE
+        SET gross_profit = EXCLUDED.gross_profit,
+            base_salary = EXCLUDED.base_salary,
+            bonus = EXCLUDED.bonus,
+            total_salary = EXCLUDED.total_salary;
+    END LOOP;
+    
+    INSERT INTO notifications(user_id, type, title, message, priority)
+    SELECT id, 'system', 'Расчет зарплат завершен', 
+           'Готов к проверке и утверждению', 'high'
+    FROM users WHERE role = 'cfo';
+END;
+$$ LANGUAGE plpgsql;
+
+-- Очистка истекших данных
+CREATE OR REPLACE FUNCTION cleanup_expired_data()
+RETURNS void AS $$
+BEGIN
+    DELETE FROM card_reveal_tokens 
+    WHERE expires_at < NOW() - INTERVAL '1 hour';
+    
+    DELETE FROM password_resets 
+    WHERE (used = TRUE AND created_at < NOW() - INTERVAL '1 day')
+        OR expires_at < NOW() - INTERVAL '7 days';
+    
+    UPDATE user_sessions 
+    SET is_active = FALSE, terminated_reason = 'expired'
+    WHERE is_active = TRUE AND expires_at < NOW();
+    
+    DELETE FROM user_sessions 
+    WHERE is_active = FALSE 
+        AND created_at < NOW() - INTERVAL '30 days';
+    
+    DELETE FROM idempotency_keys 
+    WHERE expires_at < NOW();
+    
+    DELETE FROM notifications
+    WHERE read_status = TRUE
+        AND created_at < NOW() - INTERVAL '90 days';
+END;
+$$ LANGUAGE plpgsql;
+
+-- Обнаружение аномалий
+CREATE OR REPLACE FUNCTION detect_anomalies()
+RETURNS void AS $$
+DECLARE
+    v_anomaly RECORD;
+BEGIN
+    -- Множественные неудачные попытки входа
+    FOR v_anomaly IN
+        SELECT user_id, COUNT(*) as attempts
+        FROM access_attempts
+        WHERE granted = FALSE
+            AND created_at > NOW() - INTERVAL '1 hour'
+        GROUP BY user_id
+        HAVING COUNT(*) > 5
+    LOOP
+        INSERT INTO alerts(type, severity, title, description)
+        VALUES ('security', 'high', 'Подозрительная активность',
+                'Пользователь ' || substring(v_anomaly.user_id::text, 1, 8) || 
+                ' - множественные неудачные попытки входа');
+    END LOOP;
+    
+    -- Аномальное количество депозитов
+    FOR v_anomaly IN
+        SELECT junior_id, COUNT(*) as deposit_count
+        FROM works
+        WHERE work_date = CURRENT_DATE
+        GROUP BY junior_id
+        HAVING COUNT(*) > 20
+    LOOP
+        INSERT INTO alerts(type, severity, title, description)
+        VALUES ('operational', 'medium', 'Аномальная активность',
+                'Junior ' || substring(v_anomaly.junior_id::text, 1, 8) || 
+                ' создал ' || v_anomaly.deposit_count || ' депозитов за день');
+    END LOOP;
+    
+    -- Перегруженные карты
+    FOR v_anomaly IN
+        SELECT card_id, COUNT(*) as active_works
+        FROM works
+        WHERE status = 'active'
+        GROUP BY card_id
+        HAVING COUNT(*) > 10
+    LOOP
+        INSERT INTO alerts(type, severity, title, description)
+        VALUES ('risk', 'critical', 'Перегруженная карта',
+                'Карта ' || substring(v_anomaly.card_id::text, 1, 8) || 
+                ' используется в ' || v_anomaly.active_works || ' активных работах');
+    END LOOP;
+END;
+$$ LANGUAGE plpgsql;
+
+

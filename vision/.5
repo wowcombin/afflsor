@@ -1,0 +1,547 @@
+10: Интерфейсные элементы
+10.1 Цветовая схема системы
+10.1.1 Основные цвета
+css
+:root {
+  /* Primary Colors */
+  --primary-500: #3B82F6;      /* Основной синий */
+  --primary-600: #2563EB;      /* Hover состояние */
+  --primary-100: #DBEAFE;      /* Фоновый */
+  
+  /* Status Colors */
+  --success-500: #10B981;      /* Зеленый - успех */
+  --warning-500: #F59E0B;      /* Оранжевый - предупреждение */
+  --danger-500: #EF4444;       /* Красный - ошибка/блокировка */
+  --info-500: #6366F1;         /* Фиолетовый - информация */
+  
+  /* Neutral Colors */
+  --gray-50: #F9FAFB;          /* Фон таблиц */
+  --gray-100: #F3F4F6;         /* Фон карточек */
+  --gray-500: #6B7280;         /* Текст secondary */
+  --gray-900: #111827;         /* Основной текст */
+  
+  /* Role Colors */
+  --role-junior: #10B981;      /* Зеленый */
+  --role-tester: #8B5CF6;      /* Фиолетовый */
+  --role-manager: #3B82F6;     /* Синий */
+  --role-hr: #EC4899;          /* Розовый */
+  --role-cfo: #F59E0B;         /* Оранжевый */
+  --role-ceo: #EF4444;         /* Красный */
+}
+10.1.2 Цвета статусов
+Статусы выводов (work_withdrawals):
+tsx
+const withdrawalStatusColors = {
+  new: { bg: '#F3F4F6', text: '#6B7280', label: 'Новый' },
+  waiting: { bg: '#FEF3C7', text: '#92400E', label: 'Ожидает' },
+  received: { bg: '#D1FAE5', text: '#065F46', label: 'Получен' },
+  problem: { bg: '#FED7AA', text: '#9A3412', label: 'Проблема' },
+  block: { bg: '#FEE2E2', text: '#991B1B', label: 'Блокирован' }
+}
+Статусы карт:
+tsx
+const cardStatusColors = {
+  active: { bg: '#D1FAE5', text: '#065F46', label: 'Активна' },
+  blocked: { bg: '#FEE2E2', text: '#991B1B', label: 'Заблокирована' },
+  expired: { bg: '#F3F4F6', text: '#6B7280', label: 'Истекла' },
+  temporarily_unavailable: { bg: '#FEF3C7', text: '#92400E', label: 'Недоступна' }
+}
+10.2 Компоненты таблиц
+10.2.1 DataTable с расширенным функционалом
+tsx
+interface DataTableProps {
+  columns: Column[]
+  data: any[]
+  filters?: FilterConfig[]
+  sorting?: SortConfig
+  pagination?: PaginationConfig
+  selection?: SelectionConfig
+  actions?: ActionConfig[]
+  export?: boolean
+}
+
+// Пример использования
+<DataTable
+  columns={[
+    {
+      key: 'created_at',
+      label: 'Время',
+      width: 150,
+      sortable: true,
+      render: (value) => formatDateTime(value)
+    },
+    {
+      key: 'status',
+      label: 'Статус',
+      width: 120,
+      filterable: true,
+      render: (value) => <StatusBadge status={value} />
+    },
+    {
+      key: 'amount',
+      label: 'Сумма',
+      width: 100,
+      sortable: true,
+      align: 'right',
+      render: (value) => `$${value.toFixed(2)}`
+    }
+  ]}
+  data={withdrawals}
+  filters={[
+    { type: 'select', key: 'status', options: statusOptions },
+    { type: 'dateRange', key: 'created_at' },
+    { type: 'search', placeholder: 'Поиск...' }
+  ]}
+  pagination={{
+    pageSize: 20,
+    pageSizes: [10, 20, 50, 100],
+    showTotal: true
+  }}
+  selection={{
+    mode: 'multiple',
+    actions: [
+      { label: 'Подтвердить выбранные', action: approveSelected }
+    ]
+  }}
+  export={true}
+/>
+10.2.2 Виртуализированная таблица для больших данных
+tsx
+<VirtualizedTable
+  height={600}
+  rowHeight={48}
+  headerHeight={56}
+  rowCount={10000}
+  columns={columns}
+  loadMoreRows={({ startIndex, stopIndex }) => 
+    fetchRows(startIndex, stopIndex)
+  }
+  rowRenderer={({ index, key, style }) => (
+    <div key={key} style={style} className="table-row">
+      {renderRow(data[index])}
+    </div>
+  )}
+/>
+10.2.3 Таблица с группировкой
+tsx
+<GroupedTable
+  data={works}
+  groupBy="casino_id"
+  columns={columns}
+  renderGroupHeader={(group) => (
+    <div className="group-header">
+      <span>{group.casino_name}</span>
+      <Badge>{group.items.length} работ</Badge>
+      <span className="ml-auto">
+        Сумма: ${group.total.toFixed(2)}
+      </span>
+    </div>
+  )}
+  collapsible={true}
+  defaultExpanded={false}
+/>
+10.3 Компоненты форм
+10.3.1 Форма создания депозита
+tsx
+<Form onSubmit={handleSubmit} schema={depositSchema}>
+  <FormSection title="Выбор казино">
+    <Select
+      name="casino_id"
+      label="Казино"
+      required
+      options={casinos}
+      renderOption={(casino) => (
+        <div className="flex justify-between">
+          <span>{casino.name}</span>
+          <Badge variant={casino.auto_approve ? 'success' : 'warning'}>
+            {casino.auto_approve ? 'Авто' : 'Ручная проверка'}
+          </Badge>
+        </div>
+      )}
+    />
+  </FormSection>
+
+  <FormSection title="Выбор карты">
+    <CardSelector
+      name="card_id"
+      casino={selectedCasino}
+      filter={(card) => card.bank_balance >= 10}
+      emptyMessage="Нет доступных карт с достаточным балансом"
+      renderCard={(card) => (
+        <Card className="cursor-pointer hover:border-primary">
+          <div className="flex justify-between">
+            <span className="font-mono">{card.card_number_mask}</span>
+            <span>{card.exp_month}/{card.exp_year}</span>
+          </div>
+          <div className="text-sm text-gray-500">
+            Банк: {card.bank_name} | Баланс: ${card.bank_balance}
+          </div>
+        </Card>
+      )}
+    />
+  </FormSection>
+
+  <FormSection title="Данные для входа">
+    <Input
+      name="casino_username"
+      label="Логин в казино"
+      required
+      autoComplete="off"
+    />
+    <PasswordInput
+      name="casino_password"
+      label="Пароль в казино"
+      required
+      showStrength={false}
+    />
+  </FormSection>
+
+  <FormSection title="Сумма депозита">
+    <MoneyInput
+      name="deposit_amount"
+      label="Сумма"
+      required
+      min={10}
+      max={1000}
+      currency="USD"
+      step={0.01}
+    />
+  </FormSection>
+
+  <FormActions>
+    <Button type="button" variant="outline" onClick={onCancel}>
+      Отмена
+    </Button>
+    <Button type="submit" loading={isSubmitting}>
+      Создать депозит
+    </Button>
+  </FormActions>
+</Form>
+10.3.2 Форма проверки вывода (Manager)
+tsx
+<DrawerForm title="Проверка вывода">
+  <div className="grid grid-cols-3 gap-4">
+    {/* Левая колонка - История */}
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>История Junior</CardHeader>
+        <CardContent>
+          <Stat label="Всего выводов" value={stats.total} />
+          <Stat label="Успешных" value={stats.success} variant="success" />
+          <Stat label="Проблемных" value={stats.problems} variant="warning" />
+          <Stat label="Успешность" value={`${stats.rate}%`} />
+        </CardContent>
+      </Card>
+      
+      <Card>
+        <CardHeader>Последние операции</CardHeader>
+        <CardContent>
+          <Timeline items={recentOperations} />
+        </CardContent>
+      </Card>
+    </div>
+
+    {/* Центральная колонка - Детали */}
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>Детали вывода</CardHeader>
+        <CardContent>
+          <DetailRow label="ID" value={withdrawal.id} copyable />
+          <DetailRow label="Создан" value={formatDateTime(withdrawal.created_at)} />
+          <DetailRow label="Казино" value={withdrawal.casino_name} />
+          <DetailRow label="Депозит" value={`$${withdrawal.deposit_amount}`} />
+          <DetailRow label="Вывод" value={`$${withdrawal.withdrawal_amount}`} />
+          <DetailRow label="Профит" value={`$${withdrawal.profit}`} highlight />
+        </CardContent>
+      </Card>
+    </div>
+
+    {/* Правая колонка - Действия */}
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>Решение</CardHeader>
+        <CardContent>
+          <RadioGroup
+            value={decision}
+            onChange={setDecision}
+            options={[
+              { value: 'received', label: 'Подтвердить', color: 'success' },
+              { value: 'problem', label: 'Проблема', color: 'warning' },
+              { value: 'block', label: 'Блокировать', color: 'danger' }
+            ]}
+          />
+          
+          {decision !== 'received' && (
+            <Textarea
+              label="Комментарий"
+              required
+              placeholder="Укажите причину..."
+              value={comment}
+              onChange={setComment}
+            />
+          )}
+          
+          <Button
+            onClick={submitDecision}
+            variant={getVariantByDecision(decision)}
+            fullWidth
+            loading={isSubmitting}
+          >
+            {getButtonLabel(decision)}
+          </Button>
+        </CardContent>
+      </Card>
+    </div>
+  </div>
+</DrawerForm>
+10.4 Графики и визуализация
+10.4.1 График профита (линейный)
+tsx
+<LineChart
+  data={profitData}
+  height={300}
+  config={{
+    xAxis: {
+      dataKey: 'date',
+      format: 'DD MMM'
+    },
+    yAxis: {
+      format: '$0,0',
+      domain: ['auto', 'auto']
+    },
+    lines: [
+      {
+        dataKey: 'profit',
+        stroke: '#10B981',
+        strokeWidth: 2,
+        name: 'Профит',
+        dot: false
+      },
+      {
+        dataKey: 'target',
+        stroke: '#6B7280',
+        strokeDasharray: '5 5',
+        name: 'Цель',
+        dot: false
+      }
+    ],
+    tooltip: {
+      formatter: (value) => `$${value.toFixed(2)}`
+    },
+    area: {
+      dataKey: 'profit',
+      fill: 'url(#profitGradient)',
+      fillOpacity: 0.1
+    }
+  }}
+/>
+10.4.2 Матрица эффективности Casino×Junior
+tsx
+<HeatmapMatrix
+  data={matrixData}
+  xAxis={casinos}
+  yAxis={juniors}
+  valueKey="profit"
+  colorScale={{
+    min: { value: -1000, color: '#FEE2E2' },
+    zero: { value: 0, color: '#F3F4F6' },
+    max: { value: 5000, color: '#D1FAE5' }
+  }}
+  cellRenderer={({ value, x, y }) => (
+    <div className="heatmap-cell">
+      <span className="value">${value}</span>
+      <span className="count">{getCellCount(x, y)} ops</span>
+    </div>
+  )}
+  onCellClick={({ x, y }) => showDetails(x, y)}
+/>
+10.4.3 Donut chart расходов
+tsx
+<DonutChart
+  data={expensesData}
+  height={250}
+  innerRadius={60}
+  config={{
+    dataKey: 'amount',
+    nameKey: 'category',
+    colors: {
+      goods: '#3B82F6',
+      bases: '#10B981',
+      docs: '#F59E0B',
+      banks: '#EF4444',
+      other: '#6B7280'
+    },
+    label: {
+      show: true,
+      formatter: ({ percent }) => `${percent}%`
+    },
+    tooltip: {
+      formatter: ({ name, value, percent }) => 
+        `${name}: $${value} (${percent}%)`
+    },
+    center: {
+      label: 'Всего',
+      value: `$${totalExpenses}`
+    }
+  }}
+/>
+10.5 KPI карточки и метрики
+10.5.1 KPI карточка
+tsx
+<KPICard
+  title="Профит за месяц"
+  value={2450.50}
+  format="currency"
+  trend={{
+    value: 12.5,
+    direction: 'up',
+    label: 'vs прошлый месяц'
+  }}
+  icon={<TrendingUpIcon />}
+  color="success"
+  footer={
+    <ProgressBar
+      value={2450.50}
+      max={3000}
+      label="Цель: $3,000"
+      color="success"
+    />
+  }
+/>
+10.5.2 Статистическая карточка
+tsx
+<StatCard
+  stats={[
+    { label: 'Всего выводов', value: 145, icon: <ListIcon /> },
+    { label: 'Успешных', value: 132, color: 'success' },
+    { label: 'Проблемных', value: 8, color: 'warning' },
+    { label: 'Блокированных', value: 5, color: 'danger' }
+  ]}
+  chart={
+    <MiniBarChart
+      data={last7Days}
+      height={50}
+      color="#10B981"
+    />
+  }
+/>
+10.6 Уведомления и алерты
+10.6.1 Toast уведомления
+tsx
+// Успех
+toast.success('Вывод успешно подтвержден', {
+  description: 'Профит $250 добавлен к статистике',
+  duration: 4000,
+  action: {
+    label: 'Просмотр',
+    onClick: () => navigate(`/withdrawals/${id}`)
+  }
+})
+
+// Ошибка
+toast.error('Не удалось создать депозит', {
+  description: error.message,
+  duration: 6000
+})
+
+// Предупреждение
+toast.warning('Низкий баланс банка', {
+  description: 'Баланс упал ниже $50. Карты могут стать недоступны',
+  duration: 5000
+})
+10.6.2 Alert компоненты
+tsx
+<Alert variant="warning" icon={<AlertCircleIcon />}>
+  <AlertTitle>Внимание!</AlertTitle>
+  <AlertDescription>
+    Баланс банка ниже минимума. Карты этого банка недоступны для депозитов.
+  </AlertDescription>
+  <AlertActions>
+    <Button size="sm" variant="outline">Игнорировать</Button>
+    <Button size="sm">Пополнить баланс</Button>
+  </AlertActions>
+</Alert>
+10.7 Модальные окна и Drawer
+10.7.1 Модальное окно показа карты
+tsx
+<Modal
+  open={showCardDetails}
+  onClose={() => setShowCardDetails(false)}
+  size="md"
+  closeOnEsc={false}
+  closeOnOverlayClick={false}
+>
+  <ModalHeader>
+    <h2>Реквизиты карты</h2>
+    <CountdownTimer seconds={60} onExpire={closeModal} />
+  </ModalHeader>
+  
+  <ModalContent>
+    <div className="space-y-4 p-6 bg-gray-50 rounded">
+      <div className="flex justify-between items-center">
+        <span className="text-sm text-gray-500">Номер карты</span>
+        <CopyButton value={cardData.pan} />
+      </div>
+      <div className="font-mono text-2xl">{formatCardNumber(cardData.pan)}</div>
+      
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <span className="text-sm text-gray-500">Срок</span>
+          <div className="font-mono text-lg">{cardData.exp_month}/{cardData.exp_year}</div>
+        </div>
+        <div>
+          <span className="text-sm text-gray-500">CVV</span>
+          <div className="font-mono text-lg">{cardData.cvv}</div>
+        </div>
+      </div>
+    </div>
+    
+    <Alert variant="info" className="mt-4">
+      Данные доступны только 60 секунд. Скопируйте необходимую информацию.
+    </Alert>
+  </ModalContent>
+</Modal>
+10.7.2 Drawer для детальной информации
+tsx
+<Drawer
+  open={selectedItem}
+  onClose={closeDrawer}
+  position="right"
+  size="lg"
+>
+  <DrawerHeader>
+    <h2>{selectedItem.title}</h2>
+    <DrawerClose />
+  </DrawerHeader>
+  
+  <DrawerContent>
+    <Tabs defaultTab="details">
+      <TabsList>
+        <Tab value="details">Детали</Tab>
+        <Tab value="history">История</Tab>
+        <Tab value="comments">Комментарии</Tab>
+      </TabsList>
+      
+      <TabContent value="details">
+        {/* Детальная информация */}
+      </TabContent>
+      
+      <TabContent value="history">
+        {/* История изменений */}
+      </TabContent>
+      
+      <TabContent value="comments">
+        {/* Комментарии и обсуждение */}
+      </TabContent>
+    </Tabs>
+  </DrawerContent>
+  
+  <DrawerFooter>
+    <Button variant="outline" onClick={closeDrawer}>Закрыть</Button>
+    <Button onClick={saveChanges}>Сохранить</Button>
+  </DrawerFooter>
+</Drawer>
+Все интерфейсные элементы следуют единому дизайн-языку, обеспечивая консистентность и удобство использования системы всеми ролями.
+
+
+

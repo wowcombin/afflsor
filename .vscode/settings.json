@@ -1,0 +1,17 @@
+{
+  "cursor.general.enableRules": true,
+  "cursor.rules.include": [
+    ".cursorrules",
+    ".cursor/rules/*.md"
+  ],
+  "cursor.chat.systemPrompt": "Ты AI-ассистент для ERP системы Afflsor. ВСЕГДА следуй правилам из .cursorrules файла. Перед началом работы читай vision/ файлы и проверяй RLS политики для всех ролей.",
+  "typescript.preferences.strictNullChecks": true,
+  "typescript.preferences.strictFunctionTypes": true,
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit"
+  },
+  "files.associations": {
+    ".cursorrules": "markdown"
+  }
+}
