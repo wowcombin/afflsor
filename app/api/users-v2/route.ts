@@ -88,7 +88,7 @@ export async function POST(request: Request) {
       .eq('auth_id', user.id)
       .single()
 
-    console.log('🔥 POST /api/users - НОВАЯ ВЕРСИЯ API - User data check:', {
+    console.log('🚀 POST /api/users-v2 - СОВЕРШЕННО НОВЫЙ API - User data check:', {
       userData,
       userError: userError?.message,
       auth_id: user.id,
@@ -102,7 +102,7 @@ export async function POST(request: Request) {
       return NextResponse.json({
         error: 'User data access error',
         details: userError.message,
-        version: 'v2.1-fixed',
+        version: 'v2.2-users-v2-api',
         timestamp: new Date().toISOString()
       }, { status: 500 })
     }
