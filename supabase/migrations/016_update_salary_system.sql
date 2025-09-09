@@ -1,11 +1,8 @@
 -- Обновление системы расчета зарплат согласно новой схеме распределения доходов
 -- Дата: 2024-01-XX
+-- ВАЖНО: Этот файл должен выполняться ПОСЛЕ 015_add_new_roles.sql
 
--- 1. Добавляем новые роли
-ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'ceo';
-ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'qa_assistant';
-
--- 2. Обновляем функцию расчета зарплат
+-- 1. Обновляем функцию расчета зарплат
 CREATE OR REPLACE FUNCTION calculate_monthly_salaries_v2(
   p_month VARCHAR(7),
   p_calculated_by UUID
@@ -340,7 +337,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- 3. Создаем представление для удобного просмотра новой системы зарплат
+-- 2. Создаем представление для удобного просмотра новой системы зарплат
 CREATE OR REPLACE VIEW salary_summary_v2 AS
 SELECT 
   u.id,
@@ -378,16 +375,16 @@ ORDER BY
   END,
   u.email;
 
--- 4. Комментарии к обновлениям
+-- 3. Комментарии к обновлениям
 COMMENT ON FUNCTION calculate_monthly_salaries_v2 IS 'Обновленная функция расчета зарплат согласно новой схеме распределения доходов';
 COMMENT ON VIEW salary_summary_v2 IS 'Сводка по формулам расчета зарплат для всех ролей';
 
--- 5. Индексы для производительности
+-- 4. Индексы для производительности
 CREATE INDEX IF NOT EXISTS idx_users_role_status ON users(role, status);
 CREATE INDEX IF NOT EXISTS idx_works_user_created_status ON works(user_id, created_at, status);
 CREATE INDEX IF NOT EXISTS idx_work_withdrawals_work_status ON work_withdrawals(work_id, status);
 CREATE INDEX IF NOT EXISTS idx_expenses_date_status ON expenses(expense_date, status);
 
--- 6. Права доступа
+-- 5. Права доступа
 GRANT EXECUTE ON FUNCTION calculate_monthly_salaries_v2 TO authenticated;
 GRANT SELECT ON salary_summary_v2 TO authenticated;
