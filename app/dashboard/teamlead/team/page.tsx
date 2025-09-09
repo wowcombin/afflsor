@@ -4,7 +4,9 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import DataTable from '@/components/ui/DataTable'
 import StatusBadge from '@/components/ui/StatusBadge'
+import Modal from '@/components/ui/Modal'
 import { useToast } from '@/components/ui/Toast'
+import { PlusIcon, UserPlusIcon } from '@heroicons/react/24/outline'
 
 interface TeamMember {
   id: string
@@ -29,6 +31,14 @@ interface TeamStats {
   teamlead_commission: number
 }
 
+interface AvailableJunior {
+  id: string
+  name: string
+  email: string
+  telegram: string
+  status: string
+}
+
 export default function TeamLeadTeamPage() {
   const router = useRouter()
   const { addToast } = useToast()
@@ -42,6 +52,10 @@ export default function TeamLeadTeamPage() {
     teamlead_commission: 0
   })
   const [loading, setLoading] = useState(true)
+  const [showAddJuniorModal, setShowAddJuniorModal] = useState(false)
+  const [availableJuniors, setAvailableJuniors] = useState<AvailableJunior[]>([])
+  const [loadingJuniors, setLoadingJuniors] = useState(false)
+  const [assigning, setAssigning] = useState(false)
 
   useEffect(() => {
     fetchTeamData()
@@ -63,6 +77,56 @@ export default function TeamLeadTeamPage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const fetchAvailableJuniors = async () => {
+    setLoadingJuniors(true)
+    try {
+      const response = await fetch('/api/teamlead/available-juniors')
+      const data = await response.json()
+      
+      if (data.success) {
+        setAvailableJuniors(data.data || [])
+      } else {
+        addToast({ type: 'error', title: 'Ошибка', description: data.error || 'Не удалось загрузить доступных Junior сотрудников' })
+      }
+    } catch (error) {
+      addToast({ type: 'error', title: 'Ошибка', description: 'Ошибка сети' })
+    } finally {
+      setLoadingJuniors(false)
+    }
+  }
+
+  const assignJunior = async (juniorId: string) => {
+    setAssigning(true)
+    try {
+      const response = await fetch('/api/teamlead/assign-junior', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ junior_id: juniorId })
+      })
+      
+      const data = await response.json()
+      
+      if (data.success) {
+        addToast({ type: 'success', title: 'Успешно', description: 'Junior сотрудник назначен в вашу команду' })
+        setShowAddJuniorModal(false)
+        fetchTeamData() // Обновляем данные команды
+      } else {
+        addToast({ type: 'error', title: 'Ошибка', description: data.error || 'Не удалось назначить Junior сотрудника' })
+      }
+    } catch (error) {
+      addToast({ type: 'error', title: 'Ошибка', description: 'Ошибка сети' })
+    } finally {
+      setAssigning(false)
+    }
+  }
+
+  const handleAddJunior = () => {
+    setShowAddJuniorModal(true)
+    fetchAvailableJuniors()
   }
 
   const columns = [
@@ -166,6 +230,10 @@ export default function TeamLeadTeamPage() {
           <button className="btn-secondary" onClick={() => router.push('/dashboard/teamlead')}>
             ← Назад
           </button>
+          <button className="btn-success" onClick={handleAddJunior}>
+            <UserPlusIcon className="w-4 h-4 mr-2" />
+            Добавить Junior
+          </button>
           <button className="btn-primary" onClick={() => router.push('/dashboard/teamlead/cards')}>
             Управление картами
           </button>
@@ -209,6 +277,56 @@ export default function TeamLeadTeamPage() {
           loading={loading}
         />
       </div>
+
+      {/* Модальное окно добавления Junior */}
+      <Modal
+        isOpen={showAddJuniorModal}
+        onClose={() => setShowAddJuniorModal(false)}
+        title="Добавить Junior в команду"
+        size="lg"
+      >
+        <div className="space-y-4">
+          <p className="text-gray-600">
+            Выберите Junior сотрудника, которого хотите добавить в свою команду:
+          </p>
+          
+          {loadingJuniors ? (
+            <div className="text-center py-8">
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+              <p className="mt-2 text-gray-600">Загрузка доступных Junior сотрудников...</p>
+            </div>
+          ) : availableJuniors.length === 0 ? (
+            <div className="text-center py-8">
+              <UserPlusIcon className="mx-auto h-12 w-12 text-gray-400" />
+              <p className="mt-2 text-gray-600">Нет доступных Junior сотрудников для назначения</p>
+            </div>
+          ) : (
+            <div className="space-y-3 max-h-96 overflow-y-auto">
+              {availableJuniors.map((junior) => (
+                <div key={junior.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
+                  <div className="flex-1">
+                    <div className="font-medium text-gray-900">{junior.name}</div>
+                    <div className="text-sm text-gray-500">{junior.email}</div>
+                    {junior.telegram && (
+                      <div className="text-xs text-blue-600">@{junior.telegram}</div>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <StatusBadge status={junior.status} />
+                    <button
+                      onClick={() => assignJunior(junior.id)}
+                      disabled={assigning}
+                      className="btn-primary text-sm"
+                    >
+                      {assigning ? 'Назначение...' : 'Назначить'}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </Modal>
     </div>
   )
 }
