@@ -35,6 +35,7 @@ export interface Team {
   name: string
   description: string | null
   chat_link: string | null
+  team_type: string | null
   is_active: boolean
   created_at: string
   updated_at: string

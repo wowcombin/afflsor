@@ -16,6 +16,7 @@ import Link from 'next/link'
 export default function TeamsPage() {
     const [teams, setTeams] = useState<Team[]>([])
     const [loading, setLoading] = useState(true)
+    const [syncing, setSyncing] = useState(false)
     const [editingTeam, setEditingTeam] = useState<string | null>(null)
     const [editingChatLink, setEditingChatLink] = useState('')
 
@@ -73,6 +74,28 @@ export default function TeamsPage() {
         updateTeamChatLink(teamId, editingChatLink)
     }
 
+    const syncTeams = async () => {
+        setSyncing(true)
+        try {
+            const response = await fetch('/api/teams/sync', {
+                method: 'POST'
+            })
+            
+            if (response.ok) {
+                await loadTeams()
+                alert('Команды успешно синхронизированы!')
+            } else {
+                const error = await response.json()
+                alert(`Ошибка синхронизации: ${error.error}`)
+            }
+        } catch (error) {
+            console.error('Error syncing teams:', error)
+            alert('Ошибка при синхронизации команд')
+        } finally {
+            setSyncing(false)
+        }
+    }
+
     if (loading) {
         return (
             <div className="flex items-center justify-center h-64">
@@ -87,9 +110,36 @@ export default function TeamsPage() {
                 <div className="flex items-center space-x-3">
                     <UserGroupIcon className="w-8 h-8 text-blue-600" />
                     <div>
-                        <h1 className="text-2xl font-bold text-gray-900">Управление командами</h1>
-                        <p className="text-gray-600">Специальные команды и их чаты</p>
+                        <h1 className="text-2xl font-bold text-gray-900">Чаты и созвоны</h1>
+                        <p className="text-gray-600">Автоматическое управление участниками чатов по ролям и структуре</p>
                     </div>
+                </div>
+                <button
+                    onClick={syncTeams}
+                    disabled={syncing}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium ${
+                        syncing 
+                            ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
+                            : 'bg-blue-600 text-white hover:bg-blue-700'
+                    }`}
+                >
+                    {syncing ? 'Синхронизация...' : 'Синхронизировать команды'}
+                </button>
+            </div>
+
+            {/* Информационная панель */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+                <h3 className="font-medium text-blue-900 mb-3">🤖 Автоматическая логика команд</h3>
+                <div className="text-sm text-blue-800 space-y-2">
+                    <div><strong>Xbsidian All Team:</strong> Все роли (CEO, Team Lead, QA Assistant, CFO, HR, Coordinator, Manual QA, Junior)</div>
+                    <div><strong>Xbsidian Manager Team:</strong> Управленческие роли (CEO, CFO, HR, Coordinator, Manual QA)</div>
+                    <div><strong>Xbsidian Lead Team:</strong> Team Lead + управленческие роли</div>
+                    <div><strong>Xbsidian Manual QA Team:</strong> QA роли + управленческие (Coordinator, Manual QA, CFO, CEO, QA Assistant)</div>
+                    <div><strong>Xbsidian Interview Team:</strong> HR + Team Lead + неназначенные Junior</div>
+                    <div><strong>Xbsidian Lead [ID] Team:</strong> Автоматически создается для каждого Team Lead с его Junior</div>
+                </div>
+                <div className="mt-3 text-xs text-blue-600">
+                    Участники автоматически добавляются/удаляются при изменении ролей или структуры
                 </div>
             </div>
 

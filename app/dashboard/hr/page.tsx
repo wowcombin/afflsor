@@ -64,7 +64,7 @@ export default function HRDashboard() {
             onClick={() => router.push('/dashboard/hr/teams')}
             className="btn-primary"
           >
-            Управление командами
+            Чаты и созвоны
           </button>
           <button
             onClick={() => router.push('/dashboard/hr/reports')}
