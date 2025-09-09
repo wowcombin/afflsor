@@ -195,7 +195,8 @@ export default function HRUsersPage() {
           telegram_username: selectedUser.telegram_username,
           usdt_wallet: selectedUser.usdt_wallet,
           salary_percentage: selectedUser.salary_percentage,
-          salary_bonus: selectedUser.salary_bonus
+          salary_bonus: selectedUser.salary_bonus,
+          team_lead_id: selectedUser.team_lead_id
         })
       })
 

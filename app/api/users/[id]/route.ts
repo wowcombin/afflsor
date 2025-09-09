@@ -94,6 +94,10 @@ export async function PATCH(
       team_lead_id
     } = body
 
+    console.log(`Updating user ${userId}:`)
+    console.log(`  - team_lead_id: ${team_lead_id}`)
+    console.log(`  - role: ${role}`)
+
     // Валидация роли
     if (role && !['junior', 'manager', 'teamlead', 'tester', 'hr', 'cfo', 'admin'].includes(role)) {
       return NextResponse.json({ error: 'Некорректная роль' }, { status: 400 })
@@ -123,8 +127,11 @@ export async function PATCH(
       .single()
 
     if (error) {
+      console.error('User update error:', error)
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
+
+    console.log('User updated successfully:', updatedUser)
 
     return NextResponse.json({
       success: true,

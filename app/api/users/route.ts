@@ -39,16 +39,28 @@ export async function GET() {
       .order('created_at', { ascending: false })
 
     if (error) {
+      console.error('Users query error:', error)
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
+    console.log('Raw users count:', users?.length || 0)
+    console.log('Sample user with team_lead:', users?.find(u => u.team_lead_id)?.team_lead)
+
     // Обрабатываем данные, добавляя team_lead_name
-    const processedUsers = users.map(user => ({
-      ...user,
-      team_lead_name: user.team_lead 
+    const processedUsers = users.map(user => {
+      const team_lead_name = user.team_lead 
         ? `${user.team_lead.first_name || ''} ${user.team_lead.last_name || ''}`.trim() || user.team_lead.email
         : null
-    }))
+      
+      if (user.role === 'junior' && user.team_lead_id) {
+        console.log(`Junior ${user.email}: team_lead_id=${user.team_lead_id}, team_lead_name=${team_lead_name}`)
+      }
+      
+      return {
+        ...user,
+        team_lead_name
+      }
+    })
 
     return NextResponse.json({ users: processedUsers })
 
