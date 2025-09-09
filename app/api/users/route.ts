@@ -82,14 +82,52 @@ export async function POST(request: Request) {
     }
 
     // Проверка роли (Manager, HR, Admin)
-    const { data: userData } = await supabase
+    const { data: userData, error: userError } = await supabase
       .from('users')
       .select('role, status')
       .eq('auth_id', user.id)
       .single()
 
-    if (!userData || !['manager', 'hr', 'admin'].includes(userData.role)) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    console.log('POST /api/users - User data check:', { 
+      userData, 
+      userError: userError?.message,
+      auth_id: user.id,
+      email: user.email 
+    })
+
+    if (userError) {
+      console.error('Error fetching user data:', userError)
+      return NextResponse.json({ 
+        error: 'User data access error', 
+        details: userError.message 
+      }, { status: 500 })
+    }
+
+    if (!userData) {
+      console.error('User not found in users table:', user.id)
+      return NextResponse.json({ 
+        error: 'User not found in system',
+        details: 'User exists in auth but not in users table'
+      }, { status: 404 })
+    }
+
+    if (!['manager', 'hr', 'admin'].includes(userData.role)) {
+      console.error('Insufficient permissions:', { 
+        role: userData.role, 
+        required: ['manager', 'hr', 'admin'] 
+      })
+      return NextResponse.json({ 
+        error: 'Forbidden', 
+        details: `Role '${userData.role}' is not allowed to create users`
+      }, { status: 403 })
+    }
+
+    if (userData.status !== 'active') {
+      console.error('User not active:', { status: userData.status })
+      return NextResponse.json({ 
+        error: 'Account not active',
+        details: `User status is '${userData.status}', must be 'active'`
+      }, { status: 403 })
     }
 
     const body = await request.json()
@@ -110,16 +148,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Email, пароль и роль обязательны' }, { status: 400 })
     }
 
-    // Проверяем роль пользователя для ограничения создания CEO
-    const { data: creatorData } = await supabase
-      .from('users')
-      .select('role')
-      .eq('auth_id', user.id)
-      .single()
-
+    // Используем уже полученные данные пользователя (userData) вместо повторного запроса
     // Только Admin может создавать CEO и других Admin
-    if ((role === 'ceo' || role === 'admin') && creatorData?.role !== 'admin') {
-      return NextResponse.json({ error: 'Только Admin может создавать пользователей с ролью CEO или Admin' }, { status: 403 })
+    if ((role === 'ceo' || role === 'admin') && userData.role !== 'admin') {
+      console.error('Insufficient permissions to create admin/ceo:', { 
+        creatorRole: userData.role, 
+        targetRole: role 
+      })
+      return NextResponse.json({ 
+        error: 'Только Admin может создавать пользователей с ролью CEO или Admin',
+        details: `Current role '${userData.role}' cannot create role '${role}'`
+      }, { status: 403 })
     }
 
     if (!['junior', 'manager', 'teamlead', 'tester', 'hr', 'cfo', 'admin', 'ceo', 'qa_assistant'].includes(role)) {

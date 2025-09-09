@@ -67,34 +67,34 @@ export async function GET() {
             status: userData.status
         })
 
-    // Проверяем RLS политики - проверяем существующие политики
-    let rlsPolicyCheck = null
-    try {
-      // Проверяем, можем ли мы выполнить SELECT запрос (что указывает на корректные RLS политики)
-      const { data: policyTest, error: policyError } = await supabase
-        .from('users')
-        .select('id, email, role, status')
-        .limit(1)
+        // Проверяем RLS политики - проверяем существующие политики
+        let rlsPolicyCheck = null
+        try {
+            // Проверяем, можем ли мы выполнить SELECT запрос (что указывает на корректные RLS политики)
+            const { data: policyTest, error: policyError } = await supabase
+                .from('users')
+                .select('id, email, role, status')
+                .limit(1)
 
-      if (policyError) {
-        rlsPolicyCheck = {
-          success: false,
-          error: policyError.message,
-          message: 'RLS политики блокируют SELECT операции'
+            if (policyError) {
+                rlsPolicyCheck = {
+                    success: false,
+                    error: policyError.message,
+                    message: 'RLS политики блокируют SELECT операции'
+                }
+            } else {
+                rlsPolicyCheck = {
+                    success: true,
+                    message: 'RLS политики работают корректно для SELECT операций'
+                }
+            }
+        } catch (policyError: any) {
+            rlsPolicyCheck = {
+                success: false,
+                error: policyError.message,
+                message: 'Ошибка при проверке RLS политик'
+            }
         }
-      } else {
-        rlsPolicyCheck = {
-          success: true,
-          message: 'RLS политики работают корректно для SELECT операций'
-        }
-      }
-    } catch (policyError: any) {
-      rlsPolicyCheck = {
-        success: false,
-        error: policyError.message,
-        message: 'Ошибка при проверке RLS политик'
-      }
-    }
 
         return NextResponse.json({
             success: true,
