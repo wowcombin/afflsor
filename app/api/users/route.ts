@@ -88,43 +88,43 @@ export async function POST(request: Request) {
       .eq('auth_id', user.id)
       .single()
 
-    console.log('POST /api/users - User data check:', { 
-      userData, 
+    console.log('POST /api/users - User data check:', {
+      userData,
       userError: userError?.message,
       auth_id: user.id,
-      email: user.email 
+      email: user.email
     })
 
     if (userError) {
       console.error('Error fetching user data:', userError)
-      return NextResponse.json({ 
-        error: 'User data access error', 
-        details: userError.message 
+      return NextResponse.json({
+        error: 'User data access error',
+        details: userError.message
       }, { status: 500 })
     }
 
     if (!userData) {
       console.error('User not found in users table:', user.id)
-      return NextResponse.json({ 
+      return NextResponse.json({
         error: 'User not found in system',
         details: 'User exists in auth but not in users table'
       }, { status: 404 })
     }
 
     if (!['manager', 'hr', 'admin'].includes(userData.role)) {
-      console.error('Insufficient permissions:', { 
-        role: userData.role, 
-        required: ['manager', 'hr', 'admin'] 
+      console.error('Insufficient permissions:', {
+        role: userData.role,
+        required: ['manager', 'hr', 'admin']
       })
-      return NextResponse.json({ 
-        error: 'Forbidden', 
+      return NextResponse.json({
+        error: 'Forbidden',
         details: `Role '${userData.role}' is not allowed to create users`
       }, { status: 403 })
     }
 
     if (userData.status !== 'active') {
       console.error('User not active:', { status: userData.status })
-      return NextResponse.json({ 
+      return NextResponse.json({
         error: 'Account not active',
         details: `User status is '${userData.status}', must be 'active'`
       }, { status: 403 })
@@ -151,11 +151,11 @@ export async function POST(request: Request) {
     // Используем уже полученные данные пользователя (userData) вместо повторного запроса
     // Только Admin может создавать CEO и других Admin
     if ((role === 'ceo' || role === 'admin') && userData.role !== 'admin') {
-      console.error('Insufficient permissions to create admin/ceo:', { 
-        creatorRole: userData.role, 
-        targetRole: role 
+      console.error('Insufficient permissions to create admin/ceo:', {
+        creatorRole: userData.role,
+        targetRole: role
       })
-      return NextResponse.json({ 
+      return NextResponse.json({
         error: 'Только Admin может создавать пользователей с ролью CEO или Admin',
         details: `Current role '${userData.role}' cannot create role '${role}'`
       }, { status: 403 })
@@ -181,7 +181,7 @@ export async function POST(request: Request) {
     }
 
     // Создаем пользователя в нашей системе
-    const { data: newUser, error: userError } = await supabase
+    const { data: newUser, error: insertError } = await supabase
       .from('users')
       .insert({
         auth_id: authUser.user.id,
@@ -198,10 +198,10 @@ export async function POST(request: Request) {
       .select()
       .single()
 
-    if (userError) {
+    if (insertError) {
       // Если ошибка создания в нашей системе, удаляем из Auth
       await supabase.auth.admin.deleteUser(authUser.user.id)
-      return NextResponse.json({ error: userError.message }, { status: 500 })
+      return NextResponse.json({ error: insertError.message }, { status: 500 })
     }
 
     return NextResponse.json({
