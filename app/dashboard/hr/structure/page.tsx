@@ -1,14 +1,16 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { User } from '@/types/database.types'
+import { User, Team, TeamMember } from '@/types/database.types'
 import { 
   UsersIcon, 
   ChatBubbleLeftRightIcon, 
   PencilIcon,
   LinkIcon,
   UserGroupIcon,
-  BuildingOfficeIcon
+  BuildingOfficeIcon,
+  PlusIcon,
+  UserPlusIcon
 } from '@heroicons/react/24/outline'
 
 interface TeamStructure {

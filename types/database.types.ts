@@ -30,6 +30,26 @@ export interface User {
   updated_at: string
 }
 
+export interface Team {
+  id: string
+  name: string
+  description: string | null
+  chat_link: string | null
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface TeamMember {
+  id: string
+  team_id: string
+  user_id: string
+  role: 'member' | 'leader' | 'admin'
+  joined_at: string
+  user?: User
+  team?: Team
+}
+
 export interface Bank {
   id: string
   name: string
