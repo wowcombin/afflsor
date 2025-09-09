@@ -202,133 +202,51 @@ export default function OrganizationStructurePage() {
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-3">
-          <BuildingOfficeIcon className="w-8 h-8 text-blue-600" />
+          <UserGroupIcon className="w-8 h-8 text-green-600" />
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Организационная структура</h1>
-            <p className="text-gray-600">Иерархия команд и ссылки на чаты</p>
+            <h1 className="text-2xl font-bold text-gray-900">Команды Team Lead</h1>
+            <p className="text-gray-600">Чаты команд Team Lead и их участники</p>
           </div>
         </div>
-      </div>
-
-      {/* CEO */}
-      {structure.ceo && (
-        <div className="text-center">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Руководство</h2>
-          <div className="inline-block">
-            <UserCard user={structure.ceo} />
-          </div>
-        </div>
-      )}
-
-      {/* Management Level */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Coordinators */}
-        {structure.coordinators.length > 0 && (
-          <div>
-            <h3 className="text-md font-semibold text-gray-900 mb-3 flex items-center">
-              <UserGroupIcon className="w-5 h-5 mr-2 text-blue-600" />
-              Coordinators ({structure.coordinators.length})
-            </h3>
-            <div className="space-y-3">
-              {structure.coordinators.map((user) => (
-                <UserCard key={user.id} user={user} showChatLink={true} />
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* HR */}
-        {structure.hr.length > 0 && (
-          <div>
-            <h3 className="text-md font-semibold text-gray-900 mb-3 flex items-center">
-              <UserGroupIcon className="w-5 h-5 mr-2 text-pink-600" />
-              HR ({structure.hr.length})
-            </h3>
-            <div className="space-y-3">
-              {structure.hr.map((user) => (
-                <UserCard key={user.id} user={user} showChatLink={true} />
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* CFO */}
-        {structure.cfo.length > 0 && (
-          <div>
-            <h3 className="text-md font-semibold text-gray-900 mb-3 flex items-center">
-              <UserGroupIcon className="w-5 h-5 mr-2 text-yellow-600" />
-              CFO ({structure.cfo.length})
-            </h3>
-            <div className="space-y-3">
-              {structure.cfo.map((user) => (
-                <UserCard key={user.id} user={user} showChatLink={true} />
-              ))}
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Team Leads and their Juniors */}
-      {structure.teamLeads.length > 0 && (
-        <div>
-          <h2 className="text-lg font-semibold text-gray-900 mb-6">Команды Team Lead</h2>
-          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-            {structure.teamLeads.map(({ teamLead, juniors }) => (
-              <div key={teamLead.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                <div className="mb-4">
-                  <UserCard user={teamLead} showChatLink={true} isTeamLead={true} />
-                </div>
-                
-                {juniors.length > 0 && (
-                  <div>
-                    <h4 className="text-sm font-medium text-gray-700 mb-3">
-                      Juniors ({juniors.length})
-                    </h4>
-                    <div className="space-y-2">
-                      {juniors.map((junior) => (
-                        <UserCard key={junior.id} user={junior} />
-                      ))}
-                    </div>
-                  </div>
-                )}
+      {structure.teamLeads.length > 0 ? (
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+          {structure.teamLeads.map(({ teamLead, juniors }) => (
+            <div key={teamLead.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+              <div className="mb-4">
+                <UserCard user={teamLead} showChatLink={true} isTeamLead={true} />
               </div>
-            ))}
-          </div>
+              
+              {juniors.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-medium text-gray-700 mb-3">
+                    Juniors ({juniors.length})
+                  </h4>
+                  <div className="space-y-2">
+                    {juniors.map((junior) => (
+                      <UserCard key={junior.id} user={junior} />
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {juniors.length === 0 && (
+                <div className="text-center py-4 text-gray-500 text-sm">
+                  Нет назначенных Junior
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="text-center py-12">
+          <UserGroupIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">Нет Team Lead</h3>
+          <p className="text-gray-500">В системе пока нет активных Team Lead</p>
         </div>
       )}
-
-      {/* Other Roles */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Manual QA */}
-        {structure.manualQA.length > 0 && (
-          <div>
-            <h3 className="text-md font-semibold text-gray-900 mb-3 flex items-center">
-              <UserGroupIcon className="w-5 h-5 mr-2 text-orange-600" />
-              Manual QA ({structure.manualQA.length})
-            </h3>
-            <div className="space-y-3">
-              {structure.manualQA.map((user) => (
-                <UserCard key={user.id} user={user} showChatLink={true} />
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* QA Assistants */}
-        {structure.qaAssistants.length > 0 && (
-          <div>
-            <h3 className="text-md font-semibold text-gray-900 mb-3 flex items-center">
-              <UserGroupIcon className="w-5 h-5 mr-2 text-red-600" />
-              QA Assistant ({structure.qaAssistants.length})
-            </h3>
-            <div className="space-y-3">
-              {structure.qaAssistants.map((user) => (
-                <UserCard key={user.id} user={user} showChatLink={true} />
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
 
       {/* Unassigned Juniors */}
       {structure.unassignedJuniors.length > 0 && (
@@ -341,6 +259,9 @@ export default function OrganizationStructurePage() {
             {structure.unassignedJuniors.map((user) => (
               <UserCard key={user.id} user={user} />
             ))}
+          </div>
+          <div className="mt-4 text-sm text-yellow-700">
+            💡 Эти Junior пока не назначены ни одному Team Lead
           </div>
         </div>
       )}
