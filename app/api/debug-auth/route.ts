@@ -67,30 +67,34 @@ export async function GET() {
             status: userData.status
         })
 
-        // Проверяем RLS политики - пытаемся создать тестовую запись
-        let insertTestResult = null
-        try {
-            const testInsertQuery = await supabase
-                .from('users')
-                .insert({
-                    auth_id: 'test-auth-id-' + Date.now(),
-                    email: 'test@test.com',
-                    role: 'junior',
-                    status: 'active'
-                })
-                .select()
+    // Проверяем RLS политики - проверяем существующие политики
+    let rlsPolicyCheck = null
+    try {
+      // Проверяем, можем ли мы выполнить SELECT запрос (что указывает на корректные RLS политики)
+      const { data: policyTest, error: policyError } = await supabase
+        .from('users')
+        .select('id, email, role, status')
+        .limit(1)
 
-            insertTestResult = {
-                success: true,
-                message: 'RLS allows INSERT operation'
-            }
-        } catch (insertError: any) {
-            insertTestResult = {
-                success: false,
-                error: insertError.message,
-                message: 'RLS blocks INSERT operation'
-            }
+      if (policyError) {
+        rlsPolicyCheck = {
+          success: false,
+          error: policyError.message,
+          message: 'RLS политики блокируют SELECT операции'
         }
+      } else {
+        rlsPolicyCheck = {
+          success: true,
+          message: 'RLS политики работают корректно для SELECT операций'
+        }
+      }
+    } catch (policyError: any) {
+      rlsPolicyCheck = {
+        success: false,
+        error: policyError.message,
+        message: 'Ошибка при проверке RLS политик'
+      }
+    }
 
         return NextResponse.json({
             success: true,
@@ -105,7 +109,7 @@ export async function GET() {
                 can_create_users: ['hr', 'admin', 'manager'].includes(userData.role),
                 is_active: userData.status === 'active'
             },
-            rls_test: insertTestResult,
+            rls_test: rlsPolicyCheck,
             debug_info: {
                 timestamp: new Date().toISOString(),
                 role_check: userData.role,
