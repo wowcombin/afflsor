@@ -90,7 +90,8 @@ export async function PATCH(
       telegram_username,
       usdt_wallet,
       salary_percentage,
-      salary_bonus
+      salary_bonus,
+      team_lead_id
     } = body
 
     // Валидация роли
@@ -114,7 +115,8 @@ export async function PATCH(
         telegram_username: telegram_username || null,
         usdt_wallet: usdt_wallet || null,
         salary_percentage: salary_percentage !== undefined ? salary_percentage : undefined,
-        salary_bonus: salary_bonus !== undefined ? salary_bonus : undefined
+        salary_bonus: salary_bonus !== undefined ? salary_bonus : undefined,
+        team_lead_id: team_lead_id !== undefined ? (team_lead_id || null) : undefined
       })
       .eq('id', userId)
       .select()

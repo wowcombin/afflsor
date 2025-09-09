@@ -25,17 +25,32 @@ export async function GET() {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    // Получаем всех пользователей
+    // Получаем всех пользователей с информацией о Team Lead
     const { data: users, error } = await supabase
       .from('users')
-      .select('*')
+      .select(`
+        *,
+        team_lead:team_lead_id (
+          first_name,
+          last_name,
+          email
+        )
+      `)
       .order('created_at', { ascending: false })
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    return NextResponse.json({ users })
+    // Обрабатываем данные, добавляя team_lead_name
+    const processedUsers = users.map(user => ({
+      ...user,
+      team_lead_name: user.team_lead 
+        ? `${user.team_lead.first_name || ''} ${user.team_lead.last_name || ''}`.trim() || user.team_lead.email
+        : null
+    }))
+
+    return NextResponse.json({ users: processedUsers })
 
   } catch (error) {
     console.error('Get users error:', error)

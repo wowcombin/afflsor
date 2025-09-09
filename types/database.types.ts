@@ -23,6 +23,8 @@ export interface User {
   usdt_wallet: string | null
   salary_percentage: number
   salary_bonus: number
+  team_lead_id: string | null
+  team_lead_name: string | null
   created_at: string
   updated_at: string
 }

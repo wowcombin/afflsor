@@ -53,6 +53,8 @@ export default function HRUsersPage() {
 
   const [creating, setCreating] = useState(false)
   const [updating, setUpdating] = useState(false)
+  const [teamLeads, setTeamLeads] = useState<User[]>([])
+  const [loadingTeamLeads, setLoadingTeamLeads] = useState(false)
 
   useEffect(() => {
     loadUsers()
@@ -92,6 +94,29 @@ export default function HRUsersPage() {
       })
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function loadTeamLeads() {
+    setLoadingTeamLeads(true)
+    try {
+      const response = await fetch('/api/users')
+      
+      if (!response.ok) {
+        throw new Error('Ошибка загрузки Team Lead')
+      }
+
+      const { users: usersData } = await response.json()
+      
+      // Фильтруем только активных Team Lead
+      const activeTeamLeads = usersData.filter((u: User) => 
+        u.role === 'teamlead' && u.status === 'active'
+      )
+      setTeamLeads(activeTeamLeads)
+    } catch (error) {
+      console.error('Ошибка загрузки Team Lead:', error)
+    } finally {
+      setLoadingTeamLeads(false)
     }
   }
 
@@ -261,6 +286,18 @@ export default function HRUsersPage() {
           {user.role}
         </span>
       )
+    },
+    {
+      key: 'team_lead',
+      label: 'Team Lead',
+      render: (user) => {
+        if (user.role !== 'junior') return <span className="text-gray-400">—</span>
+        return (
+          <span className="text-sm text-gray-600">
+            {user.team_lead_name || <span className="text-orange-600">Не назначен</span>}
+          </span>
+        )
+      }
     },
     {
       key: 'status',
@@ -590,6 +627,37 @@ export default function HRUsersPage() {
                 </select>
               </div>
             </div>
+
+            {/* Team Lead для Junior сотрудников */}
+            {selectedUser.role === 'junior' && (
+              <div>
+                <label className="form-label">Team Lead</label>
+                <select
+                  value={selectedUser.team_lead_id || ''}
+                  onChange={(e) => setSelectedUser({ 
+                    ...selectedUser, 
+                    team_lead_id: e.target.value || null 
+                  })}
+                  className="form-input"
+                  onFocus={() => {
+                    if (teamLeads.length === 0) {
+                      loadTeamLeads()
+                    }
+                  }}
+                >
+                  <option value="">Не назначен</option>
+                  {loadingTeamLeads ? (
+                    <option disabled>Загрузка...</option>
+                  ) : (
+                    teamLeads.map((teamLead) => (
+                      <option key={teamLead.id} value={teamLead.id}>
+                        {`${teamLead.first_name || ''} ${teamLead.last_name || ''}`.trim() || teamLead.email}
+                      </option>
+                    ))
+                  )}
+                </select>
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-4">
               <div>
