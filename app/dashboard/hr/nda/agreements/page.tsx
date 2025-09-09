@@ -5,7 +5,7 @@ import DataTable from '@/components/ui/DataTable'
 import StatusBadge from '@/components/ui/StatusBadge'
 import Modal from '@/components/ui/Modal'
 import { useToast } from '@/components/ui/Toast'
-import { 
+import {
   EyeIcon,
   DocumentTextIcon,
   TrashIcon
@@ -32,7 +32,7 @@ interface NDARecord {
 
 export default function NDAgreementsPage() {
   const { addToast } = useToast()
-  
+
   const [ndaRecords, setNdaRecords] = useState<NDARecord[]>([])
   const [loading, setLoading] = useState(true)
   const [showViewModal, setShowViewModal] = useState(false)
@@ -46,7 +46,7 @@ export default function NDAgreementsPage() {
     try {
       const response = await fetch('/api/nda/agreements')
       const data = await response.json()
-      
+
       if (data.success) {
         setNdaRecords(data.data)
       } else {
@@ -78,24 +78,24 @@ export default function NDAgreementsPage() {
       const data = await response.json()
 
       if (data.success) {
-        addToast({ 
-          type: 'success', 
-          title: 'Успех', 
-          description: 'NDA соглашение удалено' 
+        addToast({
+          type: 'success',
+          title: 'Успех',
+          description: 'NDA соглашение удалено'
         })
         fetchAgreements() // Обновляем список
       } else {
-        addToast({ 
-          type: 'error', 
-          title: 'Ошибка', 
-          description: data.error || 'Не удалось удалить NDA' 
+        addToast({
+          type: 'error',
+          title: 'Ошибка',
+          description: data.error || 'Не удалось удалить NDA'
         })
       }
     } catch (error) {
-      addToast({ 
-        type: 'error', 
-        title: 'Ошибка', 
-        description: 'Произошла ошибка при удалении NDA' 
+      addToast({
+        type: 'error',
+        title: 'Ошибка',
+        description: 'Произошла ошибка при удалении NDA'
       })
     }
   }
@@ -317,7 +317,7 @@ export default function NDAgreementsPage() {
                           <p className="text-sm text-gray-500">{file.original_filename}</p>
                         </div>
                       </div>
-                      <a 
+                      <a
                         href={getFileUrl(file.file_path)}
                         target="_blank"
                         rel="noopener noreferrer"

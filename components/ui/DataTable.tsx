@@ -2,8 +2,8 @@
 
 import { useState, useMemo } from 'react'
 import { clsx } from 'clsx'
-import { 
-  ChevronUpIcon, 
+import {
+  ChevronUpIcon,
   ChevronDownIcon,
   FunnelIcon,
   ArrowDownTrayIcon
@@ -102,7 +102,7 @@ export default function DataTable<T extends Record<string, any>>({
   // Пагинация
   const paginatedData = useMemo(() => {
     if (!pagination.showPagination) return sortedData
-    
+
     const startIndex = (currentPage - 1) * (pagination.pageSize || 20)
     const endIndex = startIndex + (pagination.pageSize || 20)
     return sortedData.slice(startIndex, endIndex)
@@ -125,13 +125,13 @@ export default function DataTable<T extends Record<string, any>>({
   const handleExport = () => {
     // Простой CSV экспорт
     const headers = columns.map(col => col.label).join(',')
-    const rows = sortedData.map(item => 
+    const rows = sortedData.map(item =>
       columns.map(col => {
         const value = item[col.key as keyof T]
         return typeof value === 'string' ? `"${value}"` : value
       }).join(',')
     ).join('\n')
-    
+
     const csv = `${headers}\n${rows}`
     const blob = new Blob([csv], { type: 'text/csv' })
     const url = window.URL.createObjectURL(blob)
@@ -179,7 +179,7 @@ export default function DataTable<T extends Record<string, any>>({
               </div>
             )}
           </div>
-          
+
           {exportable && (
             <button
               onClick={handleExport}
@@ -267,7 +267,7 @@ export default function DataTable<T extends Record<string, any>>({
                           .map((action, actionIndex) => {
                             const IconComponent = action.icon
                             const isIconOnly = !action.label && IconComponent
-                            
+
                             return (
                               <button
                                 key={actionIndex}
@@ -313,7 +313,7 @@ export default function DataTable<T extends Record<string, any>>({
           <div className="text-sm text-gray-700">
             Показано {((currentPage - 1) * (pagination.pageSize || 20)) + 1} - {Math.min(currentPage * (pagination.pageSize || 20), sortedData.length)} из {sortedData.length}
           </div>
-          
+
           <div className="flex space-x-2">
             <button
               onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
@@ -322,11 +322,11 @@ export default function DataTable<T extends Record<string, any>>({
             >
               Назад
             </button>
-            
+
             <span className="flex items-center px-3 py-2 text-sm text-gray-700">
               {currentPage} из {totalPages}
             </span>
-            
+
             <button
               onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
               disabled={currentPage === totalPages}
