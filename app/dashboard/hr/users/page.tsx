@@ -7,7 +7,7 @@ import KPICard from '@/components/ui/KPICard'
 import StatusBadge from '@/components/ui/StatusBadge'
 import Modal from '@/components/ui/Modal'
 import { User } from '@/types/database.types'
-import { 
+import {
   UsersIcon,
   PlusIcon,
   PencilIcon,
@@ -61,7 +61,7 @@ export default function HRUsersPage() {
   async function loadUsers() {
     try {
       const response = await fetch('/api/users')
-      
+
       if (!response.ok) {
         const errorData = await response.json()
         throw new Error(errorData.error || 'Ошибка загрузки пользователей')
@@ -136,7 +136,7 @@ export default function HRUsersPage() {
         salary_percentage: 0,
         salary_bonus: 0
       })
-      
+
       await loadUsers()
 
     } catch (error: any) {
@@ -370,7 +370,7 @@ export default function HRUsersPage() {
             Пользователи системы ({users.length})
           </h3>
         </div>
-        
+
         <DataTable
           data={users}
           columns={columns}

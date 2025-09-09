@@ -88,18 +88,22 @@ export async function POST(request: Request) {
       .eq('auth_id', user.id)
       .single()
 
-    console.log('POST /api/users - User data check:', {
-      userData,
+    console.log('🔥 POST /api/users - НОВАЯ ВЕРСИЯ API - User data check:', { 
+      userData, 
       userError: userError?.message,
       auth_id: user.id,
-      email: user.email
+      email: user.email,
+      timestamp: new Date().toISOString(),
+      version: 'v2.1-fixed'
     })
 
     if (userError) {
       console.error('Error fetching user data:', userError)
-      return NextResponse.json({
-        error: 'User data access error',
-        details: userError.message
+      return NextResponse.json({ 
+        error: 'User data access error', 
+        details: userError.message,
+        version: 'v2.1-fixed',
+        timestamp: new Date().toISOString()
       }, { status: 500 })
     }
 
