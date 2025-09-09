@@ -44,13 +44,25 @@ export async function POST(
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
+    // Получаем ID текущего пользователя из таблицы users
+    const { data: currentUser, error: currentUserError } = await supabase
+      .from('users')
+      .select('id')
+      .eq('auth_id', user.id)
+      .single()
+
+    if (currentUserError || !currentUser) {
+      return NextResponse.json({ error: 'Current user not found' }, { status: 404 })
+    }
+
     // Добавляем участника в команду
     const { data: member, error: memberError } = await supabase
       .from('team_members')
       .insert({
         team_id: params.id,
         user_id: user_id,
-        role: role
+        role: role,
+        added_by: currentUser.id
       })
       .select(`
         *,
@@ -115,12 +127,28 @@ export async function DELETE(
       return NextResponse.json({ error: 'User ID is required' }, { status: 400 })
     }
 
-    // Удаляем участника из команды
+    // Получаем ID текущего пользователя из таблицы users
+    const { data: currentUser, error: currentUserError } = await supabase
+      .from('users')
+      .select('id')
+      .eq('auth_id', user.id)
+      .single()
+
+    if (currentUserError || !currentUser) {
+      return NextResponse.json({ error: 'Current user not found' }, { status: 404 })
+    }
+
+    // Деактивируем участника команды (не удаляем для истории)
     const { error: deleteError } = await supabase
       .from('team_members')
-      .delete()
+      .update({
+        is_active: false,
+        left_at: new Date().toISOString(),
+        removed_by: currentUser.id
+      })
       .eq('team_id', params.id)
       .eq('user_id', user_id)
+      .eq('is_active', true)
 
     if (deleteError) {
       console.error('Error removing team member:', deleteError)

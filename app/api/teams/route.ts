@@ -32,6 +32,11 @@ export async function GET(request: NextRequest) {
           id,
           role,
           joined_at,
+          left_at,
+          added_by,
+          removed_by,
+          is_active,
+          user_id,
           user:user_id (
             id,
             first_name,
