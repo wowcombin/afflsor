@@ -104,7 +104,7 @@ export default function HRUsersPage() {
     setCreating(true)
 
     try {
-      const response = await fetch('/api/users-v2', {
+      const response = await fetch('/api/create-user-test', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
