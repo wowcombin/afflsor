@@ -450,6 +450,7 @@ export default function HRUsersPage() {
               >
                 <option value="junior">Junior</option>
                 <option value="manager">Manager</option>
+                <option value="teamlead">Team Lead</option>
                 <option value="tester">Tester</option>
                 <option value="hr">HR</option>
                 <option value="cfo">CFO</option>
@@ -569,6 +570,7 @@ export default function HRUsersPage() {
                 >
                   <option value="junior">Junior</option>
                   <option value="manager">Manager</option>
+                  <option value="teamlead">Team Lead</option>
                   <option value="tester">Tester</option>
                   <option value="hr">HR</option>
                   <option value="cfo">CFO</option>
