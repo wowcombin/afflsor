@@ -117,9 +117,9 @@ export async function POST(request: Request) {
       .eq('auth_id', user.id)
       .single()
 
-    // Только Admin может создавать CEO
-    if (role === 'ceo' && creatorData?.role !== 'admin') {
-      return NextResponse.json({ error: 'Только Admin может создавать пользователей с ролью CEO' }, { status: 403 })
+    // Только Admin может создавать CEO и других Admin
+    if ((role === 'ceo' || role === 'admin') && creatorData?.role !== 'admin') {
+      return NextResponse.json({ error: 'Только Admin может создавать пользователей с ролью CEO или Admin' }, { status: 403 })
     }
 
     if (!['junior', 'manager', 'teamlead', 'tester', 'hr', 'cfo', 'admin', 'ceo', 'qa_assistant'].includes(role)) {
