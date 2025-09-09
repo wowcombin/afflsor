@@ -1,28 +1,6 @@
--- Автоматическое управление участниками команд по ролям и структуре
+-- Исправление ошибки UUID в функции синхронизации команд
 
--- Добавляем поле для типа команды
-ALTER TABLE teams ADD COLUMN IF NOT EXISTS team_type VARCHAR(50);
-
--- Обновляем существующие команды с типами
-UPDATE teams SET team_type = 'all' WHERE name = 'Xbsidian All Team';
-UPDATE teams SET team_type = 'manager' WHERE name = 'Xbsidian Manager Team';
-UPDATE teams SET team_type = 'manual_qa' WHERE name = 'Xbsidian Manual QA Team';
-UPDATE teams SET team_type = 'interview' WHERE name = 'Xbsidian Interview Team';
-
--- Добавляем новую команду для Team Lead
-INSERT INTO teams (name, description, team_type, is_active, created_at, updated_at)
-VALUES (
-  'Xbsidian Lead Team',
-  'Команда всех Team Lead для координации',
-  'lead',
-  true,
-  NOW(),
-  NOW()
-) ON CONFLICT (name) DO UPDATE SET
-  team_type = 'lead',
-  description = 'Команда всех Team Lead для координации';
-
--- Функция для автоматического добавления участников в команды по ролям
+-- Пересоздаем функцию с исправленным условием для team_lead_id
 CREATE OR REPLACE FUNCTION sync_team_members()
 RETURNS void AS $$
 DECLARE
@@ -134,7 +112,7 @@ BEGIN
                     removed_by = NULL;
             END LOOP;
             
-            -- Добавляем неназначенных Junior (без team_lead_id)
+            -- Добавляем неназначенных Junior (только team_lead_id IS NULL)
             FOR user_record IN 
                 SELECT * FROM users 
                 WHERE status = 'active' 
@@ -220,40 +198,5 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Триггер для автоматической синхронизации при изменении пользователей
-CREATE OR REPLACE FUNCTION trigger_sync_team_members()
-RETURNS TRIGGER AS $$
-BEGIN
-    -- Запускаем синхронизацию после изменения пользователя
-    PERFORM sync_team_members();
-    RETURN COALESCE(NEW, OLD);
-END;
-$$ LANGUAGE plpgsql;
-
--- Создаем триггеры на изменения пользователей
-DROP TRIGGER IF EXISTS sync_teams_on_user_change ON users;
-CREATE TRIGGER sync_teams_on_user_change
-    AFTER INSERT OR UPDATE OR DELETE ON users
-    FOR EACH ROW
-    EXECUTE FUNCTION trigger_sync_team_members();
-
--- Запускаем первичную синхронизацию
+-- Запускаем исправленную синхронизацию
 SELECT sync_team_members();
-
--- API функция для ручной синхронизации
-CREATE OR REPLACE FUNCTION manual_sync_teams()
-RETURNS json AS $$
-DECLARE
-    result json;
-BEGIN
-    PERFORM sync_team_members();
-    
-    SELECT json_build_object(
-        'success', true,
-        'message', 'Teams synchronized successfully',
-        'timestamp', NOW()
-    ) INTO result;
-    
-    RETURN result;
-END;
-$$ LANGUAGE plpgsql;
