@@ -38,7 +38,7 @@ BEGIN
       u.id,
       COALESCE(SUM(ww.withdrawal_amount - w.deposit_amount), 0) as profit
     FROM users u
-    LEFT JOIN works w ON w.user_id = u.id 
+    LEFT JOIN works w ON w.junior_id = u.id 
       AND DATE_TRUNC('month', w.created_at) = (p_month || '-01')::DATE
       AND w.status = 'completed'
     LEFT JOIN work_withdrawals ww ON ww.work_id = w.id 
@@ -72,7 +72,7 @@ BEGIN
     MAX(w.deposit_amount) as largest_profit
   INTO leader_record
   FROM users u
-  JOIN works w ON w.user_id = u.id
+  JOIN works w ON w.junior_id = u.id
   WHERE u.role = 'junior'
     AND u.status = 'active'
     AND DATE_TRUNC('month', w.created_at) = (p_month || '-01')::DATE
@@ -112,7 +112,7 @@ BEGIN
         ELSE 0
       END as team_profit
     FROM users u
-    LEFT JOIN works w ON w.user_id = u.id 
+    LEFT JOIN works w ON w.junior_id = u.id 
       AND DATE_TRUNC('month', w.created_at) = (p_month || '-01')::DATE
       AND w.status = 'completed'
     LEFT JOIN work_withdrawals ww ON ww.work_id = w.id 
@@ -257,7 +257,7 @@ BEGIN
               COALESCE(SUM(ww2.withdrawal_amount - w2.deposit_amount), 0) as profit
             FROM users tl
             LEFT JOIN users j ON j.team_lead_id = tl.id AND j.role = 'junior' AND j.status = 'active'
-            LEFT JOIN works w2 ON w2.user_id = j.id 
+            LEFT JOIN works w2 ON w2.junior_id = j.id 
               AND DATE_TRUNC('month', w2.created_at) = (p_month || '-01')::DATE
               AND w2.status = 'completed'
             LEFT JOIN work_withdrawals ww2 ON ww2.work_id = w2.id 
@@ -316,7 +316,7 @@ BEGIN
               COALESCE(SUM(ww2.withdrawal_amount - w2.deposit_amount), 0) as profit
             FROM users tl
             LEFT JOIN users j ON j.team_lead_id = tl.id AND j.role = 'junior' AND j.status = 'active'
-            LEFT JOIN works w2 ON w2.user_id = j.id 
+            LEFT JOIN works w2 ON w2.junior_id = j.id 
               AND DATE_TRUNC('month', w2.created_at) = (p_month || '-01')::DATE
               AND w2.status = 'completed'
             LEFT JOIN work_withdrawals ww2 ON ww2.work_id = w2.id 
@@ -381,7 +381,7 @@ COMMENT ON VIEW salary_summary_v2 IS 'Сводка по формулам рас�
 
 -- 4. Индексы для производительности
 CREATE INDEX IF NOT EXISTS idx_users_role_status ON users(role, status);
-CREATE INDEX IF NOT EXISTS idx_works_user_created_status ON works(user_id, created_at, status);
+CREATE INDEX IF NOT EXISTS idx_works_junior_created_status ON works(junior_id, created_at, status);
 CREATE INDEX IF NOT EXISTS idx_work_withdrawals_work_status ON work_withdrawals(work_id, status);
 CREATE INDEX IF NOT EXISTS idx_expenses_date_status ON expenses(expense_date, status);
 
