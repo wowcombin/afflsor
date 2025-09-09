@@ -46,8 +46,55 @@ export interface TeamMember {
   user_id: string
   role: 'member' | 'leader' | 'admin'
   joined_at: string
+  left_at: string | null
+  added_by: string | null
+  removed_by: string | null
+  is_active: boolean
   user?: User
   team?: Team
+}
+
+export interface TeamCall {
+  id: string
+  team_id: string
+  name: string
+  description: string | null
+  duration_minutes: number
+  schedule_time: string | null // HH:MM format
+  schedule_days: string[] | null // ['monday', 'tuesday', ...]
+  is_active: boolean
+  created_at: string
+  updated_at: string
+  team?: Team
+  agenda_items?: CallAgendaItem[]
+}
+
+export interface CallAgendaItem {
+  id: string
+  call_id: string
+  order_number: number
+  title: string
+  description: string | null
+  duration_minutes: number
+  speaker_role: string | null
+  speaker_user_id: string | null
+  is_active: boolean
+  created_at: string
+  speaker_user?: User
+}
+
+export interface TeamMemberHistory {
+  id: string
+  team_id: string
+  user_id: string
+  action: 'joined' | 'left' | 'role_changed' | 'promoted' | 'demoted' | 'removed'
+  old_role: string | null
+  new_role: string | null
+  performed_by: string | null
+  notes: string | null
+  created_at: string
+  user?: User
+  performed_by_user?: User
 }
 
 export interface Bank {

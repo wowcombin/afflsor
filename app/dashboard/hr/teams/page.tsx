@@ -2,13 +2,16 @@
 
 import { useState, useEffect } from 'react'
 import { Team, TeamMember } from '@/types/database.types'
-import {
-    UserGroupIcon,
-    ChatBubbleLeftRightIcon,
-    PencilIcon,
-    LinkIcon,
-    PlusIcon
+import { 
+  UserGroupIcon, 
+  ChatBubbleLeftRightIcon, 
+  PencilIcon,
+  LinkIcon,
+  PlusIcon,
+  ArrowRightIcon,
+  UsersIcon
 } from '@heroicons/react/24/outline'
+import Link from 'next/link'
 
 export default function TeamsPage() {
     const [teams, setTeams] = useState<Team[]>([])
@@ -108,12 +111,22 @@ export default function TeamsPage() {
                             </span>
                         </div>
 
-                        <div className="border-t border-gray-200 pt-4">
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center space-x-2">
-                                    <ChatBubbleLeftRightIcon className="w-4 h-4 text-gray-400" />
-                                    <span className="text-sm text-gray-600">Чат команды:</span>
-                                </div>
+            <div className="border-t border-gray-200 pt-4">
+              <div className="flex items-center justify-between mb-3">
+                <Link
+                  href={`/dashboard/hr/teams/${team.id}`}
+                  className="flex items-center space-x-2 text-blue-600 hover:text-blue-800 text-sm font-medium"
+                >
+                  <UsersIcon className="w-4 h-4" />
+                  <span>Управление командой</span>
+                  <ArrowRightIcon className="w-3 h-3" />
+                </Link>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <ChatBubbleLeftRightIcon className="w-4 h-4 text-gray-400" />
+                  <span className="text-sm text-gray-600">Чат команды:</span>
+                </div>
                                 {editingTeam === team.id ? (
                                     <div className="flex items-center space-x-2">
                                         <input
