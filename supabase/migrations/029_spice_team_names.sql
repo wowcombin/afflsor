@@ -51,7 +51,7 @@ $$ LANGUAGE plpgsql;
 CREATE OR REPLACE FUNCTION assign_spice_to_user(user_id UUID)
 RETURNS VARCHAR(50) AS $$
 DECLARE
-    spice_name VARCHAR(50);
+    selected_spice_name VARCHAR(50);
     existing_spice VARCHAR(50);
 BEGIN
     -- Проверяем, есть ли уже назначенная специя для этого пользователя
@@ -64,14 +64,14 @@ BEGIN
     END IF;
     
     -- Получаем новую специю
-    SELECT get_next_spice_name() INTO spice_name;
+    SELECT get_next_spice_name() INTO selected_spice_name;
     
     -- Назначаем специю пользователю
     UPDATE team_spice_names 
     SET is_used = TRUE, assigned_to_user_id = user_id
-    WHERE spice_name = spice_name;
+    WHERE team_spice_names.spice_name = selected_spice_name;
     
-    RETURN spice_name;
+    RETURN selected_spice_name;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -92,7 +92,7 @@ DECLARE
     team_record RECORD;
     user_record RECORD;
     current_user_id UUID;
-    spice_name VARCHAR(50);
+    selected_spice_name VARCHAR(50);
     team_name VARCHAR(100);
 BEGIN
     -- Получаем ID системного пользователя (admin) для added_by
@@ -230,22 +230,22 @@ BEGIN
         AND role = 'teamlead'
     LOOP
         -- Получаем или назначаем специю для Team Lead
-        SELECT assign_spice_to_user(user_record.id) INTO spice_name;
+        SELECT assign_spice_to_user(user_record.id) INTO selected_spice_name;
         
         -- Формируем название команды
-        team_name := 'Xbsidian TL ' || spice_name;
+        team_name := 'Xbsidian TL ' || selected_spice_name;
         
         -- Создаем или обновляем команду для Team Lead
         INSERT INTO teams (name, description, team_type, is_active, created_at, updated_at)
         VALUES (
             team_name,
-            'Команда Team Lead: ' || user_record.first_name || ' ' || user_record.last_name || ' (' || spice_name || ')',
+            'Команда Team Lead: ' || user_record.first_name || ' ' || user_record.last_name || ' (' || selected_spice_name || ')',
             'individual_lead',
             true,
             NOW(),
             NOW()
         ) ON CONFLICT (name) DO UPDATE SET
-            description = 'Команда Team Lead: ' || user_record.first_name || ' ' || user_record.last_name || ' (' || spice_name || ')',
+            description = 'Команда Team Lead: ' || user_record.first_name || ' ' || user_record.last_name || ' (' || selected_spice_name || ')',
             is_active = true,
             updated_at = NOW();
             
