@@ -7,7 +7,7 @@ import KPICard from '@/components/ui/KPICard'
 import StatusBadge from '@/components/ui/StatusBadge'
 import Modal from '@/components/ui/Modal'
 import { User } from '@/types/database.types'
-import { 
+import {
   UsersIcon,
   PlusIcon,
   PencilIcon,
@@ -63,7 +63,7 @@ export default function HRUsersPage() {
   async function loadUsers() {
     try {
       const response = await fetch('/api/users')
-      
+
       if (!response.ok) {
         const errorData = await response.json()
         throw new Error(errorData.error || 'Ошибка загрузки пользователей')
@@ -101,15 +101,15 @@ export default function HRUsersPage() {
     setLoadingTeamLeads(true)
     try {
       const response = await fetch('/api/users')
-      
+
       if (!response.ok) {
         throw new Error('Ошибка загрузки Team Lead')
       }
 
       const { users: usersData } = await response.json()
-      
+
       // Фильтруем только активных Team Lead
-      const activeTeamLeads = usersData.filter((u: User) => 
+      const activeTeamLeads = usersData.filter((u: User) =>
         u.role === 'teamlead' && u.status === 'active'
       )
       setTeamLeads(activeTeamLeads)
@@ -161,7 +161,7 @@ export default function HRUsersPage() {
         salary_percentage: 0,
         salary_bonus: 0
       })
-      
+
       await loadUsers()
 
     } catch (error: any) {
@@ -360,13 +360,14 @@ export default function HRUsersPage() {
         setSelectedUser(user)
         setShowEditModal(true)
       },
-      variant: 'primary'
+      variant: 'primary',
+      condition: (user) => user.role !== 'admin' && user.role !== 'ceo' // HR не может редактировать Admin и CEO
     },
     {
       label: 'Удалить',
       action: handleDeleteUser,
       variant: 'danger',
-      condition: (user) => user.role !== 'admin' // Нельзя удалить админа
+      condition: (user) => user.role !== 'admin' && user.role !== 'ceo' // HR не может удалить Admin и CEO
     }
   ]
 
@@ -421,7 +422,7 @@ export default function HRUsersPage() {
             Пользователи системы ({users.length})
           </h3>
         </div>
-        
+
         <DataTable
           data={users}
           columns={columns}
@@ -493,20 +494,20 @@ export default function HRUsersPage() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="form-label">Роль *</label>
-                <select
-                  value={newUserForm.role}
-                  onChange={(e) => setNewUserForm({ ...newUserForm, role: e.target.value as User['role'] })}
-                  className="form-input"
-                  required
-                >
-                  <option value="junior">Junior</option>
-                  <option value="manager">Manager (Coordinator)</option>
-                  <option value="teamlead">Team Lead</option>
-                  <option value="tester">Manual QA</option>
-                  <option value="qa_assistant">QA Assistant</option>
-                  <option value="hr">HR</option>
-                  <option value="cfo">CFO</option>
-                </select>
+              <select
+                value={newUserForm.role}
+                onChange={(e) => setNewUserForm({ ...newUserForm, role: e.target.value as User['role'] })}
+                className="form-input"
+                required
+              >
+                <option value="junior">Junior</option>
+                <option value="manager">Manager (Coordinator)</option>
+                <option value="teamlead">Team Lead</option>
+                <option value="tester">Manual QA</option>
+                <option value="qa_assistant">QA Assistant</option>
+                <option value="hr">HR</option>
+                <option value="cfo">CFO</option>
+              </select>
             </div>
             <div>
               <label className="form-label">Telegram</label>
@@ -648,9 +649,9 @@ export default function HRUsersPage() {
                 <label className="form-label">Team Lead</label>
                 <select
                   value={selectedUser.team_lead_id || ''}
-                  onChange={(e) => setSelectedUser({ 
-                    ...selectedUser, 
-                    team_lead_id: e.target.value || null 
+                  onChange={(e) => setSelectedUser({
+                    ...selectedUser,
+                    team_lead_id: e.target.value || null
                   })}
                   className="form-input"
                   onFocus={() => {

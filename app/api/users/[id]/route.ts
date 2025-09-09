@@ -11,7 +11,7 @@ export async function GET(
   try {
     const supabase = await createClient()
     const userId = params.id
-    
+
     // Проверка аутентификации
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
@@ -31,7 +31,7 @@ export async function GET(
 
     // Пользователь может видеть свои данные или HR/Admin могут видеть всех
     const canView = userData.id === userId || ['hr', 'admin'].includes(userData.role)
-    
+
     if (!canView) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
@@ -63,7 +63,7 @@ export async function PATCH(
   try {
     const supabase = await createClient()
     const userId = params.id
-    
+
     // Проверка аутентификации
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
@@ -94,9 +94,27 @@ export async function PATCH(
       team_lead_id
     } = body
 
+    // Получаем информацию о редактируемом пользователе
+    const { data: targetUser, error: targetUserError } = await supabase
+      .from('users')
+      .select('role')
+      .eq('id', userId)
+      .single()
+
+    if (targetUserError || !targetUser) {
+      return NextResponse.json({ error: 'Пользователь не найден' }, { status: 404 })
+    }
+
+    // HR не может редактировать Admin или CEO пользователей
+    if (userData.role === 'hr' && (targetUser.role === 'admin' || targetUser.role === 'ceo')) {
+      return NextResponse.json({ error: 'HR не может редактировать пользователей с ролью Admin или CEO' }, { status: 403 })
+    }
+
     console.log(`Updating user ${userId}:`)
     console.log(`  - team_lead_id: ${team_lead_id}`)
     console.log(`  - role: ${role}`)
+    console.log(`  - target user role: ${targetUser.role}`)
+    console.log(`  - editor role: ${userData.role}`)
 
     // Проверяем роль пользователя для ограничения изменения на CEO или Admin
     if ((role === 'ceo' || role === 'admin') && userData.role !== 'admin') {
@@ -158,7 +176,7 @@ export async function DELETE(
   try {
     const supabase = await createClient()
     const userId = params.id
-    
+
     // Проверка аутентификации
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
@@ -199,7 +217,7 @@ export async function DELETE(
 
     // Удаляем из Supabase Auth
     const { error: deleteAuthError } = await supabase.auth.admin.deleteUser(targetUser.auth_id)
-    
+
     if (deleteAuthError) {
       console.error('Ошибка удаления из Auth:', deleteAuthError)
       // Не возвращаем ошибку, так как пользователь уже удален из нашей системы

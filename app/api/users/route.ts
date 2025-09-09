@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic'
 export async function GET() {
   try {
     const supabase = await createClient()
-    
+
     // Проверка аутентификации
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
@@ -48,14 +48,14 @@ export async function GET() {
 
     // Обрабатываем данные, добавляя team_lead_name
     const processedUsers = users.map(user => {
-      const team_lead_name = user.team_lead 
+      const team_lead_name = user.team_lead
         ? `${user.team_lead.first_name || ''} ${user.team_lead.last_name || ''}`.trim() || user.team_lead.email
         : null
-      
+
       if (user.role === 'junior' && user.team_lead_id) {
         console.log(`Junior ${user.email}: team_lead_id=${user.team_lead_id}, team_lead_name=${team_lead_name}`)
       }
-      
+
       return {
         ...user,
         team_lead_name
@@ -74,7 +74,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const supabase = await createClient()
-    
+
     // Проверка аутентификации
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
