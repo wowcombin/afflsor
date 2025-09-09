@@ -110,6 +110,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Email, пароль и роль обязательны' }, { status: 400 })
     }
 
+    // Проверяем роль пользователя для ограничения создания CEO
+    const { data: creatorData } = await supabase
+      .from('users')
+      .select('role')
+      .eq('auth_id', user.id)
+      .single()
+
+    // Только Admin может создавать CEO
+    if (role === 'ceo' && creatorData?.role !== 'admin') {
+      return NextResponse.json({ error: 'Только Admin может создавать пользователей с ролью CEO' }, { status: 403 })
+    }
+
     if (!['junior', 'manager', 'teamlead', 'tester', 'hr', 'cfo', 'admin', 'ceo', 'qa_assistant'].includes(role)) {
       return NextResponse.json({ error: 'Некорректная роль' }, { status: 400 })
     }

@@ -98,6 +98,11 @@ export async function PATCH(
     console.log(`  - team_lead_id: ${team_lead_id}`)
     console.log(`  - role: ${role}`)
 
+    // Проверяем роль пользователя для ограничения изменения на CEO
+    if (role === 'ceo' && userData.role !== 'admin') {
+      return NextResponse.json({ error: 'Только Admin может назначать роль CEO' }, { status: 403 })
+    }
+
     // Валидация роли
     if (role && !['junior', 'manager', 'teamlead', 'tester', 'hr', 'cfo', 'admin', 'ceo', 'qa_assistant'].includes(role)) {
       return NextResponse.json({ error: 'Некорректная роль' }, { status: 400 })

@@ -506,7 +506,6 @@ export default function HRUsersPage() {
                   <option value="qa_assistant">QA Assistant</option>
                   <option value="hr">HR</option>
                   <option value="cfo">CFO</option>
-                  <option value="ceo">CEO</option>
                   <option value="admin">Admin</option>
                 </select>
             </div>
@@ -628,7 +627,6 @@ export default function HRUsersPage() {
                   <option value="qa_assistant">QA Assistant</option>
                   <option value="hr">HR</option>
                   <option value="cfo">CFO</option>
-                  <option value="ceo">CEO</option>
                   <option value="admin">Admin</option>
                 </select>
               </div>
