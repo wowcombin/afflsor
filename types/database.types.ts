@@ -25,6 +25,7 @@ export interface User {
   salary_bonus: number
   team_lead_id: string | null
   team_lead_name: string | null
+  team_chat_link: string | null
   created_at: string
   updated_at: string
 }

@@ -55,6 +55,12 @@ export default function HRDashboard() {
             Управление NDA
           </button>
           <button 
+            onClick={() => router.push('/dashboard/hr/structure')}
+            className="btn-primary"
+          >
+            Организационная структура
+          </button>
+          <button 
             onClick={() => router.push('/dashboard/hr/reports')}
             className="btn-secondary"
           >
@@ -76,6 +82,8 @@ export default function HRDashboard() {
           <div>• Создание и управление учетными записями сотрудников</div>
           <div>• Настройка процентов и бонусов для каждого сотрудника</div>
           <div>• Управление NDA и документооборотом</div>
+          <div>• Просмотр организационной структуры и иерархии команд</div>
+          <div>• Управление ссылками на чаты команд для аналитики</div>
           <div>• Мониторинг эффективности и добавление HR комментариев</div>
           <div>• Контроль балансов банковских аккаунтов</div>
         </div>

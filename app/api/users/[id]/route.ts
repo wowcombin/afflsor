@@ -91,7 +91,8 @@ export async function PATCH(
       usdt_wallet,
       salary_percentage,
       salary_bonus,
-      team_lead_id
+      team_lead_id,
+      team_chat_link
     } = body
 
     // Получаем информацию о редактируемом пользователе
@@ -143,7 +144,8 @@ export async function PATCH(
         usdt_wallet: usdt_wallet || null,
         salary_percentage: salary_percentage !== undefined ? salary_percentage : undefined,
         salary_bonus: salary_bonus !== undefined ? salary_bonus : undefined,
-        team_lead_id: team_lead_id !== undefined ? (team_lead_id || null) : undefined
+        team_lead_id: team_lead_id !== undefined ? (team_lead_id || null) : undefined,
+        team_chat_link: team_chat_link !== undefined ? (team_chat_link || null) : undefined
       })
       .eq('id', userId)
       .select()
