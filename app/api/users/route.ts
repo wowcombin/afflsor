@@ -160,14 +160,14 @@ export async function POST(request: Request) {
     }
 
     const allowedRoles = allowedRolesByCreator[userData.role as keyof typeof allowedRolesByCreator] || []
-    
+
     if (!allowedRoles.includes(role)) {
-      console.error('Role creation not allowed:', { 
-        creatorRole: userData.role, 
+      console.error('Role creation not allowed:', {
+        creatorRole: userData.role,
         targetRole: role,
-        allowedRoles 
+        allowedRoles
       })
-      return NextResponse.json({ 
+      return NextResponse.json({
         error: `Роль '${userData.role}' не может создавать пользователей с ролью '${role}'`,
         details: `Разрешенные роли: ${allowedRoles.join(', ')}`,
         allowedRoles

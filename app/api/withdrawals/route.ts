@@ -41,6 +41,12 @@ export async function GET(request: Request) {
       if (!status) {
         query = query.in('status', ['new', 'waiting'])
       }
+    } else if (['hr', 'admin'].includes(userData.role)) {
+      // HR и Admin видят все выводы
+      // Никаких дополнительных фильтров
+    } else {
+      // Другие роли не имеют доступа к выводам
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
     // Дополнительные фильтры
