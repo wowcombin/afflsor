@@ -17,7 +17,8 @@ import {
   DocumentTextIcon,
   CogIcon,
   ClipboardDocumentListIcon,
-  CommandLineIcon
+  CommandLineIcon,
+  ChatBubbleLeftRightIcon
 } from '@heroicons/react/24/outline'
 
 interface NavigationItem {
@@ -78,8 +79,10 @@ export default function Navigation({ userRole }: NavigationProps) {
         return [
           { name: 'Dashboard', href: baseHref, icon: HomeIcon },
           { name: 'Сотрудники', href: `${baseHref}/users`, icon: UsersIcon },
+          { name: 'Чаты и созвоны', href: `${baseHref}/teams`, icon: ChatBubbleLeftRightIcon },
+          { name: 'Структура', href: `${baseHref}/structure`, icon: UsersIcon },
+          { name: 'NDA', href: `${baseHref}/nda`, icon: DocumentTextIcon },
           { name: 'Отчеты', href: `${baseHref}/reports`, icon: ChartBarIcon },
-          { name: 'Комментарии', href: `${baseHref}/comments`, icon: DocumentTextIcon },
           { name: 'Банки', href: `${baseHref}/banks`, icon: BuildingLibraryIcon },
           { name: 'Настройки', href: `${baseHref}/settings`, icon: CogIcon }
         ]
@@ -130,7 +133,7 @@ export default function Navigation({ userRole }: NavigationProps) {
         <ul className="space-y-2">
           {navigationItems.map((item) => {
             const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
-            
+
             return (
               <li key={item.href}>
                 <button
