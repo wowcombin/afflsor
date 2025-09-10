@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
 import { useToast } from '@/components/ui/Toast'
+import SignaturePad from '@/components/ui/SignaturePad'
 
 interface NDAData {
   id: string
@@ -19,24 +20,25 @@ export default function SignNDAPage() {
   const params = useParams()
   const searchParams = useSearchParams()
   const { addToast } = useToast()
-  
+
   const [ndaData, setNdaData] = useState<NDAData | null>(null)
   const [loading, setLoading] = useState(true)
   const [signing, setSigning] = useState(false)
   const [formData, setFormData] = useState({
-    full_name: '',
-    birth_date: '',
-    document_number: '',
-    document_type: 'passport',
-    document_issued_by: '',
-    document_issued_date: '',
-    address: '',
+    fullName: '',
+    dateOfBirth: '',
+    email: '',
+    documentNumber: '',
+    issuanceAddress: '',
+    issuanceDate: '',
+    residentialAddress: '',
     agreed: false
   })
   const [files, setFiles] = useState({
-    passport_photo: null as File | null,
-    selfie_with_passport: null as File | null
+    passportPhoto: null as File | null,
+    selfieWithPassport: null as File | null
   })
+  const [signature, setSignature] = useState<string | null>(null)
 
   const agreementId = params.id as string
   const token = searchParams.get('token')
@@ -51,12 +53,12 @@ export default function SignNDAPage() {
     try {
       const response = await fetch(`/api/nda/sign/${agreementId}?token=${token}`)
       const data = await response.json()
-      
+
       if (data.success) {
         setNdaData(data.data)
         setFormData(prev => ({
           ...prev,
-          full_name: data.data.full_name || '',
+          fullName: data.data.full_name || '',
           email: data.data.email || ''
         }))
       } else {
@@ -75,14 +77,19 @@ export default function SignNDAPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!formData.agreed) {
       addToast({ type: 'error', title: 'Ошибка', description: 'Необходимо согласиться с условиями NDA' })
       return
     }
 
-    if (!files.passport_photo || !files.selfie_with_passport) {
-      addToast({ type: 'error', title: 'Ошибка', description: 'Необходимо загрузить все документы' })
+    if (!signature) {
+      addToast({ type: 'error', title: 'Ошибка', description: 'Необходимо поставить электронную подпись' })
+      return
+    }
+
+    if (!files.passportPhoto || !files.selfieWithPassport) {
+      addToast({ type: 'error', title: 'Ошибка', description: 'Необходимо загрузить фото документа и селфи' })
       return
     }
 
@@ -90,23 +97,31 @@ export default function SignNDAPage() {
 
     try {
       const formDataToSend = new FormData()
-      
+
+      // Добавляем ID соглашения
+      formDataToSend.append('agreementId', agreementId)
+
       // Добавляем данные формы
       Object.entries(formData).forEach(([key, value]) => {
-        formDataToSend.append(key, value.toString())
+        if (key !== 'agreed') {
+          formDataToSend.append(key, value.toString())
+        }
       })
-      
-      // Добавляем файлы
-      if (files.passport_photo) {
-        formDataToSend.append('passport_photo', files.passport_photo)
-      }
-      if (files.selfie_with_passport) {
-        formDataToSend.append('selfie_with_passport', files.selfie_with_passport)
-      }
-      
-      formDataToSend.append('token', token || '')
 
-      const response = await fetch(`/api/nda/sign/${agreementId}`, {
+      // Добавляем подпись
+      if (signature) {
+        formDataToSend.append('signature', signature)
+      }
+
+      // Добавляем файлы
+      if (files.passportPhoto) {
+        formDataToSend.append('passportPhoto', files.passportPhoto)
+      }
+      if (files.selfieWithPassport) {
+        formDataToSend.append('selfieWithPassport', files.selfieWithPassport)
+      }
+
+      const response = await fetch(`/api/nda/sign`, {
         method: 'POST',
         body: formDataToSend
       })
@@ -114,10 +129,10 @@ export default function SignNDAPage() {
       const result = await response.json()
 
       if (result.success) {
-        addToast({ 
-          type: 'success', 
-          title: 'Успешно', 
-          description: 'NDA успешно подписано!' 
+        addToast({
+          type: 'success',
+          title: 'Успешно',
+          description: 'NDA успешно подписано!'
         })
         // Перенаправляем на страницу успеха
         window.location.href = '/nda/success'
@@ -168,18 +183,89 @@ export default function SignNDAPage() {
           <h1 className="text-3xl font-bold text-center mb-8">
             Подписание соглашения о неразглашении
           </h1>
-          
+
           {/* Контент NDA */}
           <div className="mb-8 p-6 border rounded-lg bg-gray-50 max-h-96 overflow-y-auto">
-            <div 
-              dangerouslySetInnerHTML={{ 
-                __html: ndaData.template.content
-                  .replace(/\[FULL_NAME\]/g, formData.full_name)
-                  .replace(/\[SIGNATURE_DATE\]/g, new Date().toLocaleDateString('uk-UA'))
-                  .replace(/\[ADDRESS\]/g, formData.address)
-                  .replace(/\[PASSPORT\]/g, formData.document_number)
-              }} 
-            />
+            <div className="whitespace-pre-line text-sm leading-relaxed">
+              {ndaData.template.content
+                .replace(/\[FULL_NAME\]/g, formData.fullName || '[ИМЯ]')
+                .replace(/\[SIGNATURE_DATE\]/g, new Date().toLocaleDateString('uk-UA'))
+                .replace(/\[ADDRESS\]/g, formData.residentialAddress || '[АДРЕС]')
+                .replace(/\[PASSPORT\]/g, formData.documentNumber || '[ПАСПОРТ]')
+              }
+            </div>
+
+            {/* Подписи сторон */}
+            <div className="mt-8 pt-6 border-t border-gray-300">
+              <div className="grid grid-cols-2 gap-8">
+                {/* Подпись директора */}
+                <div className="text-center">
+                  <div className="mb-4">
+                    <div className="text-sm font-medium mb-2">Сторона – Роботодавець</div>
+                    <div className="text-sm">Андрій Головач</div>
+                    <div className="text-xs text-gray-600 mt-1">Директор</div>
+                  </div>
+
+                  {/* Подпись директора (изображение или текст) */}
+                  <div className="h-16 border-b border-gray-400 mb-2 flex items-end justify-center">
+                    <svg 
+                      width="120" 
+                      height="50" 
+                      viewBox="0 0 120 50" 
+                      className="mb-1"
+                    >
+                      <path 
+                        d="M10 35 Q15 10 25 15 Q35 20 45 12 Q55 5 65 18 Q75 30 85 15 Q95 8 105 25 Q110 35 115 20" 
+                        stroke="#1e3a8a" 
+                        strokeWidth="2" 
+                        fill="none" 
+                        strokeLinecap="round" 
+                        strokeLinejoin="round"
+                      />
+                      <path 
+                        d="M20 25 L25 35 M30 20 L35 40 M50 15 L55 35 M70 10 L75 30 M90 20 L95 40" 
+                        stroke="#1e3a8a" 
+                        strokeWidth="1.5" 
+                        strokeLinecap="round"
+                      />
+                      <ellipse 
+                        cx="60" 
+                        cy="25" 
+                        rx="50" 
+                        ry="15" 
+                        stroke="#1e3a8a" 
+                        strokeWidth="1.5" 
+                        fill="none"
+                      />
+                    </svg>
+                  </div>
+                  <div className="text-xs text-gray-500">(підпис)</div>
+                </div>
+
+                {/* Место для подписи сотрудника */}
+                <div className="text-center">
+                  <div className="mb-4">
+                    <div className="text-sm font-medium mb-2">Сторона – Працівник</div>
+                    <div className="text-sm">{formData.fullName || '[ИМЯ]'}</div>
+                    <div className="text-xs text-gray-600 mt-1">Співробітник</div>
+                  </div>
+
+                  {/* Место для подписи сотрудника */}
+                  <div className="h-16 border-b border-gray-400 mb-2 flex items-end justify-center">
+                    {signature ? (
+                      <img src={signature} alt="Подпись" className="max-h-12 max-w-full" />
+                    ) : (
+                      <div className="text-xs text-gray-400">Место для подписи</div>
+                    )}
+                  </div>
+                  <div className="text-xs text-gray-500">(підпис)</div>
+                </div>
+              </div>
+
+              <div className="text-center mt-4 text-xs text-gray-600">
+                Дата підписання: {new Date().toLocaleDateString('uk-UA')}
+              </div>
+            </div>
           </div>
 
           {/* Форма подписания */}
@@ -189,54 +275,52 @@ export default function SignNDAPage() {
                 <label className="form-label">Полное имя *</label>
                 <input
                   type="text"
-                  value={formData.full_name}
-                  onChange={(e) => setFormData(prev => ({ ...prev, full_name: e.target.value }))}
-                  className="form-input"
-                  required
-                />
-              </div>
-              
-              <div>
-                <label className="form-label">Дата рождения *</label>
-                <input
-                  type="date"
-                  value={formData.birth_date}
-                  onChange={(e) => setFormData(prev => ({ ...prev, birth_date: e.target.value }))}
+                  value={formData.fullName}
+                  onChange={(e) => setFormData(prev => ({ ...prev, fullName: e.target.value }))}
                   className="form-input"
                   required
                 />
               </div>
 
               <div>
-                <label className="form-label">Тип документа *</label>
-                <select
-                  value={formData.document_type}
-                  onChange={(e) => setFormData(prev => ({ ...prev, document_type: e.target.value }))}
+                <label className="form-label">Дата рождения *</label>
+                <input
+                  type="date"
+                  value={formData.dateOfBirth}
+                  onChange={(e) => setFormData(prev => ({ ...prev, dateOfBirth: e.target.value }))}
                   className="form-input"
-                >
-                  <option value="passport">Паспорт</option>
-                  <option value="id_card">ID карта</option>
-                  <option value="driver_license">Водительские права</option>
-                </select>
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="form-label">Email *</label>
+                <input
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                  className="form-input"
+                  required
+                />
               </div>
 
               <div>
                 <label className="form-label">Номер документа *</label>
                 <input
                   type="text"
-                  value={formData.document_number}
-                  onChange={(e) => setFormData(prev => ({ ...prev, document_number: e.target.value }))}
+                  value={formData.documentNumber}
+                  onChange={(e) => setFormData(prev => ({ ...prev, documentNumber: e.target.value }))}
                   className="form-input"
                   required
                 />
               </div>
 
               <div>
-                <label className="form-label">Кем выдан *</label>
+                <label className="form-label">Адрес выдачи *</label>
                 <input
                   type="text"
-                  value={formData.document_issued_by}
-                  onChange={(e) => setFormData(prev => ({ ...prev, document_issued_by: e.target.value }))}
+                  value={formData.issuanceAddress}
+                  onChange={(e) => setFormData(prev => ({ ...prev, issuanceAddress: e.target.value }))}
                   className="form-input"
                   required
                 />
@@ -246,8 +330,8 @@ export default function SignNDAPage() {
                 <label className="form-label">Дата выдачи *</label>
                 <input
                   type="date"
-                  value={formData.document_issued_date}
-                  onChange={(e) => setFormData(prev => ({ ...prev, document_issued_date: e.target.value }))}
+                  value={formData.issuanceDate}
+                  onChange={(e) => setFormData(prev => ({ ...prev, issuanceDate: e.target.value }))}
                   className="form-input"
                   required
                 />
@@ -257,12 +341,17 @@ export default function SignNDAPage() {
             <div>
               <label className="form-label">Адрес проживания *</label>
               <textarea
-                value={formData.address}
-                onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
+                value={formData.residentialAddress}
+                onChange={(e) => setFormData(prev => ({ ...prev, residentialAddress: e.target.value }))}
                 className="form-input"
                 rows={3}
                 required
               />
+            </div>
+
+            {/* Электронная подпись */}
+            <div className="mb-6">
+              <SignaturePad onSignatureChange={setSignature} />
             </div>
 
             {/* Загрузка файлов */}
@@ -272,7 +361,7 @@ export default function SignNDAPage() {
                 <input
                   type="file"
                   accept="image/*"
-                  onChange={(e) => handleFileChange('passport_photo', e.target.files?.[0] || null)}
+                  onChange={(e) => handleFileChange('passportPhoto', e.target.files?.[0] || null)}
                   className="form-input"
                   required
                 />
@@ -286,7 +375,7 @@ export default function SignNDAPage() {
                 <input
                   type="file"
                   accept="image/*"
-                  onChange={(e) => handleFileChange('selfie_with_passport', e.target.files?.[0] || null)}
+                  onChange={(e) => handleFileChange('selfieWithPassport', e.target.files?.[0] || null)}
                   className="form-input"
                   required
                 />
@@ -307,7 +396,7 @@ export default function SignNDAPage() {
                 required
               />
               <label htmlFor="agreed" className="text-sm text-gray-700">
-                Я прочитал(а) и согласен(на) с условиями соглашения о неразглашении. 
+                Я прочитал(а) и согласен(на) с условиями соглашения о неразглашении.
                 Понимаю свои обязательства и ответственность за нарушение условий договора.
               </label>
             </div>

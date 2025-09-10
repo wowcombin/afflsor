@@ -53,6 +53,8 @@ export default function HRUsersPage() {
 
   const [creating, setCreating] = useState(false)
   const [updating, setUpdating] = useState(false)
+  const [teamLeads, setTeamLeads] = useState<User[]>([])
+  const [loadingTeamLeads, setLoadingTeamLeads] = useState(false)
 
   useEffect(() => {
     loadUsers()
@@ -95,6 +97,29 @@ export default function HRUsersPage() {
     }
   }
 
+  async function loadTeamLeads() {
+    setLoadingTeamLeads(true)
+    try {
+      const response = await fetch('/api/users')
+
+      if (!response.ok) {
+        throw new Error('Ошибка загрузки Team Lead')
+      }
+
+      const { users: usersData } = await response.json()
+
+      // Фильтруем только активных Team Lead
+      const activeTeamLeads = usersData.filter((u: User) =>
+        u.role === 'teamlead' && u.status === 'active'
+      )
+      setTeamLeads(activeTeamLeads)
+    } catch (error) {
+      console.error('Ошибка загрузки Team Lead:', error)
+    } finally {
+      setLoadingTeamLeads(false)
+    }
+  }
+
   async function handleCreateUser() {
     if (!newUserForm.email || !newUserForm.password) {
       addToast({ type: 'error', title: 'Заполните обязательные поля' })
@@ -104,7 +129,7 @@ export default function HRUsersPage() {
     setCreating(true)
 
     try {
-      const response = await fetch('/api/create-user-test', {
+      const response = await fetch('/api/users', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -170,7 +195,8 @@ export default function HRUsersPage() {
           telegram_username: selectedUser.telegram_username,
           usdt_wallet: selectedUser.usdt_wallet,
           salary_percentage: selectedUser.salary_percentage,
-          salary_bonus: selectedUser.salary_bonus
+          salary_bonus: selectedUser.salary_bonus,
+          team_lead_id: selectedUser.team_lead_id
         })
       })
 
@@ -238,15 +264,20 @@ export default function HRUsersPage() {
 
   const columns: Column<User>[] = [
     {
-      key: 'email',
-      label: 'Email',
+      key: 'telegram_info',
+      label: 'Telegram / Имя',
       sortable: true,
       filterable: true,
       render: (user) => (
         <div>
-          <div className="font-medium text-gray-900">{user.email}</div>
+          <div className="font-medium text-gray-900">
+            {user.telegram_username ? `@${user.telegram_username.replace('@', '')}` : 'Не указан'}
+          </div>
           <div className="text-sm text-gray-500">
-            {user.first_name} {user.last_name}
+            {user.first_name || user.last_name 
+              ? `${user.first_name || ''} ${user.last_name || ''}`.trim()
+              : user.email
+            }
           </div>
         </div>
       )
@@ -256,11 +287,36 @@ export default function HRUsersPage() {
       label: 'Роль',
       sortable: true,
       filterable: true,
-      render: (user) => (
-        <span className="capitalize font-medium text-primary-600">
-          {user.role}
-        </span>
-      )
+      render: (user) => {
+        const roleLabels = {
+          'junior': 'Junior',
+          'manager': 'Manager (Coordinator)',
+          'teamlead': 'Team Lead',
+          'tester': 'Manual QA',
+          'qa_assistant': 'QA Assistant',
+          'hr': 'HR',
+          'cfo': 'CFO',
+          'ceo': 'CEO',
+          'admin': 'Admin'
+        }
+        return (
+          <span className="font-medium text-primary-600">
+            {roleLabels[user.role as keyof typeof roleLabels] || user.role}
+          </span>
+        )
+      }
+    },
+    {
+      key: 'team_lead',
+      label: 'Team Lead',
+      render: (user) => {
+        if (user.role !== 'junior') return <span className="text-gray-400">—</span>
+        return (
+          <span className="text-sm text-gray-600">
+            {user.team_lead_name || <span className="text-orange-600">Не назначен</span>}
+          </span>
+        )
+      }
     },
     {
       key: 'status',
@@ -309,13 +365,14 @@ export default function HRUsersPage() {
         setSelectedUser(user)
         setShowEditModal(true)
       },
-      variant: 'primary'
+      variant: 'primary',
+      condition: (user) => user.role !== 'admin' && user.role !== 'ceo' // HR не может редактировать Admin и CEO
     },
     {
       label: 'Удалить',
       action: handleDeleteUser,
       variant: 'danger',
-      condition: (user) => user.role !== 'admin' // Нельзя удалить админа
+      condition: (user) => user.role !== 'admin' && user.role !== 'ceo' // HR не может удалить Admin и CEO
     }
   ]
 
@@ -449,11 +506,12 @@ export default function HRUsersPage() {
                 required
               >
                 <option value="junior">Junior</option>
-                <option value="manager">Manager</option>
-                <option value="tester">Tester</option>
+                <option value="manager">Manager (Coordinator)</option>
+                <option value="teamlead">Team Lead</option>
+                <option value="tester">Manual QA</option>
+                <option value="qa_assistant">QA Assistant</option>
                 <option value="hr">HR</option>
                 <option value="cfo">CFO</option>
-                <option value="admin">Admin</option>
               </select>
             </div>
             <div>
@@ -568,11 +626,12 @@ export default function HRUsersPage() {
                   className="form-input"
                 >
                   <option value="junior">Junior</option>
-                  <option value="manager">Manager</option>
-                  <option value="tester">Tester</option>
+                  <option value="manager">Manager (Coordinator)</option>
+                  <option value="teamlead">Team Lead</option>
+                  <option value="tester">Manual QA</option>
+                  <option value="qa_assistant">QA Assistant</option>
                   <option value="hr">HR</option>
                   <option value="cfo">CFO</option>
-                  <option value="admin">Admin</option>
                 </select>
               </div>
               <div>
@@ -588,6 +647,37 @@ export default function HRUsersPage() {
                 </select>
               </div>
             </div>
+
+            {/* Team Lead для Junior сотрудников */}
+            {selectedUser.role === 'junior' && (
+              <div>
+                <label className="form-label">Team Lead</label>
+                <select
+                  value={selectedUser.team_lead_id || ''}
+                  onChange={(e) => setSelectedUser({
+                    ...selectedUser,
+                    team_lead_id: e.target.value || null
+                  })}
+                  className="form-input"
+                  onFocus={() => {
+                    if (teamLeads.length === 0) {
+                      loadTeamLeads()
+                    }
+                  }}
+                >
+                  <option value="">Не назначен</option>
+                  {loadingTeamLeads ? (
+                    <option disabled>Загрузка...</option>
+                  ) : (
+                    teamLeads.map((teamLead) => (
+                      <option key={teamLead.id} value={teamLead.id}>
+                        {`${teamLead.first_name || ''} ${teamLead.last_name || ''}`.trim() || teamLead.email}
+                      </option>
+                    ))
+                  )}
+                </select>
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-4">
               <div>
