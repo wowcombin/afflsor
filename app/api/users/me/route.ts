@@ -29,7 +29,7 @@ export async function GET() {
       }, { status: 404 })
     }
 
-    return NextResponse.json(userData)
+    return NextResponse.json({ user: userData })
 
   } catch (error) {
     console.error('Get user data error:', error)

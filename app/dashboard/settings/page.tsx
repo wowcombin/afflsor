@@ -53,20 +53,20 @@ export default function SettingsPage() {
                 throw new Error(errorData.error || 'Ошибка загрузки данных пользователя')
             }
 
-      const { user } = await response.json()
-      
-      if (!user) {
-        throw new Error('Данные пользователя не получены')
-      }
-      
-      setCurrentUser(user)
-      
-      setProfileForm({
-        first_name: user.first_name || '',
-        last_name: user.last_name || '',
-        telegram_username: user.telegram_username || '',
-        usdt_wallet: user.usdt_wallet || ''
-      })
+            const { user } = await response.json()
+
+            if (!user) {
+                throw new Error('Данные пользователя не получены')
+            }
+
+            setCurrentUser(user)
+
+            setProfileForm({
+                first_name: user.first_name || '',
+                last_name: user.last_name || '',
+                telegram_username: user.telegram_username || '',
+                usdt_wallet: user.usdt_wallet || ''
+            })
 
         } catch (error: any) {
             console.error('Ошибка загрузки пользователя:', error)
@@ -216,16 +216,16 @@ export default function SettingsPage() {
         }
     }
 
-  if (loading || !currentUser) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Загрузка настроек...</p>
-        </div>
-      </div>
-    )
-  }
+    if (loading || !currentUser) {
+        return (
+            <div className="flex items-center justify-center h-64">
+                <div className="text-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto mb-4"></div>
+                    <p className="text-gray-600">Загрузка настроек...</p>
+                </div>
+            </div>
+        )
+    }
 
     return (
         <div className="space-y-6">
@@ -253,19 +253,19 @@ export default function SettingsPage() {
                         </div>
                         <div>
                             <label className="text-sm font-medium text-gray-700">Роль</label>
-              <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${getRoleColor(currentUser.role || '')}`}>
-                {getRoleLabel(currentUser.role || '')}
-              </span>
+                            <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${getRoleColor(currentUser.role || '')}`}>
+                                {getRoleLabel(currentUser.role || '')}
+                            </span>
                             <p className="text-xs text-gray-500 mt-1">Назначается администратором</p>
                         </div>
                         <div>
                             <label className="text-sm font-medium text-gray-700">Статус</label>
                             <div className="flex items-center space-x-2">
                                 <CheckCircleIcon className="h-4 w-4 text-green-500" />
-                <span className="text-sm font-medium text-green-600">
-                  {currentUser.status === 'active' ? 'Активен' : 
-                   currentUser.status === 'inactive' ? 'Неактивен' : 'Уволен'}
-                </span>
+                                <span className="text-sm font-medium text-green-600">
+                                    {currentUser.status === 'active' ? 'Активен' :
+                                        currentUser.status === 'inactive' ? 'Неактивен' : 'Уволен'}
+                                </span>
                             </div>
                         </div>
                     </div>
@@ -377,8 +377,8 @@ export default function SettingsPage() {
                 </div>
             </div>
 
-      {/* Информация о зарплате (только для исполнителей) */}
-      {['junior', 'teamlead', 'tester', 'qa_assistant'].includes(currentUser.role) && (
+            {/* Информация о зарплате (только для исполнителей) */}
+            {['junior', 'teamlead', 'tester', 'qa_assistant'].includes(currentUser.role) && (
                 <div className="card">
                     <div className="card-header">
                         <h3 className="text-lg font-semibold text-gray-900">Информация о зарплате</h3>
