@@ -48,7 +48,7 @@ export default function Navigation({ userRole }: NavigationProps) {
           { name: 'Мои карты', href: `${baseHref}/cards`, icon: CreditCardIcon },
           { name: 'Статистика', href: `${baseHref}/stats`, icon: ChartBarIcon },
           { name: 'Генератор данных', href: `${baseHref}/generator`, icon: CommandLineIcon },
-          { name: 'Настройки', href: '/dashboard/settings', icon: CogIcon }
+          { name: 'Настройки', href: `${baseHref}/settings`, icon: CogIcon }
         ]
 
       case 'manager':
@@ -59,7 +59,7 @@ export default function Navigation({ userRole }: NavigationProps) {
           { name: 'Карты', href: `${baseHref}/cards`, icon: CreditCardIcon },
           { name: 'Банки', href: `${baseHref}/banks`, icon: BuildingLibraryIcon },
           { name: 'Аналитика', href: `${baseHref}/analytics`, icon: ChartBarIcon },
-          { name: 'Настройки', href: '/dashboard/settings', icon: CogIcon }
+          { name: 'Настройки', href: `${baseHref}/settings`, icon: CogIcon }
         ]
 
       case 'tester':
@@ -72,19 +72,19 @@ export default function Navigation({ userRole }: NavigationProps) {
           { name: 'Банки', href: `${baseHref}/banks`, icon: BuildingLibraryIcon },
           { name: 'История тестов', href: `${baseHref}/testing`, icon: ClockIcon },
           { name: 'Отчеты', href: `${baseHref}/reports`, icon: ChartBarIcon },
-          { name: 'Настройки', href: '/dashboard/settings', icon: CogIcon }
+          { name: 'Настройки', href: `${baseHref}/settings`, icon: CogIcon }
         ]
 
       case 'hr':
         return [
           { name: 'Dashboard', href: baseHref, icon: HomeIcon },
           { name: 'Сотрудники', href: `${baseHref}/users`, icon: UsersIcon },
-          { name: 'История выводов', href: `${baseHref}/withdrawals`, icon: BanknotesIcon },
           { name: 'Чаты и созвоны', href: `${baseHref}/teams`, icon: ChatBubbleLeftRightIcon },
           { name: 'Структура', href: `${baseHref}/structure`, icon: UsersIcon },
           { name: 'NDA', href: `${baseHref}/nda`, icon: DocumentTextIcon },
           { name: 'Отчеты', href: `${baseHref}/reports`, icon: ChartBarIcon },
-          { name: 'Настройки', href: '/dashboard/settings', icon: CogIcon }
+          { name: 'Банки', href: `${baseHref}/banks`, icon: BuildingLibraryIcon },
+          { name: 'Настройки', href: `${baseHref}/settings`, icon: CogIcon }
         ]
 
       case 'cfo':
@@ -95,7 +95,7 @@ export default function Navigation({ userRole }: NavigationProps) {
           { name: 'Расходы', href: `${baseHref}/expenses`, icon: ChartBarIcon },
           { name: 'Банки', href: `${baseHref}/banks`, icon: BuildingLibraryIcon },
           { name: 'Отчеты', href: `${baseHref}/reports`, icon: DocumentTextIcon },
-          { name: 'Настройки', href: '/dashboard/settings', icon: CogIcon }
+          { name: 'Настройки', href: `${baseHref}/settings`, icon: CogIcon }
         ]
 
       case 'teamlead':
@@ -104,7 +104,7 @@ export default function Navigation({ userRole }: NavigationProps) {
           { name: 'Моя команда', href: `${baseHref}/team`, icon: UsersIcon },
           { name: 'Выводы команды', href: `${baseHref}/withdrawals`, icon: BanknotesIcon },
           { name: 'Карты команды', href: `${baseHref}/cards`, icon: CreditCardIcon },
-          { name: 'Настройки', href: '/dashboard/settings', icon: CogIcon }
+          { name: 'Настройки', href: `${baseHref}/settings`, icon: CogIcon }
         ]
 
       case 'admin':
@@ -113,7 +113,7 @@ export default function Navigation({ userRole }: NavigationProps) {
           { name: 'Пользователи', href: '/dashboard/hr/users', icon: UsersIcon },
           { name: 'Финансы', href: '/dashboard/cfo', icon: BanknotesIcon },
           { name: 'Тестирование', href: '/dashboard/tester', icon: BeakerIcon },
-          { name: 'Настройки', href: '/dashboard/settings', icon: CogIcon },
+          { name: 'Настройки', href: `${baseHref}/settings`, icon: CogIcon },
           { name: 'Аудит', href: `${baseHref}/audit`, icon: ClipboardDocumentListIcon }
         ]
 
