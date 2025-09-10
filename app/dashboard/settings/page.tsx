@@ -80,25 +80,25 @@ export default function SettingsPage() {
         }
     }
 
-  async function handleSaveProfile() {
-    if (!currentUser) return
+    async function handleSaveProfile() {
+        if (!currentUser) return
 
-    // Валидация USDT кошелька перед отправкой
-    if (profileForm.usdt_wallet.trim()) {
-      const bep20Regex = /^0x[a-fA-F0-9]{40}$/
-      if (!bep20Regex.test(profileForm.usdt_wallet.trim())) {
-        addToast({
-          type: 'error',
-          title: 'Неверный формат кошелька',
-          description: 'USDT кошелек должен быть в формате BEP20: 0x + 40 символов (0-9, a-f)'
-        })
-        return
-      }
-    }
+        // Валидация USDT кошелька перед отправкой
+        if (profileForm.usdt_wallet.trim()) {
+            const bep20Regex = /^0x[a-fA-F0-9]{40}$/
+            if (!bep20Regex.test(profileForm.usdt_wallet.trim())) {
+                addToast({
+                    type: 'error',
+                    title: 'Неверный формат кошелька',
+                    description: 'USDT кошелек должен быть в формате BEP20: 0x + 40 символов (0-9, a-f)'
+                })
+                return
+            }
+        }
 
-    setSaving(true)
+        setSaving(true)
 
-    try {
+        try {
             const response = await fetch(`/api/users/${currentUser.id}`, {
                 method: 'PATCH',
                 headers: {
@@ -326,20 +326,20 @@ export default function SettingsPage() {
                             />
                             <p className="text-xs text-gray-500 mt-1">Для связи и уведомлений</p>
                         </div>
-            <div>
-              <label className="form-label">USDT кошелек (BEP20)</label>
-              <input
-                type="text"
-                value={profileForm.usdt_wallet}
-                onChange={(e) => setProfileForm({ ...profileForm, usdt_wallet: e.target.value })}
-                className="form-input"
-                placeholder="0x1234567890abcdef1234567890abcdef12345678"
-              />
-              <p className="text-xs text-blue-600 mt-1">
-                💡 <strong>Только BEP20 адреса!</strong> Формат: 0x + 40 символов (0-9, a-f)
-              </p>
-              <p className="text-xs text-gray-500">Для получения USDT выплат в сети Binance Smart Chain</p>
-            </div>
+                        <div>
+                            <label className="form-label">USDT кошелек (BEP20)</label>
+                            <input
+                                type="text"
+                                value={profileForm.usdt_wallet}
+                                onChange={(e) => setProfileForm({ ...profileForm, usdt_wallet: e.target.value })}
+                                className="form-input"
+                                placeholder="0x1234567890abcdef1234567890abcdef12345678"
+                            />
+                            <p className="text-xs text-blue-600 mt-1">
+                                💡 <strong>Только BEP20 адреса!</strong> Формат: 0x + 40 символов (0-9, a-f)
+                            </p>
+                            <p className="text-xs text-gray-500">Для получения USDT выплат в сети Binance Smart Chain</p>
+                        </div>
                     </div>
 
                     <div className="flex justify-end">

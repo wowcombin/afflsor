@@ -98,6 +98,14 @@ export default function Navigation({ userRole }: NavigationProps) {
           { name: 'Настройки', href: '/dashboard/settings', icon: CogIcon }
         ]
 
+      case 'teamlead':
+        return [
+          { name: 'Dashboard', href: baseHref, icon: HomeIcon },
+          { name: 'Моя команда', href: `${baseHref}/team`, icon: UsersIcon },
+          { name: 'Выводы команды', href: `${baseHref}/withdrawals`, icon: BanknotesIcon },
+          { name: 'Настройки', href: '/dashboard/settings', icon: CogIcon }
+        ]
+
       case 'admin':
         return [
           { name: 'Dashboard', href: baseHref, icon: HomeIcon },
