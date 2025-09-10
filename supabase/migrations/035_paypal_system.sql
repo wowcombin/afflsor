@@ -1,42 +1,10 @@
 -- Создание системы PayPal аккаунтов
 -- Миграция 035: PayPal система для Junior сотрудников
 
--- Создание таблицы PayPal аккаунтов
-CREATE TABLE paypal_accounts (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    
-    -- Основные данные аккаунта
-    name VARCHAR(255) NOT NULL,
-    email VARCHAR(255) NOT NULL,
-    password VARCHAR(255) NOT NULL,
-    phone_number VARCHAR(50),
-    authenticator_url TEXT,
-    
-    -- Финансовые данные
-    date_created DATE NOT NULL DEFAULT CURRENT_DATE,
-    balance DECIMAL(10,2) DEFAULT 0,
-    
-    -- Данные отправителя
-    sender_paypal_email VARCHAR(255),
-    balance_send DECIMAL(10,2) DEFAULT 0,
-    send_paypal_balance VARCHAR(255),
-    
-    -- Дополнительная информация
-    info TEXT,
-    status paypal_status DEFAULT 'active',
-    
-    -- Метки времени
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- Создание enum для статуса PayPal аккаунтов
+-- Создание enum для статуса PayPal аккаунтов (СНАЧАЛА)
 CREATE TYPE paypal_status AS ENUM ('active', 'blocked', 'suspended');
 
--- Пересоздаем таблицу с правильным enum
-DROP TABLE paypal_accounts;
-
+-- Создание таблицы PayPal аккаунтов
 CREATE TABLE paypal_accounts (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
