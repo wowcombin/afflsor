@@ -10,7 +10,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const status = searchParams.get('status')
     const junior_id = searchParams.get('junior_id')
-    
+
     // Проверка аутентификации
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
@@ -41,6 +41,12 @@ export async function GET(request: Request) {
       if (!status) {
         query = query.in('status', ['new', 'waiting'])
       }
+    } else if (['hr', 'admin'].includes(userData.role)) {
+      // HR и Admin видят все выводы
+      // Никаких дополнительных фильтров
+    } else {
+      // Другие роли не имеют доступа к выводам
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
     // Дополнительные фильтры
@@ -70,7 +76,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const supabase = await createClient()
-    
+
     // Проверка аутентификации
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {

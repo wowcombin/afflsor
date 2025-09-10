@@ -18,19 +18,19 @@ export default function AdminDashboard() {
           <p className="text-3xl font-bold text-success-600">0</p>
           <p className="text-sm text-gray-500">Пользователей онлайн</p>
         </div>
-        
+
         <div className="card">
           <h3 className="text-lg font-semibold text-gray-900 mb-2">Системные алерты</h3>
           <p className="text-3xl font-bold text-danger-600">0</p>
           <p className="text-sm text-gray-500">Требуют внимания</p>
         </div>
-        
+
         <div className="card">
           <h3 className="text-lg font-semibold text-gray-900 mb-2">Операций/день</h3>
           <p className="text-3xl font-bold text-primary-600">0</p>
           <p className="text-sm text-gray-500">Средняя активность</p>
         </div>
-        
+
         <div className="card">
           <h3 className="text-lg font-semibold text-gray-900 mb-2">Время отклика</h3>
           <p className="text-3xl font-bold text-warning-600">0ms</p>
@@ -42,25 +42,25 @@ export default function AdminDashboard() {
       <div className="card">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Системное управление</h3>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <button 
-            onClick={() => router.push('/dashboard/hr/users')}
+          <button
+            onClick={() => router.push('/dashboard/admin/users')}
             className="btn-primary"
           >
             Управление пользователями
           </button>
-          <button 
+          <button
             onClick={() => router.push('/dashboard/admin/settings')}
             className="btn-warning"
           >
             Системные настройки
           </button>
-          <button 
+          <button
             onClick={() => router.push('/dashboard/admin/audit')}
             className="btn-secondary"
           >
             Аудит системы
           </button>
-          <button 
+          <button
             onClick={() => router.push('/dashboard/admin/backup')}
             className="btn-secondary"
           >
@@ -73,19 +73,19 @@ export default function AdminDashboard() {
       <div className="card">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Доступ к модулям</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <button 
+          <button
             onClick={() => router.push('/dashboard/cfo')}
             className="btn-success"
           >
             💰 Финансовый модуль
           </button>
-          <button 
+          <button
             onClick={() => router.push('/dashboard/manager')}
             className="btn-info"
           >
             📊 Менеджерский модуль
           </button>
-          <button 
+          <button
             onClick={() => router.push('/dashboard/tester')}
             className="btn-secondary"
           >

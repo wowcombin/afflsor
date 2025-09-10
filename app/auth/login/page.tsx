@@ -24,7 +24,7 @@ export default function LoginPage() {
 
     try {
       const supabase = createClient()
-      
+
       // Аутентификация через Supabase Auth
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email: formData.email,
@@ -50,6 +50,15 @@ export default function LoginPage() {
         throw new Error('Пользователь не найден в системе')
       }
 
+      // Проверяем статус пользователя
+      if (userData.status === 'terminated') {
+        throw new Error('Ваш аккаунт был деактивирован. Обратитесь к HR для получения информации.')
+      }
+
+      if (userData.status === 'inactive') {
+        throw new Error('Ваш аккаунт временно заблокирован. Обратитесь к администратору.')
+      }
+
       if (userData.status !== 'active') {
         throw new Error('Аккаунт заблокирован. Обратитесь к администратору.')
       }
@@ -57,7 +66,7 @@ export default function LoginPage() {
       // Редирект по роли
       const roleRoutes = {
         junior: '/dashboard/junior',
-        manager: '/dashboard/manager', 
+        manager: '/dashboard/manager',
         tester: '/dashboard/tester',
         hr: '/dashboard/hr',
         cfo: '/dashboard/cfo',
@@ -65,13 +74,13 @@ export default function LoginPage() {
       }
 
       const redirectPath = roleRoutes[userData.role as keyof typeof roleRoutes] || '/dashboard'
-      
+
       addToast({
         type: 'success',
         title: 'Добро пожаловать!',
         description: `Вход выполнен как ${userData.role}`
       })
-      
+
       router.push(redirectPath)
 
     } catch (error: any) {

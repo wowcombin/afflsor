@@ -46,6 +46,7 @@ export default function Navigation({ userRole }: NavigationProps) {
           { name: 'Новая работа', href: `${baseHref}/work/new`, icon: BriefcaseIcon },
           { name: 'Мои выводы', href: `${baseHref}/withdrawals`, icon: ClockIcon },
           { name: 'Мои карты', href: `${baseHref}/cards`, icon: CreditCardIcon },
+          { name: 'PayPal аккаунты', href: `${baseHref}/paypal`, icon: BanknotesIcon },
           { name: 'Статистика', href: `${baseHref}/stats`, icon: ChartBarIcon },
           { name: 'Генератор данных', href: `${baseHref}/generator`, icon: CommandLineIcon },
           { name: 'Настройки', href: `${baseHref}/settings`, icon: CogIcon }
@@ -95,6 +96,15 @@ export default function Navigation({ userRole }: NavigationProps) {
           { name: 'Расходы', href: `${baseHref}/expenses`, icon: ChartBarIcon },
           { name: 'Банки', href: `${baseHref}/banks`, icon: BuildingLibraryIcon },
           { name: 'Отчеты', href: `${baseHref}/reports`, icon: DocumentTextIcon },
+          { name: 'Настройки', href: `${baseHref}/settings`, icon: CogIcon }
+        ]
+
+      case 'teamlead':
+        return [
+          { name: 'Dashboard', href: baseHref, icon: HomeIcon },
+          { name: 'Моя команда', href: `${baseHref}/team`, icon: UsersIcon },
+          { name: 'Выводы команды', href: `${baseHref}/withdrawals`, icon: BanknotesIcon },
+          { name: 'Карты команды', href: `${baseHref}/cards`, icon: CreditCardIcon },
           { name: 'Настройки', href: `${baseHref}/settings`, icon: CogIcon }
         ]
 

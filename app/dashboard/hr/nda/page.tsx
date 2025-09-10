@@ -2,448 +2,281 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import DataTable from '@/components/ui/DataTable'
-import StatusBadge from '@/components/ui/StatusBadge'
-import Modal from '@/components/ui/Modal'
+import KPICard from '@/components/ui/KPICard'
 import { useToast } from '@/components/ui/Toast'
-import {
+import { 
   DocumentTextIcon,
-  UserPlusIcon,
-  EyeIcon,
-  LinkIcon
+  UserGroupIcon,
+  ClipboardDocumentListIcon,
+  ExclamationTriangleIcon,
+  CheckCircleIcon,
+  ClockIcon,
+  Cog6ToothIcon
 } from '@heroicons/react/24/outline'
 
-interface NDARecord {
-  id: string
-  full_name: string
-  birth_date: string
-  email: string
-  document_number: string
-  document_issued_by: string
-  document_issued_date: string
-  address: string
-  signed_at: string
-  status: string
-  passport_photo_url?: string
-  selfie_with_passport_url?: string
-  signed_document_url?: string
-  users?: {
-    first_name: string
-    last_name: string
-    role: string
-  }
+interface NDAStats {
+  totalAgreements: number
+  signedAgreements: number
+  pendingAgreements: number
+  usersWithoutNDA: number
+  recentActivity: Array<{
+    id: string
+    full_name: string
+    action: string
+    date: string
+  }>
 }
 
-interface User {
-  id: string
-  first_name: string
-  last_name: string
-  email: string
-  role: string
-  nda_signed: boolean
-}
-
-export default function HRNDAPage() {
+export default function HRNDAOverviewPage() {
   const router = useRouter()
   const { addToast } = useToast()
-
-  const [ndaRecords, setNdaRecords] = useState<NDARecord[]>([])
-  const [users, setUsers] = useState<User[]>([])
+  
+  const [stats, setStats] = useState<NDAStats>({
+    totalAgreements: 0,
+    signedAgreements: 0,
+    pendingAgreements: 0,
+    usersWithoutNDA: 0,
+    recentActivity: []
+  })
   const [loading, setLoading] = useState(true)
-  const [showGenerateModal, setShowGenerateModal] = useState(false)
-  const [showViewModal, setShowViewModal] = useState(false)
-  const [selectedUser, setSelectedUser] = useState<string>('')
-  const [viewingNDA, setViewingNDA] = useState<NDARecord | null>(null)
-  const [generatedLink, setGeneratedLink] = useState<string>('')
 
   useEffect(() => {
-    fetchData()
+    fetchStats()
   }, [])
 
-  const fetchData = async () => {
+  const fetchStats = async () => {
     try {
-      // Получаем NDA записи
+      // Получаем статистику NDA
       const ndaResponse = await fetch('/api/nda/agreements')
       const ndaData = await ndaResponse.json()
-
-      if (ndaData.success) {
-        setNdaRecords(ndaData.data)
-      }
-
-      // Получаем пользователей без NDA
+      
+      // Получаем пользователей
       const usersResponse = await fetch('/api/users')
       const usersData = await usersResponse.json()
-
-      if (usersData.success) {
-        setUsers(usersData.data.filter((user: User) => !user.nda_signed))
+      
+      if (ndaData.success && usersData.success) {
+        const agreements = ndaData.data
+        const users = usersData.data
+        
+        setStats({
+          totalAgreements: agreements.length,
+          signedAgreements: agreements.filter((a: any) => a.status === 'signed').length,
+          pendingAgreements: agreements.filter((a: any) => a.status === 'pending').length,
+          usersWithoutNDA: users.filter((u: any) => !u.nda_signed).length,
+          recentActivity: agreements
+            .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+            .slice(0, 5)
+            .map((a: any) => ({
+              id: a.id,
+              full_name: a.full_name || 'Неизвестно',
+              action: a.status === 'signed' ? 'Подписал NDA' : 'Создано соглашение',
+              date: a.signed_date || a.created_at
+            }))
+        })
       }
     } catch (error) {
-      addToast({ type: 'error', title: 'Ошибка', description: 'Не удалось загрузить данные' })
+      addToast({ type: 'error', title: 'Ошибка', description: 'Не удалось загрузить статистику' })
     } finally {
       setLoading(false)
     }
   }
 
-  const generateNDALink = async () => {
-    if (!selectedUser) return
-
-    try {
-      const user = users.find(u => u.id === selectedUser)
-      if (!user) return
-
-      const response = await fetch('/api/nda/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          user_id: selectedUser,
-          template_id: '1', // ID базового шаблона
-          full_name: `${user.first_name} ${user.last_name}`,
-          email: user.email
-        })
-      })
-
-      const result = await response.json()
-
-      if (result.success) {
-        setGeneratedLink(result.data.sign_url)
-        addToast({
-          type: 'success',
-          title: 'Успешно',
-          description: 'Ссылка для подписания NDA создана'
-        })
-        await fetchData() // Обновляем данные
-      } else {
-        addToast({ type: 'error', title: 'Ошибка', description: result.error })
-      }
-    } catch (error) {
-      addToast({ type: 'error', title: 'Ошибка', description: 'Не удалось создать ссылку' })
-    }
-  }
-
-  const copyLink = () => {
-    navigator.clipboard.writeText(generatedLink)
-    addToast({ type: 'success', title: 'Скопировано', description: 'Ссылка скопирована в буфер обмена' })
-  }
-
-  const viewNDADetails = (nda: NDARecord) => {
-    setViewingNDA(nda)
-    setShowViewModal(true)
-  }
-
-  const columns = [
-    {
-      key: 'full_name',
-      label: 'ФИО',
-      render: (nda: NDARecord) => (
-        <div>
-          <div className="font-medium text-gray-900">{nda.full_name}</div>
-          <div className="text-sm text-gray-500">{nda.email}</div>
-        </div>
-      )
-    },
-    {
-      key: 'birth_date',
-      label: 'Дата рождения',
-      render: (nda: NDARecord) => (
-        <div className="text-sm">
-          {nda.birth_date ? new Date(nda.birth_date).toLocaleDateString('ru-RU') : '-'}
-        </div>
-      )
-    },
-    {
-      key: 'document_number',
-      label: '№ документа',
-      render: (nda: NDARecord) => (
-        <div className="text-sm font-mono">{nda.document_number}</div>
-      )
-    },
-    {
-      key: 'document_issued_by',
-      label: 'Адрес выдачи',
-      render: (nda: NDARecord) => (
-        <div className="text-sm max-w-xs truncate" title={nda.document_issued_by}>
-          {nda.document_issued_by}
-        </div>
-      )
-    },
-    {
-      key: 'document_issued_date',
-      label: 'Дата выдачи',
-      render: (nda: NDARecord) => (
-        <div className="text-sm">
-          {nda.document_issued_date ? new Date(nda.document_issued_date).toLocaleDateString('ru-RU') : '-'}
-        </div>
-      )
-    },
-    {
-      key: 'address',
-      label: 'Адрес проживания',
-      render: (nda: NDARecord) => (
-        <div className="text-sm max-w-xs truncate" title={nda.address}>
-          {nda.address}
-        </div>
-      )
-    },
-    {
-      key: 'signed_at',
-      label: 'Когда подписан NDA',
-      render: (nda: NDARecord) => (
-        <div className="text-sm">
-          {nda.signed_at ? new Date(nda.signed_at).toLocaleDateString('ru-RU') : 'Не подписан'}
-        </div>
-      )
-    },
-    {
-      key: 'status',
-      label: 'Статус',
-      render: (nda: NDARecord) => <StatusBadge status={nda.status} />
-    }
-  ]
-
-  const actions = [
-    {
-      label: 'Просмотр',
-      action: (nda: NDARecord) => viewNDADetails(nda),
-      variant: 'primary' as const,
-      icon: EyeIcon
-    }
-  ]
-
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Управление NDA</h1>
-          <p className="text-gray-600">Соглашения о неразглашении</p>
-        </div>
-        <div className="flex gap-2">
-          <button
-            className="btn-secondary"
-            onClick={() => router.push('/dashboard/hr')}
-          >
-            ← Назад
-          </button>
-          <button
-            className="btn-primary"
-            onClick={() => setShowGenerateModal(true)}
-          >
-            <UserPlusIcon className="w-5 h-5 mr-2" />
-            Создать NDA
-          </button>
-        </div>
-      </div>
-
-      {/* Статистика */}
+      {/* KPI карточки */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="card">
-          <h3 className="text-sm font-medium text-gray-500">Всего NDA</h3>
-          <p className="text-2xl font-bold text-gray-900">{ndaRecords.length}</p>
-        </div>
-        <div className="card">
-          <h3 className="text-sm font-medium text-gray-500">Подписанных</h3>
-          <p className="text-2xl font-bold text-success-600">
-            {ndaRecords.filter(n => n.status === 'signed').length}
-          </p>
-        </div>
-        <div className="card">
-          <h3 className="text-sm font-medium text-gray-500">Ожидают подписания</h3>
-          <p className="text-2xl font-bold text-warning-600">
-            {ndaRecords.filter(n => n.status === 'pending').length}
-          </p>
-        </div>
-        <div className="card">
-          <h3 className="text-sm font-medium text-gray-500">Без NDA</h3>
-          <p className="text-2xl font-bold text-danger-600">{users.length}</p>
-        </div>
-      </div>
-
-      {/* Таблица NDA */}
-      <div className="card">
-        <DataTable
-          data={ndaRecords}
-          columns={columns}
-          actions={actions}
+        <KPICard
+          title="Всего соглашений"
+          value={stats.totalAgreements}
+          icon={<ClipboardDocumentListIcon className="w-6 h-6" />}
+          color="primary"
           loading={loading}
-          filtering={true}
+        />
+        <KPICard
+          title="Подписанных"
+          value={stats.signedAgreements}
+          icon={<CheckCircleIcon className="w-6 h-6" />}
+          color="success"
+          loading={loading}
+        />
+        <KPICard
+          title="Ожидают подписания"
+          value={stats.pendingAgreements}
+          icon={<ClockIcon className="w-6 h-6" />}
+          color="warning"
+          loading={loading}
+        />
+        <KPICard
+          title="Без NDA"
+          value={stats.usersWithoutNDA}
+          icon={<ExclamationTriangleIcon className="w-6 h-6" />}
+          color="danger"
+          loading={loading}
         />
       </div>
 
-      {/* Модальное окно создания NDA */}
-      <Modal
-        isOpen={showGenerateModal}
-        onClose={() => {
-          setShowGenerateModal(false)
-          setSelectedUser('')
-          setGeneratedLink('')
-        }}
-        title="Создать NDA для сотрудника"
-      >
-        <div className="space-y-4">
-          {!generatedLink ? (
-            <>
-              <div>
-                <label className="form-label">Выберите сотрудника</label>
-                <select
-                  value={selectedUser}
-                  onChange={(e) => setSelectedUser(e.target.value)}
-                  className="form-input w-full"
-                >
-                  <option value="">-- Выберите сотрудника --</option>
-                  {users.map(user => (
-                    <option key={user.id} value={user.id}>
-                      {user.first_name} {user.last_name} ({user.email}) - {user.role}
-                    </option>
-                  ))}
-                </select>
-              </div>
+      {/* Быстрые действия */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="card hover:shadow-md transition-shadow cursor-pointer" 
+             onClick={() => router.push('/dashboard/hr/nda/generate')}>
+          <div className="flex items-center p-6">
+            <UserGroupIcon className="w-8 h-8 text-blue-600 mr-4" />
+            <div>
+              <h3 className="font-semibold text-gray-900">Создать NDA</h3>
+              <p className="text-sm text-gray-500">Генерация ссылок для подписания</p>
+            </div>
+          </div>
+        </div>
 
-              <div className="flex gap-3 pt-4">
-                <button
-                  onClick={generateNDALink}
-                  disabled={!selectedUser}
-                  className="btn-primary flex-1 disabled:opacity-50"
-                >
-                  <DocumentTextIcon className="w-5 h-5 mr-2" />
-                  Создать ссылку
-                </button>
-                <button
-                  onClick={() => {
-                    setShowGenerateModal(false)
-                    setSelectedUser('')
-                  }}
-                  className="btn-secondary flex-1"
-                >
-                  Отмена
-                </button>
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="text-center">
-                <div className="text-green-600 text-lg font-semibold mb-4">
-                  ✅ Ссылка для подписания создана!
-                </div>
-                <div className="bg-gray-100 p-4 rounded-lg mb-4">
-                  <p className="text-sm text-gray-600 mb-2">Ссылка для подписания:</p>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      value={generatedLink}
-                      readOnly
-                      className="form-input flex-1 text-sm"
-                    />
-                    <button
-                      onClick={copyLink}
-                      className="btn-secondary p-2"
-                      title="Копировать ссылку"
-                    >
-                      <LinkIcon className="w-5 h-5" />
-                    </button>
+        <div className="card hover:shadow-md transition-shadow cursor-pointer"
+             onClick={() => router.push('/dashboard/hr/nda/agreements')}>
+          <div className="flex items-center p-6">
+            <ClipboardDocumentListIcon className="w-8 h-8 text-green-600 mr-4" />
+            <div>
+              <h3 className="font-semibold text-gray-900">Все соглашения</h3>
+              <p className="text-sm text-gray-500">Просмотр подписанных NDA</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="card hover:shadow-md transition-shadow cursor-pointer"
+             onClick={() => router.push('/dashboard/hr/nda/templates')}>
+          <div className="flex items-center p-6">
+            <DocumentTextIcon className="w-8 h-8 text-purple-600 mr-4" />
+            <div>
+              <h3 className="font-semibold text-gray-900">Шаблоны</h3>
+              <p className="text-sm text-gray-500">Управление шаблонами NDA</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Последняя активность */}
+      <div className="card">
+        <div className="card-header">
+          <h3 className="text-lg font-semibold text-gray-900">Последняя активность</h3>
+        </div>
+        <div className="card-body">
+          {loading ? (
+            <div className="text-center py-8">
+              <div className="animate-pulse text-gray-500">Загрузка...</div>
+            </div>
+          ) : stats.recentActivity.length > 0 ? (
+            <div className="space-y-4">
+              {stats.recentActivity.map((activity) => (
+                <div key={activity.id} className="flex items-center justify-between py-3 border-b last:border-b-0">
+                  <div className="flex items-center">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full mr-3"></div>
+                    <div>
+                      <p className="font-medium text-gray-900">{activity.full_name}</p>
+                      <p className="text-sm text-gray-500">{activity.action}</p>
+                    </div>
+                  </div>
+                  <div className="text-sm text-gray-400">
+                    {new Date(activity.date).toLocaleDateString('ru-RU')}
                   </div>
                 </div>
-                <p className="text-sm text-gray-500">
-                  Отправьте эту ссылку сотруднику для подписания NDA
-                </p>
-              </div>
-
-              <div className="flex justify-center pt-4">
-                <button
-                  onClick={() => {
-                    setShowGenerateModal(false)
-                    setSelectedUser('')
-                    setGeneratedLink('')
-                  }}
-                  className="btn-primary"
-                >
-                  Закрыть
-                </button>
-              </div>
-            </>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-gray-500">
+              Нет активности
+            </div>
           )}
         </div>
-      </Modal>
+      </div>
 
-      {/* Модальное окно просмотра NDA */}
-      <Modal
-        isOpen={showViewModal}
-        onClose={() => {
-          setShowViewModal(false)
-          setViewingNDA(null)
-        }}
-        title="Детали NDA"
-        size="lg"
-      >
-        {viewingNDA && (
-          <div className="space-y-6">
-            {/* Основная информация */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-sm font-medium text-gray-500">ФИО</label>
-                <p className="text-gray-900">{viewingNDA.full_name}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Email</label>
-                <p className="text-gray-900">{viewingNDA.email}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Дата рождения</label>
-                <p className="text-gray-900">
-                  {viewingNDA.birth_date ? new Date(viewingNDA.birth_date).toLocaleDateString('ru-RU') : '-'}
-                </p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">№ документа</label>
-                <p className="text-gray-900 font-mono">{viewingNDA.document_number}</p>
-              </div>
-            </div>
-
-            {/* Документы */}
-            {(viewingNDA.passport_photo_url || viewingNDA.selfie_with_passport_url) && (
-              <div>
-                <h4 className="font-medium text-gray-900 mb-3">Документы</h4>
-                <div className="grid grid-cols-2 gap-4">
-                  {viewingNDA.passport_photo_url && (
-                    <div>
-                      <label className="text-sm font-medium text-gray-500">Фото документа</label>
-                      <img
-                        src={viewingNDA.passport_photo_url}
-                        alt="Документ"
-                        className="w-full h-48 object-cover rounded-lg border"
-                      />
-                    </div>
-                  )}
-                  {viewingNDA.selfie_with_passport_url && (
-                    <div>
-                      <label className="text-sm font-medium text-gray-500">Селфи с документом</label>
-                      <img
-                        src={viewingNDA.selfie_with_passport_url}
-                        alt="Селфи"
-                        className="w-full h-48 object-cover rounded-lg border"
-                      />
-                    </div>
-                  )}
+      {/* Статистика по ролям */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="card">
+          <div className="card-header">
+            <h3 className="text-lg font-semibold text-gray-900">Статус NDA</h3>
+          </div>
+          <div className="card-body">
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">Подписанных</span>
+                <div className="flex items-center">
+                  <div className="w-20 bg-gray-200 rounded-full h-2 mr-3">
+                    <div 
+                      className="bg-green-500 h-2 rounded-full" 
+                      style={{ 
+                        width: `${stats.totalAgreements > 0 ? (stats.signedAgreements / stats.totalAgreements) * 100 : 0}%` 
+                      }}
+                    ></div>
+                  </div>
+                  <span className="font-semibold">{stats.signedAgreements}</span>
                 </div>
               </div>
-            )}
-
-            {/* Подписанный документ */}
-            {viewingNDA.signed_document_url && (
-              <div>
-                <label className="text-sm font-medium text-gray-500">Подписанный NDA</label>
-                <a
-                  href={viewingNDA.signed_document_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="btn-primary inline-flex items-center mt-2"
-                >
-                  <DocumentTextIcon className="w-5 h-5 mr-2" />
-                  Скачать PDF
-                </a>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">Ожидают</span>
+                <div className="flex items-center">
+                  <div className="w-20 bg-gray-200 rounded-full h-2 mr-3">
+                    <div 
+                      className="bg-yellow-500 h-2 rounded-full" 
+                      style={{ 
+                        width: `${stats.totalAgreements > 0 ? (stats.pendingAgreements / stats.totalAgreements) * 100 : 0}%` 
+                      }}
+                    ></div>
+                  </div>
+                  <span className="font-semibold">{stats.pendingAgreements}</span>
+                </div>
               </div>
-            )}
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">Без NDA</span>
+                <div className="flex items-center">
+                  <div className="w-20 bg-gray-200 rounded-full h-2 mr-3">
+                    <div 
+                      className="bg-red-500 h-2 rounded-full" 
+                      style={{ 
+                        width: `${(stats.totalAgreements + stats.usersWithoutNDA) > 0 ? (stats.usersWithoutNDA / (stats.totalAgreements + stats.usersWithoutNDA)) * 100 : 0}%` 
+                      }}
+                    ></div>
+                  </div>
+                  <span className="font-semibold">{stats.usersWithoutNDA}</span>
+                </div>
+              </div>
+            </div>
           </div>
-        )}
-      </Modal>
+        </div>
+
+        <div className="card">
+          <div className="card-header">
+            <h3 className="text-lg font-semibold text-gray-900">Быстрые ссылки</h3>
+          </div>
+          <div className="card-body">
+            <div className="space-y-3">
+              <button 
+                onClick={() => router.push('/dashboard/hr/nda/agreements')}
+                className="w-full text-left p-3 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                <div className="flex items-center">
+                  <ClipboardDocumentListIcon className="w-5 h-5 text-gray-400 mr-3" />
+                  <span>Просмотреть все соглашения</span>
+                </div>
+              </button>
+              <button 
+                onClick={() => router.push('/dashboard/hr/nda/generate')}
+                className="w-full text-left p-3 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                <div className="flex items-center">
+                  <UserGroupIcon className="w-5 h-5 text-gray-400 mr-3" />
+                  <span>Создать новое NDA</span>
+                </div>
+              </button>
+              <button 
+                onClick={() => router.push('/dashboard/hr/nda/settings')}
+                className="w-full text-left p-3 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                <div className="flex items-center">
+                  <Cog6ToothIcon className="w-5 h-5 text-gray-400 mr-3" />
+                  <span>Настройки системы</span>
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

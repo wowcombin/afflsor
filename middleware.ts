@@ -59,8 +59,8 @@ export async function middleware(request: NextRequest) {
 
   // Публичные маршруты (не требуют аутентификации)
   const publicRoutes = [
-    '/auth/login', 
-    '/auth/register', 
+    '/auth/login',
+    '/auth/register',
     '/auth/reset-password',
     '/nda/sign',  // Страницы подписания NDA
     '/nda/success', // Страница успешного подписания
@@ -93,18 +93,63 @@ export async function middleware(request: NextRequest) {
         tester: '/dashboard/tester',
         hr: '/dashboard/hr',
         cfo: '/dashboard/cfo',
-        admin: '/dashboard/admin'
+        admin: '/dashboard/admin',
+        ceo: '/dashboard/admin',
+        qa_assistant: '/dashboard/junior'
       }
-      
-      const redirectPath = roleRoutes[userData.role as keyof typeof roleRoutes] || '/dashboard'
+
+      console.log('Redirecting user:', {
+        email: user.email,
+        role: userData.role,
+        status: userData.status
+      })
+
+      const redirectPath = roleRoutes[userData.role as keyof typeof roleRoutes]
+
+      if (!redirectPath) {
+        console.error('Unknown role for redirect:', userData.role)
+        return NextResponse.redirect(new URL('/dashboard/junior', request.url))
+      }
+
+      console.log('Redirect path:', redirectPath)
       return NextResponse.redirect(new URL(redirectPath, request.url))
     }
   }
 
   // Проверка доступа к ролевым маршрутам
-  if (user && pathname.startsWith('/dashboard/')) {
+  if (user && pathname.startsWith('/dashboard')) {
+    // Если пользователь заходит на /dashboard напрямую, редиректим на его роль
+    if (pathname === '/dashboard') {
+      const { data: userData } = await supabase
+        .from('users')
+        .select('role, status')
+        .eq('auth_id', user.id)
+        .single()
+
+      if (!userData || userData.status !== 'active') {
+        const errorMessage = userData?.status === 'terminated' ? 'account_terminated' : 'account_disabled'
+        return NextResponse.redirect(new URL(`/auth/login?error=${errorMessage}`, request.url))
+      }
+
+      const roleRoutes = {
+        junior: '/dashboard/junior',
+        teamlead: '/dashboard/teamlead',
+        manager: '/dashboard/manager',
+        tester: '/dashboard/tester',
+        hr: '/dashboard/hr',
+        cfo: '/dashboard/cfo',
+        admin: '/dashboard/admin',
+        ceo: '/dashboard/admin',
+        qa_assistant: '/dashboard/junior'
+      }
+
+      const correctPath = roleRoutes[userData.role as keyof typeof roleRoutes] || '/dashboard/junior'
+      console.log('Direct /dashboard access, redirecting:', { role: userData.role, path: correctPath })
+      return NextResponse.redirect(new URL(correctPath, request.url))
+    }
+
     const roleFromPath = pathname.split('/')[2] // /dashboard/[role]/...
-    
+
     if (roleFromPath) {
       const { data: userData } = await supabase
         .from('users')
@@ -113,7 +158,9 @@ export async function middleware(request: NextRequest) {
         .single()
 
       if (!userData || userData.status !== 'active') {
-        return NextResponse.redirect(new URL('/auth/login?error=account_disabled', request.url))
+        // Если пользователь уволен, показываем специальное сообщение
+        const errorMessage = userData?.status === 'terminated' ? 'account_terminated' : 'account_disabled'
+        return NextResponse.redirect(new URL(`/auth/login?error=${errorMessage}`, request.url))
       }
 
       // Admin имеет доступ ко всем разделам
