@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
@@ -152,16 +152,36 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Email, пароль и роль обязательны' }, { status: 400 })
     }
 
-    // Используем уже полученные данные пользователя (userData) вместо повторного запроса
-    // Только Admin может создавать CEO и других Admin
-    if ((role === 'ceo' || role === 'admin') && userData.role !== 'admin') {
-      console.error('Insufficient permissions to create admin/ceo:', {
+    // Валидация USDT кошелька (BEP20)
+    if (usdt_wallet && usdt_wallet.trim()) {
+      const bep20Regex = /^0x[a-fA-F0-9]{40}$/
+      if (!bep20Regex.test(usdt_wallet.trim())) {
+        return NextResponse.json({
+          error: 'Неверный формат USDT кошелька',
+          details: 'USDT кошелек должен быть в формате BEP20: 0x + 40 символов (0-9, a-f)'
+        }, { status: 400 })
+      }
+    }
+
+    // Проверяем разрешенные роли для каждого типа пользователя
+    const allowedRolesByCreator = {
+      'hr': ['junior', 'teamlead', 'qa_assistant'],
+      'admin': ['junior', 'manager', 'teamlead', 'tester', 'hr', 'cfo', 'admin', 'ceo', 'qa_assistant'],
+      'manager': ['junior', 'teamlead', 'qa_assistant']
+    }
+
+    const allowedRoles = allowedRolesByCreator[userData.role as keyof typeof allowedRolesByCreator] || []
+
+    if (!allowedRoles.includes(role)) {
+      console.error('Role creation not allowed:', {
         creatorRole: userData.role,
-        targetRole: role
+        targetRole: role,
+        allowedRoles
       })
       return NextResponse.json({
-        error: 'Только Admin может создавать пользователей с ролью CEO или Admin',
-        details: `Current role '${userData.role}' cannot create role '${role}'`
+        error: `Роль '${userData.role}' не может создавать пользователей с ролью '${role}'`,
+        details: `Разрешенные роли: ${allowedRoles.join(', ')}`,
+        allowedRoles
       }, { status: 403 })
     }
 
@@ -169,8 +189,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Некорректная роль' }, { status: 400 })
     }
 
-    // Создаем пользователя в Supabase Auth
-    const { data: authUser, error: authError } = await supabase.auth.admin.createUser({
+    // Создаем пользователя в Supabase Auth с admin клиентом
+    console.log('🚀 Создаем пользователя в Supabase Auth (основной API)...')
+    const adminSupabase = createAdminClient()
+    const { data: authUser, error: authError } = await adminSupabase.auth.admin.createUser({
       email,
       password,
       email_confirm: true
@@ -204,7 +226,7 @@ export async function POST(request: Request) {
 
     if (insertError) {
       // Если ошибка создания в нашей системе, удаляем из Auth
-      await supabase.auth.admin.deleteUser(authUser.user.id)
+      await adminSupabase.auth.admin.deleteUser(authUser.user.id)
       return NextResponse.json({ error: insertError.message }, { status: 500 })
     }
 
