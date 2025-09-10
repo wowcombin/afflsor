@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
@@ -207,18 +207,61 @@ export async function DELETE(
       return NextResponse.json({ error: 'Пользователь не найден' }, { status: 404 })
     }
 
-    // Удаляем из нашей системы
+    // Сначала удаляем связанные записи из team_member_history
+    console.log('🗑️ Удаляем связанные записи из team_member_history...')
+    const { error: deleteHistoryError } = await supabase
+      .from('team_member_history')
+      .delete()
+      .eq('user_id', userId)
+
+    if (deleteHistoryError) {
+      console.error('Ошибка удаления истории команды:', deleteHistoryError)
+      // Продолжаем, так как это не критично
+    }
+
+    // Удаляем связанные записи из team_members
+    console.log('🗑️ Удаляем связанные записи из team_members...')
+    const { error: deleteMembersError } = await supabase
+      .from('team_members')
+      .delete()
+      .eq('user_id', userId)
+
+    if (deleteMembersError) {
+      console.error('Ошибка удаления участников команды:', deleteMembersError)
+      // Продолжаем, так как это не критично
+    }
+
+    // Обновляем записи где пользователь является team_lead
+    console.log('🔄 Обновляем записи где пользователь является team_lead...')
+    const { error: updateTeamLeadError } = await supabase
+      .from('users')
+      .update({ team_lead_id: null })
+      .eq('team_lead_id', userId)
+
+    if (updateTeamLeadError) {
+      console.error('Ошибка обновления team_lead_id:', updateTeamLeadError)
+      // Продолжаем, так как это не критично
+    }
+
+    // Теперь удаляем пользователя из нашей системы
+    console.log('🗑️ Удаляем пользователя из таблицы users...')
     const { error: deleteUserError } = await supabase
       .from('users')
       .delete()
       .eq('id', userId)
 
     if (deleteUserError) {
-      return NextResponse.json({ error: deleteUserError.message }, { status: 500 })
+      console.error('Ошибка удаления пользователя:', deleteUserError)
+      return NextResponse.json({ 
+        error: 'Ошибка удаления пользователя',
+        details: deleteUserError.message 
+      }, { status: 500 })
     }
 
-    // Удаляем из Supabase Auth
-    const { error: deleteAuthError } = await supabase.auth.admin.deleteUser(targetUser.auth_id)
+    // Удаляем из Supabase Auth с admin клиентом
+    console.log('🗑️ Удаляем пользователя из Supabase Auth...')
+    const adminSupabase = createAdminClient()
+    const { error: deleteAuthError } = await adminSupabase.auth.admin.deleteUser(targetUser.auth_id)
 
     if (deleteAuthError) {
       console.error('Ошибка удаления из Auth:', deleteAuthError)
