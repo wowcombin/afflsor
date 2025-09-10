@@ -103,6 +103,7 @@ export default function Navigation({ userRole }: NavigationProps) {
           { name: 'Dashboard', href: baseHref, icon: HomeIcon },
           { name: 'Моя команда', href: `${baseHref}/team`, icon: UsersIcon },
           { name: 'Выводы команды', href: `${baseHref}/withdrawals`, icon: BanknotesIcon },
+          { name: 'Карты команды', href: `${baseHref}/cards`, icon: CreditCardIcon },
           { name: 'Настройки', href: '/dashboard/settings', icon: CogIcon }
         ]
 
