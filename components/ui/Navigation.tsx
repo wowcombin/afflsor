@@ -59,6 +59,7 @@ export default function Navigation({ userRole }: NavigationProps) {
           { name: 'Команда', href: `${baseHref}/team`, icon: UsersIcon },
           { name: 'Карты', href: `${baseHref}/cards`, icon: CreditCardIcon },
           { name: 'Банки', href: `${baseHref}/banks`, icon: BuildingLibraryIcon },
+          { name: 'Назначения', href: `${baseHref}/assignments`, icon: UsersIcon },
           { name: 'Аналитика', href: `${baseHref}/analytics`, icon: ChartBarIcon },
           { name: 'Настройки', href: `${baseHref}/settings`, icon: CogIcon }
         ]
@@ -105,6 +106,7 @@ export default function Navigation({ userRole }: NavigationProps) {
           { name: 'Моя команда', href: `${baseHref}/team`, icon: UsersIcon },
           { name: 'Выводы команды', href: `${baseHref}/withdrawals`, icon: BanknotesIcon },
           { name: 'Карты команды', href: `${baseHref}/cards`, icon: CreditCardIcon },
+          { name: 'Мои назначения', href: `${baseHref}/assignments`, icon: BuildingLibraryIcon },
           { name: 'Настройки', href: `${baseHref}/settings`, icon: CogIcon }
         ]
 
