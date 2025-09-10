@@ -13,7 +13,7 @@ CREATE TABLE bank_teamlead_assignments (
     
     -- Метки времени
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
     
     -- Обычная уникальность без условия (условная уникальность будет создана индексом)
 );
@@ -30,7 +30,7 @@ CREATE TABLE casino_teamlead_assignments (
     
     -- Метки времени
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
     
     -- Обычная уникальность без условия (условная уникальность будет создана индексом)
 );
