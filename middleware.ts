@@ -113,7 +113,9 @@ export async function middleware(request: NextRequest) {
         .single()
 
       if (!userData || userData.status !== 'active') {
-        return NextResponse.redirect(new URL('/auth/login?error=account_disabled', request.url))
+        // Если пользователь уволен, показываем специальное сообщение
+        const errorMessage = userData?.status === 'terminated' ? 'account_terminated' : 'account_disabled'
+        return NextResponse.redirect(new URL(`/auth/login?error=${errorMessage}`, request.url))
       }
 
       // Admin имеет доступ ко всем разделам

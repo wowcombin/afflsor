@@ -50,6 +50,15 @@ export default function LoginPage() {
         throw new Error('Пользователь не найден в системе')
       }
 
+      // Проверяем статус пользователя
+      if (userData.status === 'terminated') {
+        throw new Error('Ваш аккаунт был деактивирован. Обратитесь к HR для получения информации.')
+      }
+
+      if (userData.status === 'inactive') {
+        throw new Error('Ваш аккаунт временно заблокирован. Обратитесь к администратору.')
+      }
+
       if (userData.status !== 'active') {
         throw new Error('Аккаунт заблокирован. Обратитесь к администратору.')
       }

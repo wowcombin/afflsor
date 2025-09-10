@@ -358,6 +358,48 @@ export default function HRUsersPage() {
     }
   ]
 
+  // Функция увольнения пользователя
+  async function handleTerminateUser(user: User) {
+    if (!confirm(`Вы уверены, что хотите уволить ${user.first_name} ${user.last_name} (${user.email})? Пользователь потеряет доступ к системе.`)) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/users/${user.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          ...user,
+          status: 'terminated'
+        })
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error)
+      }
+
+      addToast({
+        type: 'success',
+        title: 'Пользователь уволен',
+        description: `${user.email} больше не имеет доступа к системе`
+      })
+
+      await loadUsers()
+
+    } catch (error: any) {
+      console.error('Ошибка увольнения пользователя:', error)
+      addToast({
+        type: 'error',
+        title: 'Ошибка увольнения',
+        description: error.message
+      })
+    }
+  }
+
   const actions: ActionButton<User>[] = [
     {
       label: 'Редактировать',
@@ -366,13 +408,19 @@ export default function HRUsersPage() {
         setShowEditModal(true)
       },
       variant: 'primary',
-      condition: (user) => user.role !== 'admin' && user.role !== 'ceo' // HR не может редактировать Admin и CEO
+      condition: (user) => ['junior', 'teamlead'].includes(user.role) && user.status !== 'terminated'
+    },
+    {
+      label: 'Уволить',
+      action: handleTerminateUser,
+      variant: 'warning',
+      condition: (user) => ['junior', 'teamlead'].includes(user.role) && user.status === 'active'
     },
     {
       label: 'Удалить',
       action: handleDeleteUser,
       variant: 'danger',
-      condition: (user) => user.role !== 'admin' && user.role !== 'ceo' // HR не может удалить Admin и CEO
+      condition: (user) => user.role !== 'admin' && user.role !== 'ceo' && user.status === 'terminated' // Можно удалять только уволенных
     }
   ]
 
@@ -624,15 +672,24 @@ export default function HRUsersPage() {
                   value={selectedUser.role}
                   onChange={(e) => setSelectedUser({ ...selectedUser, role: e.target.value as User['role'] })}
                   className="form-input"
+                  disabled={!['junior', 'teamlead'].includes(selectedUser.role)}
                 >
-                  <option value="junior">Junior</option>
-                  <option value="manager">Manager (Coordinator)</option>
-                  <option value="teamlead">Team Lead</option>
-                  <option value="tester">Manual QA</option>
-                  <option value="qa_assistant">QA Assistant</option>
-                  <option value="hr">HR</option>
-                  <option value="cfo">CFO</option>
+                  {['junior', 'teamlead'].includes(selectedUser.role) ? (
+                    <>
+                      <option value="junior">Junior</option>
+                      <option value="teamlead">Team Lead</option>
+                    </>
+                  ) : (
+                    <option value={selectedUser.role}>
+                      {selectedUser.role} (только просмотр)
+                    </option>
+                  )}
                 </select>
+                {!['junior', 'teamlead'].includes(selectedUser.role) && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    HR может изменять роли только для Junior и Team Lead
+                  </p>
+                )}
               </div>
               <div>
                 <label className="form-label">Статус</label>
@@ -640,11 +697,26 @@ export default function HRUsersPage() {
                   value={selectedUser.status}
                   onChange={(e) => setSelectedUser({ ...selectedUser, status: e.target.value as User['status'] })}
                   className="form-input"
+                  disabled={!['junior', 'teamlead'].includes(selectedUser.role)}
                 >
-                  <option value="active">Активен</option>
-                  <option value="inactive">Неактивен</option>
-                  <option value="terminated">Уволен</option>
+                  {['junior', 'teamlead'].includes(selectedUser.role) ? (
+                    <>
+                      <option value="active">Активен</option>
+                      <option value="inactive">Временно заблокирован</option>
+                      <option value="terminated">Уволен</option>
+                    </>
+                  ) : (
+                    <option value={selectedUser.status}>
+                      {selectedUser.status === 'active' ? 'Активен' : 
+                       selectedUser.status === 'inactive' ? 'Неактивен' : 'Уволен'} (только просмотр)
+                    </option>
+                  )}
                 </select>
+                {!['junior', 'teamlead'].includes(selectedUser.role) && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    HR может изменять статус только для Junior и Team Lead
+                  </p>
+                )}
               </div>
             </div>
 
