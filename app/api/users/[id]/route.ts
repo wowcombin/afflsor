@@ -252,9 +252,9 @@ export async function DELETE(
 
     if (deleteUserError) {
       console.error('Ошибка удаления пользователя:', deleteUserError)
-      return NextResponse.json({ 
+      return NextResponse.json({
         error: 'Ошибка удаления пользователя',
-        details: deleteUserError.message 
+        details: deleteUserError.message
       }, { status: 500 })
     }
 

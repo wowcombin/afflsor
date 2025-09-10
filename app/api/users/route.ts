@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
@@ -169,8 +169,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Некорректная роль' }, { status: 400 })
     }
 
-    // Создаем пользователя в Supabase Auth
-    const { data: authUser, error: authError } = await supabase.auth.admin.createUser({
+    // Создаем пользователя в Supabase Auth с admin клиентом
+    console.log('🚀 Создаем пользователя в Supabase Auth (основной API)...')
+    const adminSupabase = createAdminClient()
+    const { data: authUser, error: authError } = await adminSupabase.auth.admin.createUser({
       email,
       password,
       email_confirm: true
@@ -204,7 +206,7 @@ export async function POST(request: Request) {
 
     if (insertError) {
       // Если ошибка создания в нашей системе, удаляем из Auth
-      await supabase.auth.admin.deleteUser(authUser.user.id)
+      await adminSupabase.auth.admin.deleteUser(authUser.user.id)
       return NextResponse.json({ error: insertError.message }, { status: 500 })
     }
 
