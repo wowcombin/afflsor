@@ -59,8 +59,8 @@ export async function middleware(request: NextRequest) {
 
   // Публичные маршруты (не требуют аутентификации)
   const publicRoutes = [
-    '/auth/login', 
-    '/auth/register', 
+    '/auth/login',
+    '/auth/register',
     '/auth/reset-password',
     '/nda/sign',  // Страницы подписания NDA
     '/nda/success', // Страница успешного подписания
@@ -95,7 +95,7 @@ export async function middleware(request: NextRequest) {
         cfo: '/dashboard/cfo',
         admin: '/dashboard/admin'
       }
-      
+
       const redirectPath = roleRoutes[userData.role as keyof typeof roleRoutes] || '/dashboard'
       return NextResponse.redirect(new URL(redirectPath, request.url))
     }
@@ -104,7 +104,7 @@ export async function middleware(request: NextRequest) {
   // Проверка доступа к ролевым маршрутам
   if (user && pathname.startsWith('/dashboard/')) {
     const roleFromPath = pathname.split('/')[2] // /dashboard/[role]/...
-    
+
     if (roleFromPath) {
       const { data: userData } = await supabase
         .from('users')

@@ -274,7 +274,7 @@ export default function HRUsersPage() {
             {user.telegram_username ? `@${user.telegram_username.replace('@', '')}` : 'Не указан'}
           </div>
           <div className="text-sm text-gray-500">
-            {user.first_name || user.last_name 
+            {user.first_name || user.last_name
               ? `${user.first_name || ''} ${user.last_name || ''}`.trim()
               : user.email
             }
@@ -707,8 +707,8 @@ export default function HRUsersPage() {
                     </>
                   ) : (
                     <option value={selectedUser.status}>
-                      {selectedUser.status === 'active' ? 'Активен' : 
-                       selectedUser.status === 'inactive' ? 'Неактивен' : 'Уволен'} (только просмотр)
+                      {selectedUser.status === 'active' ? 'Активен' :
+                        selectedUser.status === 'inactive' ? 'Неактивен' : 'Уволен'} (только просмотр)
                     </option>
                   )}
                 </select>
