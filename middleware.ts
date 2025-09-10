@@ -93,10 +93,25 @@ export async function middleware(request: NextRequest) {
         tester: '/dashboard/tester',
         hr: '/dashboard/hr',
         cfo: '/dashboard/cfo',
-        admin: '/dashboard/admin'
+        admin: '/dashboard/admin',
+        ceo: '/dashboard/admin',
+        qa_assistant: '/dashboard/junior'
       }
-
-      const redirectPath = roleRoutes[userData.role as keyof typeof roleRoutes] || '/dashboard'
+      
+      console.log('Redirecting user:', { 
+        email: user.email, 
+        role: userData.role, 
+        status: userData.status 
+      })
+      
+      const redirectPath = roleRoutes[userData.role as keyof typeof roleRoutes]
+      
+      if (!redirectPath) {
+        console.error('Unknown role for redirect:', userData.role)
+        return NextResponse.redirect(new URL('/dashboard/junior', request.url))
+      }
+      
+      console.log('Redirect path:', redirectPath)
       return NextResponse.redirect(new URL(redirectPath, request.url))
     }
   }

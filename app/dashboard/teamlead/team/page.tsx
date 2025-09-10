@@ -65,7 +65,7 @@ export default function TeamLeadTeamPage() {
     try {
       const response = await fetch('/api/teamlead/team')
       const data = await response.json()
-      
+
       if (data.success) {
         setTeam(data.data || [])
         setStats(data.stats || stats)
@@ -84,7 +84,7 @@ export default function TeamLeadTeamPage() {
     try {
       const response = await fetch('/api/teamlead/available-juniors')
       const data = await response.json()
-      
+
       if (data.success) {
         setAvailableJuniors(data.data || [])
       } else {
@@ -107,9 +107,9 @@ export default function TeamLeadTeamPage() {
         },
         body: JSON.stringify({ junior_id: juniorId })
       })
-      
+
       const data = await response.json()
-      
+
       if (data.success) {
         addToast({ type: 'success', title: 'Успешно', description: 'Junior сотрудник назначен в вашу команду' })
         setShowAddJuniorModal(false)
@@ -165,11 +165,10 @@ export default function TeamLeadTeamPage() {
         const rate = member.success_rate
         return (
           <div className="text-center">
-            <div className={`text-lg font-semibold ${
-              rate >= 80 ? 'text-success-600' : 
-              rate >= 60 ? 'text-warning-600' : 
-              'text-danger-600'
-            }`}>
+            <div className={`text-lg font-semibold ${rate >= 80 ? 'text-success-600' :
+                rate >= 60 ? 'text-warning-600' :
+                  'text-danger-600'
+              }`}>
               {rate}%
             </div>
             <div className="text-xs text-gray-500">получено</div>
@@ -285,7 +284,7 @@ export default function TeamLeadTeamPage() {
           <p className="text-gray-600">
             Выберите Junior сотрудника, которого хотите добавить в свою команду:
           </p>
-          
+
           {loadingJuniors ? (
             <div className="text-center py-8">
               <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
