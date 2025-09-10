@@ -554,12 +554,8 @@ export default function HRUsersPage() {
                 required
               >
                 <option value="junior">Junior</option>
-                <option value="manager">Manager (Coordinator)</option>
                 <option value="teamlead">Team Lead</option>
-                <option value="tester">Manual QA</option>
                 <option value="qa_assistant">QA Assistant</option>
-                <option value="hr">HR</option>
-                <option value="cfo">CFO</option>
               </select>
             </div>
             <div>

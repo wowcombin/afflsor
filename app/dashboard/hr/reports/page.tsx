@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { 
+import {
   ChartBarIcon,
   UsersIcon,
   CurrencyDollarIcon,
@@ -62,24 +62,24 @@ export default function HRReportsPage() {
   const loadReportData = async () => {
     try {
       setLoading(true)
-      
+
       // Получаем реальные данные пользователей
       const usersResponse = await fetch('/api/users')
       if (!usersResponse.ok) {
         throw new Error('Ошибка загрузки пользователей')
       }
-      
+
       const { users } = await usersResponse.json()
-      
+
       // Фильтруем пользователей по выбранной роли
-      const filteredUsers = selectedRole === 'all' 
-        ? users 
+      const filteredUsers = selectedRole === 'all'
+        ? users
         : users.filter((u: any) => u.role === selectedRole)
-      
+
       // Подсчитываем статистику
       const totalEmployees = filteredUsers.length
       const activeEmployees = filteredUsers.filter((u: any) => u.status === 'active').length
-      
+
       // Группируем по Team Lead для статистики команд
       const teamLeads = users.filter((u: any) => u.role === 'teamlead' && u.status === 'active')
       const teamStats: TeamStats[] = teamLeads.map((teamLead: any) => {
@@ -90,12 +90,12 @@ export default function HRReportsPage() {
           totalMembers: teamMembers.length,
           totalProfit: 0, // Пока нет данных о профите
           avgSuccessRate: 0, // Пока нет данных об успешности
-          topPerformer: teamMembers.length > 0 ? 
-            `${teamMembers[0].first_name || ''} ${teamMembers[0].last_name || ''}`.trim() || teamMembers[0].email : 
+          topPerformer: teamMembers.length > 0 ?
+            `${teamMembers[0].first_name || ''} ${teamMembers[0].last_name || ''}`.trim() || teamMembers[0].email :
             'Нет участников'
         }
       })
-      
+
       // Создаем топ исполнителей на основе реальных данных
       const topPerformers: EmployeeStats[] = filteredUsers
         .filter((u: any) => ['junior', 'teamlead', 'tester', 'qa_assistant'].includes(u.role))
@@ -113,7 +113,7 @@ export default function HRReportsPage() {
           avgDailyProfit: 0, // Пока нет данных о дневном профите
           lastActivity: user.updated_at || user.created_at
         }))
-      
+
       const reportData: ReportData = {
         totalEmployees,
         activeEmployees,
@@ -366,11 +366,11 @@ export default function HRReportsPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
-                        {employee.role === 'junior' ? 'Junior' : 
-                         employee.role === 'teamlead' ? 'Team Lead' :
-                         employee.role === 'tester' ? 'Manual QA' :
-                         employee.role === 'qa_assistant' ? 'QA Assistant' :
-                         employee.role.toUpperCase()}
+                        {employee.role === 'junior' ? 'Junior' :
+                          employee.role === 'teamlead' ? 'Team Lead' :
+                            employee.role === 'tester' ? 'Manual QA' :
+                              employee.role === 'qa_assistant' ? 'QA Assistant' :
+                                employee.role.toUpperCase()}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">

@@ -152,16 +152,25 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Email, пароль и роль обязательны' }, { status: 400 })
     }
 
-    // Используем уже полученные данные пользователя (userData) вместо повторного запроса
-    // Только Admin может создавать CEO и других Admin
-    if ((role === 'ceo' || role === 'admin') && userData.role !== 'admin') {
-      console.error('Insufficient permissions to create admin/ceo:', {
-        creatorRole: userData.role,
-        targetRole: role
+    // Проверяем разрешенные роли для каждого типа пользователя
+    const allowedRolesByCreator = {
+      'hr': ['junior', 'teamlead', 'qa_assistant'],
+      'admin': ['junior', 'manager', 'teamlead', 'tester', 'hr', 'cfo', 'admin', 'ceo', 'qa_assistant'],
+      'manager': ['junior', 'teamlead', 'qa_assistant']
+    }
+
+    const allowedRoles = allowedRolesByCreator[userData.role as keyof typeof allowedRolesByCreator] || []
+    
+    if (!allowedRoles.includes(role)) {
+      console.error('Role creation not allowed:', { 
+        creatorRole: userData.role, 
+        targetRole: role,
+        allowedRoles 
       })
-      return NextResponse.json({
-        error: 'Только Admin может создавать пользователей с ролью CEO или Admin',
-        details: `Current role '${userData.role}' cannot create role '${role}'`
+      return NextResponse.json({ 
+        error: `Роль '${userData.role}' не может создавать пользователей с ролью '${role}'`,
+        details: `Разрешенные роли: ${allowedRoles.join(', ')}`,
+        allowedRoles
       }, { status: 403 })
     }
 
