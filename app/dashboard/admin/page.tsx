@@ -43,7 +43,7 @@ export default function AdminDashboard() {
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Системное управление</h3>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <button 
-            onClick={() => router.push('/dashboard/hr/users')}
+            onClick={() => router.push('/dashboard/admin/users')}
             className="btn-primary"
           >
             Управление пользователями

@@ -18,19 +18,19 @@ export default function HRDashboard() {
           <p className="text-3xl font-bold text-success-600">0</p>
           <p className="text-sm text-gray-500">Работающих в системе</p>
         </div>
-        
+
         <div className="card">
           <h3 className="text-lg font-semibold text-gray-900 mb-2">Новые сотрудники</h3>
           <p className="text-3xl font-bold text-primary-600">0</p>
           <p className="text-sm text-gray-500">За текущий месяц</p>
         </div>
-        
+
         <div className="card">
           <h3 className="text-lg font-semibold text-gray-900 mb-2">Эффективность</h3>
           <p className="text-3xl font-bold text-warning-600">0%</p>
           <p className="text-sm text-gray-500">Средняя по команде</p>
         </div>
-        
+
         <div className="card">
           <h3 className="text-lg font-semibold text-gray-900 mb-2">NDA подписаны</h3>
           <p className="text-3xl font-bold text-info-600">0</p>
@@ -42,25 +42,25 @@ export default function HRDashboard() {
       <div className="card">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">HR операции</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <button 
+          <button
             onClick={() => router.push('/dashboard/hr/users')}
             className="btn-primary"
           >
             Управление сотрудниками
           </button>
-          <button 
+          <button
             onClick={() => router.push('/dashboard/hr/withdrawals')}
             className="btn-primary"
           >
             История выводов
           </button>
-          <button 
+          <button
             onClick={() => router.push('/dashboard/hr/nda')}
             className="btn-secondary"
           >
             Управление NDA
           </button>
-          <button 
+          <button
             onClick={() => router.push('/dashboard/hr/reports')}
             className="btn-secondary"
           >
