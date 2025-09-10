@@ -15,8 +15,7 @@ CREATE TABLE bank_teamlead_assignments (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     
-    -- Уникальность: один банк может быть назначен только одному активному Team Lead
-    UNIQUE(bank_id, is_active) WHERE is_active = TRUE
+    -- Обычная уникальность без условия (условная уникальность будет создана индексом)
 );
 
 -- Создание таблицы назначений казино Team Lead'ам
@@ -33,8 +32,7 @@ CREATE TABLE casino_teamlead_assignments (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     
-    -- Уникальность: одно казино может быть назначено нескольким Team Lead'ам
-    UNIQUE(casino_id, teamlead_id, is_active) WHERE is_active = TRUE
+    -- Обычная уникальность без условия (условная уникальность будет создана индексом)
 );
 
 -- Создание индексов
@@ -45,6 +43,15 @@ CREATE INDEX idx_bank_teamlead_assignments_active ON bank_teamlead_assignments(i
 CREATE INDEX idx_casino_teamlead_assignments_casino_id ON casino_teamlead_assignments(casino_id);
 CREATE INDEX idx_casino_teamlead_assignments_teamlead_id ON casino_teamlead_assignments(teamlead_id);
 CREATE INDEX idx_casino_teamlead_assignments_active ON casino_teamlead_assignments(is_active);
+
+-- Создание уникальных индексов с условиями для активных назначений
+CREATE UNIQUE INDEX unique_bank_teamlead_active 
+    ON bank_teamlead_assignments(bank_id, teamlead_id) 
+    WHERE is_active = TRUE;
+
+CREATE UNIQUE INDEX unique_casino_teamlead_active 
+    ON casino_teamlead_assignments(casino_id, teamlead_id) 
+    WHERE is_active = TRUE;
 
 -- Триггеры для обновления updated_at
 CREATE TRIGGER update_bank_teamlead_assignments_updated_at 
@@ -96,8 +103,8 @@ CREATE POLICY "casino_assignments_admin_access" ON casino_teamlead_assignments
     );
 
 -- Комментарии к таблицам
-COMMENT ON TABLE bank_teamlead_assignments IS 'Назначения банков Team Lead-ам для управления командами';
-COMMENT ON TABLE casino_teamlead_assignments IS 'Назначения казино Team Lead-ам для работы команд';
+COMMENT ON TABLE bank_teamlead_assignments IS 'Назначения банков Team Lead-ам для управления командами. ОДИН БАНК МОЖЕТ БЫТЬ НАЗНАЧЕН НЕСКОЛЬКИМ TEAM LEAD-АМ';
+COMMENT ON TABLE casino_teamlead_assignments IS 'Назначения казино Team Lead-ам для работы команд. ОДНО КАЗИНО МОЖЕТ БЫТЬ НАЗНАЧЕНО НЕСКОЛЬКИМ TEAM LEAD-АМ';
 
 COMMENT ON COLUMN bank_teamlead_assignments.assigned_by IS 'Кто назначил (Manager, CFO, Tester, Admin)';
 COMMENT ON COLUMN casino_teamlead_assignments.assigned_by IS 'Кто назначил (Manager, CFO, Tester, Admin)';
