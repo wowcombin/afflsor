@@ -599,14 +599,17 @@ export default function HRUsersPage() {
           </div>
 
           <div>
-            <label className="form-label">USDT кошелек</label>
+            <label className="form-label">USDT кошелек (BEP20)</label>
             <input
               type="text"
               value={newUserForm.usdt_wallet}
               onChange={(e) => setNewUserForm({ ...newUserForm, usdt_wallet: e.target.value })}
               className="form-input"
-              placeholder="TXXXxxxXXXxxxXXX..."
+              placeholder="0x1234567890abcdef1234567890abcdef12345678"
             />
+            <p className="text-xs text-blue-600 mt-1">
+              💡 <strong>Только BEP20 адреса!</strong> Формат: 0x + 40 символов (0-9, a-f)
+            </p>
           </div>
 
           <div className="flex justify-end space-x-3 pt-4">
@@ -785,14 +788,17 @@ export default function HRUsersPage() {
             </div>
 
             <div>
-              <label className="form-label">USDT кошелек</label>
+              <label className="form-label">USDT кошелек (BEP20)</label>
               <input
                 type="text"
                 value={selectedUser.usdt_wallet || ''}
                 onChange={(e) => setSelectedUser({ ...selectedUser, usdt_wallet: e.target.value })}
                 className="form-input"
-                placeholder="TXXXxxxXXXxxxXXX..."
+                placeholder="0x1234567890abcdef1234567890abcdef12345678"
               />
+              <p className="text-xs text-blue-600 mt-1">
+                💡 <strong>Только BEP20 адреса!</strong> Формат: 0x + 40 символов (0-9, a-f)
+              </p>
             </div>
 
             <div className="flex justify-end space-x-3 pt-4">

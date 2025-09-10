@@ -7,10 +7,10 @@ export const dynamic = 'force-dynamic'
 export async function GET() {
   try {
     const supabase = await createClient()
-    
+
     // Получаем текущего пользователя
     const { data: { user }, error: authError } = await supabase.auth.getUser()
-    
+
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -24,8 +24,8 @@ export async function GET() {
 
     if (userError) {
       console.error('User not found in database:', userError)
-      return NextResponse.json({ 
-        error: 'User not found in system. Please contact administrator.' 
+      return NextResponse.json({
+        error: 'User not found in system. Please contact administrator.'
       }, { status: 404 })
     }
 
@@ -42,10 +42,10 @@ export async function PATCH(request: NextRequest) {
   try {
     console.log('=== PATCH /api/users/me called ===')
     const supabase = await createClient()
-    
+
     // Получаем текущего пользователя
     const { data: { user }, error: authError } = await supabase.auth.getUser()
-    
+
     if (authError || !user) {
       console.log('Auth error:', authError)
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -55,28 +55,28 @@ export async function PATCH(request: NextRequest) {
 
     const body = await request.json()
     console.log('Request body:', body)
-    
+
     const { name, surname, telegram_username, usdt_wallet, phone } = body
 
     // Валидация данных
     const updateData: any = {}
-    
+
     if (name !== undefined) {
       updateData.first_name = name?.trim() || null
     }
-    
+
     if (surname !== undefined) {
       updateData.last_name = surname?.trim() || null
     }
-    
+
     if (telegram_username !== undefined) {
       const cleanUsername = telegram_username?.trim()?.replace('@', '') || null
       if (cleanUsername) {
         // Валидация Telegram username
         const telegramRegex = /^[a-zA-Z0-9_]{5,32}$/
         if (!telegramRegex.test(cleanUsername)) {
-          return NextResponse.json({ 
-            error: 'Некорректный формат Telegram username' 
+          return NextResponse.json({
+            error: 'Некорректный формат Telegram username'
           }, { status: 400 })
         }
         updateData.telegram_username = cleanUsername
@@ -84,15 +84,15 @@ export async function PATCH(request: NextRequest) {
         updateData.telegram_username = null
       }
     }
-    
+
     if (usdt_wallet !== undefined) {
       const cleanWallet = usdt_wallet?.trim() || null
       if (cleanWallet) {
         // Валидация USDT кошелька (только BEP20)
         const bep20Regex = /^0x[a-fA-F0-9]{40}$/
         if (!bep20Regex.test(cleanWallet)) {
-          return NextResponse.json({ 
-            error: 'Некорректный адрес USDT кошелька. Поддерживается только BEP20 формат (0x...)' 
+          return NextResponse.json({
+            error: 'Некорректный адрес USDT кошелька. Поддерживается только BEP20 формат (0x...)'
           }, { status: 400 })
         }
         updateData.usdt_wallet = cleanWallet
@@ -100,7 +100,7 @@ export async function PATCH(request: NextRequest) {
         updateData.usdt_wallet = null
       }
     }
-    
+
     if (phone !== undefined) {
       updateData.phone = phone?.trim() || null
     }
@@ -118,9 +118,9 @@ export async function PATCH(request: NextRequest) {
 
     if (findError || !existingUser) {
       console.error('User not found in database:', findError)
-      return NextResponse.json({ 
+      return NextResponse.json({
         error: 'User not found in system. Please contact administrator.',
-        details: findError 
+        details: findError
       }, { status: 404 })
     }
 
@@ -143,9 +143,9 @@ export async function PATCH(request: NextRequest) {
 
     if (updateError) {
       console.error('Error updating user data:', updateError)
-      return NextResponse.json({ 
+      return NextResponse.json({
         error: 'Failed to update user data',
-        details: updateError 
+        details: updateError
       }, { status: 500 })
     }
 

@@ -152,6 +152,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Email, пароль и роль обязательны' }, { status: 400 })
     }
 
+    // Валидация USDT кошелька (BEP20)
+    if (usdt_wallet && usdt_wallet.trim()) {
+      const bep20Regex = /^0x[a-fA-F0-9]{40}$/
+      if (!bep20Regex.test(usdt_wallet.trim())) {
+        return NextResponse.json({ 
+          error: 'Неверный формат USDT кошелька',
+          details: 'USDT кошелек должен быть в формате BEP20: 0x + 40 символов (0-9, a-f)'
+        }, { status: 400 })
+      }
+    }
+
     // Проверяем разрешенные роли для каждого типа пользователя
     const allowedRolesByCreator = {
       'hr': ['junior', 'teamlead', 'qa_assistant'],
