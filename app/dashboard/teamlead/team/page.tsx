@@ -230,11 +230,6 @@ export default function TeamLeadTeamPage() {
           <button className="btn-secondary" onClick={() => router.push('/dashboard/teamlead')}>
             ← Назад
           </button>
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-            <p className="text-sm text-yellow-800">
-              💡 <strong>Назначение Junior</strong> осуществляется через HR
-            </p>
-          </div>
           <button className="btn-primary" onClick={() => router.push('/dashboard/teamlead/cards')}>
             Управление картами
           </button>
