@@ -65,7 +65,9 @@ export async function middleware(request: NextRequest) {
     '/nda/sign',  // Страницы подписания NDA
     '/nda/success', // Страница успешного подписания
     '/api/nda/sign', // API для подписания NDA
-    '/api/nda/files' // API для файлов NDA
+    '/api/nda/files', // API для файлов NDA
+    '/debug/auth-check', // Диагностическая страница
+    '/api/debug/auth-status' // Диагностический API
   ]
   const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route))
 
@@ -151,7 +153,7 @@ export async function middleware(request: NextRequest) {
     // Универсальные страницы доступны всем аутентифицированным пользователям
     const universalPages = ['/dashboard/settings']
     const isUniversalPage = universalPages.some(page => pathname === page)
-    
+
     if (isUniversalPage) {
       // Проверяем только что пользователь активен
       const { data: userData } = await supabase
@@ -164,7 +166,7 @@ export async function middleware(request: NextRequest) {
         const errorMessage = userData?.status === 'terminated' ? 'account_terminated' : 'account_disabled'
         return NextResponse.redirect(new URL(`/auth/login?error=${errorMessage}`, request.url))
       }
-      
+
       return response
     }
 
