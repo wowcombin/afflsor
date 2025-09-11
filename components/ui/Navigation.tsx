@@ -47,6 +47,7 @@ export default function Navigation({ userRole }: NavigationProps) {
           { name: 'Мои выводы', href: `${baseHref}/withdrawals`, icon: ClockIcon },
           { name: 'Мои карты', href: `${baseHref}/cards`, icon: CreditCardIcon },
           { name: 'PayPal аккаунты', href: `${baseHref}/paypal`, icon: BanknotesIcon },
+          { name: 'PayPal работы', href: `${baseHref}/paypal-work`, icon: ComputerDesktopIcon },
           { name: 'Статистика', href: `${baseHref}/stats`, icon: ChartBarIcon },
           { name: 'Генератор данных', href: `${baseHref}/generator`, icon: CommandLineIcon },
           { name: 'Настройки', href: `${baseHref}/settings`, icon: CogIcon }
