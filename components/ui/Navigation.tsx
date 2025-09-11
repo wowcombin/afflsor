@@ -20,7 +20,8 @@ import {
   CommandLineIcon,
   ChatBubbleLeftRightIcon,
   ExclamationTriangleIcon,
-  TrophyIcon
+  TrophyIcon,
+  FolderIcon
 } from '@heroicons/react/24/outline'
 
 interface NavigationItem {
@@ -124,6 +125,7 @@ export default function Navigation({ userRole }: NavigationProps) {
       case 'admin':
         return [
           { name: 'Dashboard', href: baseHref, icon: HomeIcon },
+          { name: 'Проекты', href: `${baseHref}/projects`, icon: FolderIcon },
           { name: 'Пользователи', href: '/dashboard/hr/users', icon: UsersIcon },
           { name: 'Финансы', href: '/dashboard/cfo', icon: BanknotesIcon },
           { name: 'Тестирование', href: '/dashboard/tester', icon: BeakerIcon },
