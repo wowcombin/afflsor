@@ -351,7 +351,7 @@ CREATE POLICY "task_templates_read" ON task_templates
     );
 
 CREATE POLICY "task_templates_manage" ON task_templates
-    FOR INSERT USING (
+    FOR INSERT WITH CHECK (
         EXISTS (
             SELECT 1 FROM users 
             WHERE auth_id = auth.uid() 
@@ -409,7 +409,6 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER trigger_update_project_progress
     AFTER INSERT OR UPDATE OR DELETE ON tasks
     FOR EACH ROW
-    WHEN (NEW.project_id IS NOT NULL OR OLD.project_id IS NOT NULL)
     EXECUTE FUNCTION update_project_progress();
 
 -- Функция для получения иерархии задач
@@ -426,7 +425,7 @@ WITH RECURSIVE task_tree AS (
         t.id,
         t.title,
         0 as level,
-        t.title as path
+        t.title::TEXT as path
     FROM tasks t
     WHERE t.id = task_id
     
@@ -437,7 +436,7 @@ WITH RECURSIVE task_tree AS (
         t.id,
         t.title,
         tt.level + 1,
-        tt.path || ' -> ' || t.title
+        (tt.path || ' -> ' || t.title)::TEXT
     FROM tasks t
     INNER JOIN task_tree tt ON t.parent_task_id = tt.id
 )
