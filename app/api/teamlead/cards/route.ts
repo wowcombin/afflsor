@@ -47,7 +47,33 @@ export async function GET() {
             email: userData.email
         })
 
-        // Получаем карты, назначенные Junior'ам из команды этого Team Lead
+        // Сначала получаем Junior'ов этого Team Lead'а
+        const { data: teamJuniors, error: juniorsError } = await supabase
+            .from('users')
+            .select('id')
+            .eq('team_lead_id', userData.id)
+            .eq('role', 'junior')
+            .eq('status', 'active')
+
+        if (juniorsError) {
+            console.error('Team Lead juniors error:', juniorsError)
+            return NextResponse.json({
+                error: 'Ошибка получения команды',
+                details: juniorsError.message
+            }, { status: 500 })
+        }
+
+        const juniorIds = teamJuniors?.map(j => j.id) || []
+
+        if (juniorIds.length === 0) {
+            return NextResponse.json({
+                success: true,
+                cards: [],
+                message: 'У вас нет Junior\'ов в команде'
+            })
+        }
+
+        // Получаем карты, назначенные Junior'ам из команды
         const { data: cards, error: cardsError } = await supabase
             .from('cards')
             .select(`
@@ -72,8 +98,7 @@ export async function GET() {
           assigned_at
         )
       `)
-            .eq('assigned_to.team_lead_id', userData.id)
-            .eq('assigned_to.role', 'junior')
+            .in('assigned_to_id', juniorIds)
             .order('created_at', { ascending: false })
 
         if (cardsError) {

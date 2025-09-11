@@ -47,7 +47,33 @@ export async function GET() {
             email: userData.email
         })
 
-        // Получаем выводы только от Junior'ов, назначенных этому Team Lead
+        // Сначала получаем Junior'ов этого Team Lead'а
+        const { data: teamJuniors, error: juniorsError } = await supabase
+            .from('users')
+            .select('id')
+            .eq('team_lead_id', userData.id)
+            .eq('role', 'junior')
+            .eq('status', 'active')
+
+        if (juniorsError) {
+            console.error('Team Lead juniors error:', juniorsError)
+            return NextResponse.json({
+                error: 'Ошибка получения команды',
+                details: juniorsError.message
+            }, { status: 500 })
+        }
+
+        const juniorIds = teamJuniors?.map(j => j.id) || []
+
+        if (juniorIds.length === 0) {
+            return NextResponse.json({
+                success: true,
+                withdrawals: [],
+                message: 'У вас нет Junior\'ов в команде'
+            })
+        }
+
+        // Получаем выводы Junior'ов из команды
         const { data: withdrawals, error: withdrawalsError } = await supabase
             .from('withdrawals')
             .select(`
@@ -66,8 +92,7 @@ export async function GET() {
           role
         )
       `)
-            .eq('user.team_lead_id', userData.id)
-            .eq('user.role', 'junior')
+            .in('user_id', juniorIds)
             .order('created_at', { ascending: false })
 
         if (withdrawalsError) {
