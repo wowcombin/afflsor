@@ -61,6 +61,7 @@ export default function Navigation({ userRole }: NavigationProps) {
           { name: 'Карты', href: `${baseHref}/cards`, icon: CreditCardIcon },
           { name: 'Банки', href: `${baseHref}/banks`, icon: BuildingLibraryIcon },
           { name: 'PayPal аккаунты', href: `${baseHref}/paypal`, icon: CreditCardIcon },
+          { name: 'PayPal отчеты', href: `${baseHref}/paypal-reports`, icon: ChartBarIcon },
           { name: 'Назначения', href: `${baseHref}/assignments`, icon: UsersIcon },
           { name: 'Аналитика', href: `${baseHref}/analytics`, icon: ChartBarIcon },
           { name: 'Настройки', href: `${baseHref}/settings`, icon: CogIcon }
