@@ -21,7 +21,8 @@ import {
   ChatBubbleLeftRightIcon,
   ExclamationTriangleIcon,
   TrophyIcon,
-  FolderIcon
+  FolderIcon,
+  DocumentDuplicateIcon
 } from '@heroicons/react/24/outline'
 
 interface NavigationItem {
@@ -95,6 +96,7 @@ export default function Navigation({ userRole }: NavigationProps) {
           { name: 'Структура', href: `${baseHref}/structure`, icon: UsersIcon },
           { name: 'NDA', href: `${baseHref}/nda`, icon: DocumentTextIcon },
           { name: 'HR задачи', href: `${baseHref}/tasks`, icon: ClipboardDocumentListIcon },
+          { name: 'Шаблоны задач', href: `${baseHref}/task-templates`, icon: DocumentDuplicateIcon },
           { name: 'PayPal отчеты', href: `${baseHref}/paypal`, icon: CreditCardIcon },
           { name: 'Отчеты', href: `${baseHref}/reports`, icon: ChartBarIcon },
           { name: 'Банки', href: `${baseHref}/banks`, icon: BuildingLibraryIcon },
@@ -130,6 +132,7 @@ export default function Navigation({ userRole }: NavigationProps) {
           { name: 'Dashboard', href: baseHref, icon: HomeIcon },
           { name: 'Проекты', href: `${baseHref}/projects`, icon: FolderIcon },
           { name: 'OKR цели', href: `${baseHref}/okr`, icon: TrophyIcon },
+          { name: 'Шаблоны задач', href: `${baseHref}/task-templates`, icon: DocumentDuplicateIcon },
           { name: 'Пользователи', href: '/dashboard/hr/users', icon: UsersIcon },
           { name: 'Финансы', href: '/dashboard/cfo', icon: BanknotesIcon },
           { name: 'Тестирование', href: '/dashboard/tester', icon: BeakerIcon },
