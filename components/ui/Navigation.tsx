@@ -73,6 +73,7 @@ export default function Navigation({ userRole }: NavigationProps) {
           { name: 'Казино', href: `${baseHref}/casinos`, icon: ComputerDesktopIcon },
           { name: 'Тестовые работы', href: `${baseHref}/work`, icon: BeakerIcon },
           { name: 'Карты', href: `${baseHref}/cards`, icon: CreditCardIcon },
+          { name: 'PayPal тесты', href: `${baseHref}/paypal`, icon: CreditCardIcon },
           { name: 'Мануалы', href: `${baseHref}/manuals`, icon: DocumentTextIcon },
           { name: 'Банки', href: `${baseHref}/banks`, icon: BuildingLibraryIcon },
           { name: 'История тестов', href: `${baseHref}/testing`, icon: ClockIcon },

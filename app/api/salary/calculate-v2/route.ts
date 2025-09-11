@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic'
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient()
-    
+
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -46,9 +46,9 @@ export async function POST(request: NextRequest) {
 
     if (calcError) {
       console.error('Salary calculation error:', calcError)
-      return NextResponse.json({ 
-        error: 'Failed to calculate salaries', 
-        details: calcError.message 
+      return NextResponse.json({
+        error: 'Failed to calculate salaries',
+        details: calcError.message
       }, { status: 500 })
     }
 
@@ -64,14 +64,14 @@ export async function POST(request: NextRequest) {
       net_profit: result.net_profit,
       expense_percentage: result.expense_percentage,
       calculation_base: result.gross_profit,
-      base_percentage: result.role === 'junior' ? 10 : 
-                      result.role === 'teamlead' ? 10 :
-                      result.role === 'manager' ? 10 :
-                      result.role === 'hr' ? 5 :
-                      result.role === 'cfo' ? 5 :
-                      result.role === 'tester' ? 10 :
-                      result.role === 'qa_assistant' ? 0 :
-                      result.role === 'ceo' ? 0 : 0,
+      base_percentage: result.role === 'junior' ? 10 :
+        result.role === 'teamlead' ? 10 :
+          result.role === 'manager' ? 10 :
+            result.role === 'hr' ? 5 :
+              result.role === 'cfo' ? 5 :
+                result.role === 'tester' ? 10 :
+                  result.role === 'qa_assistant' ? 0 :
+                    result.role === 'ceo' ? 0 : 0,
       base_salary: result.base_salary,
       performance_bonus: result.performance_bonus || 0,
       leader_bonus: result.leader_bonus || 0,
@@ -99,9 +99,9 @@ export async function POST(request: NextRequest) {
 
     if (insertError) {
       console.error('Error inserting salary calculations:', insertError)
-      return NextResponse.json({ 
-        error: 'Failed to save salary calculations', 
-        details: insertError.message 
+      return NextResponse.json({
+        error: 'Failed to save salary calculations',
+        details: insertError.message
       }, { status: 500 })
     }
 
@@ -157,9 +157,9 @@ export async function POST(request: NextRequest) {
 
   } catch (error: any) {
     console.error('Salary calculation API error:', error)
-    return NextResponse.json({ 
-      error: 'Internal server error', 
-      details: error.message 
+    return NextResponse.json({
+      error: 'Internal server error',
+      details: error.message
     }, { status: 500 })
   }
 }
@@ -168,7 +168,7 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient()
-    
+
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -259,9 +259,9 @@ export async function GET(request: NextRequest) {
 
   } catch (error: any) {
     console.error('Get salary calculations API error:', error)
-    return NextResponse.json({ 
-      error: 'Internal server error', 
-      details: error.message 
+    return NextResponse.json({
+      error: 'Internal server error',
+      details: error.message
     }, { status: 500 })
   }
 }
