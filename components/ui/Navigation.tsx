@@ -47,6 +47,7 @@ export default function Navigation({ userRole }: NavigationProps) {
       case 'junior':
         return [
           { name: 'Dashboard', href: baseHref, icon: HomeIcon },
+          { name: 'Мои задачи', href: `${baseHref}/tasks`, icon: ClipboardDocumentListIcon },
           { name: 'Новая работа', href: `${baseHref}/work/new`, icon: BriefcaseIcon },
           { name: 'Мои выводы', href: `${baseHref}/withdrawals`, icon: ClockIcon },
           { name: 'Мои карты', href: `${baseHref}/cards`, icon: CreditCardIcon },
