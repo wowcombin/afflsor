@@ -135,7 +135,7 @@ export async function GET() {
             const bank = bankAccount?.banks
             const assignee = (card as any).users
             const casinoAssignments = (card as any).card_casino_assignments || []
-            
+
             return {
                 ...card,
                 bank_name: bank?.name || 'Неизвестный банк',
