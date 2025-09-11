@@ -22,7 +22,8 @@ import {
   ExclamationTriangleIcon,
   TrophyIcon,
   FolderIcon,
-  DocumentDuplicateIcon
+  DocumentDuplicateIcon,
+  UserGroupIcon
 } from '@heroicons/react/24/outline'
 
 interface NavigationItem {
@@ -48,6 +49,7 @@ export default function Navigation({ userRole }: NavigationProps) {
         return [
           { name: 'Dashboard', href: baseHref, icon: HomeIcon },
           { name: 'Мои задачи', href: `${baseHref}/tasks`, icon: ClipboardDocumentListIcon },
+          { name: 'Командная доска', href: `${baseHref}/team-board`, icon: UserGroupIcon },
           { name: 'Новая работа', href: `${baseHref}/work/new`, icon: BriefcaseIcon },
           { name: 'Мои выводы', href: `${baseHref}/withdrawals`, icon: ClockIcon },
           { name: 'Мои карты', href: `${baseHref}/cards`, icon: CreditCardIcon },
