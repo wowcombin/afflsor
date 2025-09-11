@@ -126,6 +126,7 @@ export default function Navigation({ userRole }: NavigationProps) {
         return [
           { name: 'Dashboard', href: baseHref, icon: HomeIcon },
           { name: 'Проекты', href: `${baseHref}/projects`, icon: FolderIcon },
+          { name: 'OKR цели', href: `${baseHref}/okr`, icon: TrophyIcon },
           { name: 'Пользователи', href: '/dashboard/hr/users', icon: UsersIcon },
           { name: 'Финансы', href: '/dashboard/cfo', icon: BanknotesIcon },
           { name: 'Тестирование', href: '/dashboard/tester', icon: BeakerIcon },
