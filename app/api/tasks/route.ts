@@ -34,6 +34,11 @@ export async function GET(request: Request) {
         const status = searchParams.get('status')
         const priority = searchParams.get('priority')
         const myTasks = searchParams.get('my_tasks') === 'true'
+        const creatorId = searchParams.get('creator_id')
+        const tagsFilter = searchParams.get('tags')
+        const dueDateFilter = searchParams.get('due_date')
+        const overdueOnly = searchParams.get('overdue') === 'true'
+        const searchText = searchParams.get('search')
 
         // Базовый запрос
         let query = supabase
@@ -97,6 +102,32 @@ export async function GET(request: Request) {
             query = query.eq('assignee_id', userData.id)
         }
 
+        if (creatorId) {
+            query = query.eq('created_by', creatorId)
+        }
+
+        // Фильтр по тегам
+        if (tagsFilter) {
+            const tags = tagsFilter.split(',')
+            query = query.overlaps('tags', tags)
+        }
+
+        // Фильтр по дедлайну
+        if (dueDateFilter) {
+            const targetDate = new Date(dueDateFilter)
+            const nextDay = new Date(targetDate)
+            nextDay.setDate(nextDay.getDate() + 1)
+
+            query = query
+                .gte('due_date', targetDate.toISOString())
+                .lt('due_date', nextDay.toISOString())
+        }
+
+        // Поиск по тексту
+        if (searchText) {
+            query = query.or(`title.ilike.%${searchText}%,description.ilike.%${searchText}%`)
+        }
+
         const { data: tasks, error } = await query
             .order('created_at', { ascending: false })
 
@@ -109,13 +140,18 @@ export async function GET(request: Request) {
         }
 
         // Обогащаем данные
-        const enrichedTasks = tasks?.map(task => ({
+        let enrichedTasks = tasks?.map(task => ({
             ...task,
             is_overdue: task.due_date && new Date(task.due_date) < new Date() && task.task_status !== 'done',
             comments_count: task.task_comments?.length || 0,
             checklist_progress: task.checklist ?
                 calculateChecklistProgress(task.checklist) : { completed: 0, total: 0, percentage: 0 }
         })) || []
+
+        // Дополнительная фильтрация после загрузки
+        if (overdueOnly) {
+            enrichedTasks = enrichedTasks.filter(task => task.is_overdue)
+        }
 
         console.log(`Tasks fetched for ${userData.role} ${userData.email}: ${enrichedTasks.length} tasks`)
 

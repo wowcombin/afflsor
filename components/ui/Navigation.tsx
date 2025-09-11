@@ -137,6 +137,7 @@ export default function Navigation({ userRole }: NavigationProps) {
           { name: 'Dashboard', href: baseHref, icon: HomeIcon },
           { name: 'Проекты', href: `${baseHref}/projects`, icon: FolderIcon },
           { name: 'OKR цели', href: `${baseHref}/okr`, icon: TrophyIcon },
+          { name: 'Аналитика', href: `${baseHref}/analytics`, icon: ChartBarIcon },
           { name: 'Шаблоны задач', href: `${baseHref}/task-templates`, icon: DocumentDuplicateIcon },
           { name: 'Пользователи', href: '/dashboard/hr/users', icon: UsersIcon },
           { name: 'Финансы', href: '/dashboard/cfo', icon: BanknotesIcon },
