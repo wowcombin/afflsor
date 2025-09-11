@@ -73,26 +73,71 @@ export async function GET() {
             })
         }
 
-        // Получаем выводы Junior'ов из команды
+        // Получаем работы Junior'ов и их выводы
+        const { data: works, error: worksError } = await supabase
+            .from('works')
+            .select('id')
+            .in('junior_id', juniorIds)
+
+        if (worksError) {
+            console.error('Team Lead works query error:', worksError)
+            return NextResponse.json({
+                error: 'Ошибка получения работ',
+                details: worksError.message
+            }, { status: 500 })
+        }
+
+        const workIds = works?.map(w => w.id) || []
+
+        if (workIds.length === 0) {
+            return NextResponse.json({
+                success: true,
+                withdrawals: [],
+                message: 'У Junior\'ов нет работ с выводами'
+            })
+        }
+
+        // Получаем выводы по работам Junior'ов
         const { data: withdrawals, error: withdrawalsError } = await supabase
-            .from('withdrawals')
+            .from('work_withdrawals')
             .select(`
         id,
-        user_id,
-        amount,
-        currency,
+        work_id,
+        withdrawal_amount,
         status,
-        manager_comment,
+        checked_by,
+        checked_at,
+        alarm_message,
+        manager_notes,
         created_at,
         updated_at,
-        user:user_id (
-          email,
-          first_name,
-          last_name,
-          role
+        works:work_id (
+          id,
+          junior_id,
+          deposit_amount,
+          casino_login,
+          status,
+          work_date,
+          users:junior_id (
+            id,
+            email,
+            first_name,
+            last_name,
+            role
+          ),
+          casinos:casino_id (
+            id,
+            name,
+            currency
+          ),
+          cards:card_id (
+            id,
+            card_number_mask,
+            bank_name
+          )
         )
       `)
-            .in('user_id', juniorIds)
+            .in('work_id', workIds)
             .order('created_at', { ascending: false })
 
         if (withdrawalsError) {
