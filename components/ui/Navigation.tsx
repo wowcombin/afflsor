@@ -63,7 +63,7 @@ export default function Navigation({ userRole }: NavigationProps) {
       case 'manager':
         return [
           { name: 'Dashboard', href: baseHref, icon: HomeIcon },
-          { name: 'Очередь выводов', href: `${baseHref}/withdrawals-new`, icon: ClockIcon },
+          { name: 'Очередь выводов', href: `${baseHref}/withdrawals`, icon: ClockIcon },
           { name: 'Команда', href: `${baseHref}/team`, icon: UsersIcon },
           { name: 'Карты', href: `${baseHref}/cards`, icon: CreditCardIcon },
           { name: 'Банки', href: `${baseHref}/banks`, icon: BuildingLibraryIcon },
@@ -126,7 +126,7 @@ export default function Navigation({ userRole }: NavigationProps) {
           { name: 'Управление задачами', href: `${baseHref}/tasks`, icon: ClipboardDocumentListIcon },
           { name: 'Kanban доска', href: `${baseHref}/kanban`, icon: ClipboardDocumentListIcon },
           { name: 'Моя команда', href: `${baseHref}/team`, icon: UsersIcon },
-          { name: 'Выводы команды', href: `${baseHref}/withdrawals-new`, icon: BanknotesIcon },
+          { name: 'Выводы команды', href: `${baseHref}/withdrawals`, icon: BanknotesIcon },
           { name: 'Карты команды', href: `${baseHref}/cards`, icon: CreditCardIcon },
           { name: 'PayPal команды', href: `${baseHref}/paypal`, icon: CreditCardIcon },
           { name: 'Генератор данных', href: `${baseHref}/generator`, icon: CommandLineIcon },

@@ -20,12 +20,8 @@ export async function POST(request: NextRequest) {
       .eq('auth_id', user.id)
       .single()
 
-    // Только HR и Admin могут назначать Junior к Team Lead
-    if (!userData || !['hr', 'admin'].includes(userData.role)) {
-      return NextResponse.json({ 
-        error: 'Access denied', 
-        details: 'Только HR и Admin могут назначать Junior сотрудников к Team Lead'
-      }, { status: 403 })
+    if (!userData || userData.role !== 'teamlead') {
+      return NextResponse.json({ error: 'Access denied' }, { status: 403 })
     }
 
     if (userData.status !== 'active') {
