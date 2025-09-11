@@ -119,6 +119,7 @@ export default function Navigation({ userRole }: NavigationProps) {
         return [
           { name: 'Dashboard', href: baseHref, icon: HomeIcon },
           { name: 'Управление задачами', href: `${baseHref}/tasks`, icon: ClipboardDocumentListIcon },
+          { name: 'Kanban доска', href: `${baseHref}/kanban`, icon: ClipboardDocumentListIcon },
           { name: 'Моя команда', href: `${baseHref}/team`, icon: UsersIcon },
           { name: 'Выводы команды', href: `${baseHref}/withdrawals`, icon: BanknotesIcon },
           { name: 'Карты команды', href: `${baseHref}/cards`, icon: CreditCardIcon },
