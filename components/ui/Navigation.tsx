@@ -57,7 +57,7 @@ export default function Navigation({ userRole }: NavigationProps) {
           { name: 'PayPal работы', href: `${baseHref}/paypal-work`, icon: ComputerDesktopIcon },
           { name: 'Статистика', href: `${baseHref}/stats`, icon: ChartBarIcon },
           { name: 'Генератор данных', href: `${baseHref}/generator`, icon: CommandLineIcon },
-          { name: 'Настройки', href: `${baseHref}/settings`, icon: CogIcon }
+          { name: 'Настройки', href: '/dashboard/settings', icon: CogIcon }
         ]
 
       case 'manager':
@@ -73,7 +73,7 @@ export default function Navigation({ userRole }: NavigationProps) {
           { name: 'Задачи', href: `${baseHref}/tasks`, icon: ClipboardDocumentListIcon },
           { name: 'Аналитика', href: `${baseHref}/analytics`, icon: ChartBarIcon },
           { name: 'Статистика', href: `${baseHref}/statistics`, icon: TrophyIcon },
-          { name: 'Настройки', href: `${baseHref}/settings`, icon: CogIcon }
+          { name: 'Настройки', href: '/dashboard/settings', icon: CogIcon }
         ]
 
       case 'tester':
@@ -81,6 +81,7 @@ export default function Navigation({ userRole }: NavigationProps) {
           { name: 'Dashboard', href: baseHref, icon: HomeIcon },
           { name: 'Казино', href: `${baseHref}/casinos`, icon: ComputerDesktopIcon },
           { name: 'Тестовые работы', href: `${baseHref}/work`, icon: BeakerIcon },
+          { name: 'Выводы', href: `${baseHref}/withdrawals`, icon: ClockIcon },
           { name: 'Карты', href: `${baseHref}/cards`, icon: CreditCardIcon },
           { name: 'PayPal тесты', href: `${baseHref}/paypal`, icon: CreditCardIcon },
           { name: 'QA задачи', href: `${baseHref}/tasks`, icon: ClipboardDocumentListIcon },
@@ -88,7 +89,7 @@ export default function Navigation({ userRole }: NavigationProps) {
           { name: 'Банки', href: `${baseHref}/banks`, icon: BuildingLibraryIcon },
           { name: 'История тестов', href: `${baseHref}/testing`, icon: ClockIcon },
           { name: 'Отчеты', href: `${baseHref}/reports`, icon: ChartBarIcon },
-          { name: 'Настройки', href: `${baseHref}/settings`, icon: CogIcon }
+          { name: 'Настройки', href: '/dashboard/settings', icon: CogIcon }
         ]
 
       case 'hr':
@@ -103,7 +104,7 @@ export default function Navigation({ userRole }: NavigationProps) {
           { name: 'PayPal отчеты', href: `${baseHref}/paypal`, icon: CreditCardIcon },
           { name: 'Отчеты', href: `${baseHref}/reports`, icon: ChartBarIcon },
           { name: 'Банки', href: `${baseHref}/banks`, icon: BuildingLibraryIcon },
-          { name: 'Настройки', href: `${baseHref}/settings`, icon: CogIcon }
+          { name: 'Настройки', href: '/dashboard/settings', icon: CogIcon }
         ]
 
       case 'cfo':
@@ -115,7 +116,7 @@ export default function Navigation({ userRole }: NavigationProps) {
           { name: 'Расходы', href: `${baseHref}/expenses`, icon: ChartBarIcon },
           { name: 'Банки', href: `${baseHref}/banks`, icon: BuildingLibraryIcon },
           { name: 'Отчеты', href: `${baseHref}/reports`, icon: DocumentTextIcon },
-          { name: 'Настройки', href: `${baseHref}/settings`, icon: CogIcon }
+          { name: 'Настройки', href: '/dashboard/settings', icon: CogIcon }
         ]
 
       case 'teamlead':
@@ -127,9 +128,10 @@ export default function Navigation({ userRole }: NavigationProps) {
           { name: 'Выводы команды', href: `${baseHref}/withdrawals`, icon: BanknotesIcon },
           { name: 'Карты команды', href: `${baseHref}/cards`, icon: CreditCardIcon },
           { name: 'PayPal команды', href: `${baseHref}/paypal`, icon: CreditCardIcon },
+          { name: 'Генератор данных', href: `${baseHref}/generator`, icon: CommandLineIcon },
           { name: 'Мои назначения', href: `${baseHref}/assignments`, icon: BuildingLibraryIcon },
           { name: 'Назначения казино', href: `${baseHref}/casino-assignments`, icon: ComputerDesktopIcon },
-          { name: 'Настройки', href: `${baseHref}/settings`, icon: CogIcon }
+          { name: 'Настройки', href: '/dashboard/settings', icon: CogIcon }
         ]
 
       case 'admin':
@@ -142,7 +144,7 @@ export default function Navigation({ userRole }: NavigationProps) {
           { name: 'Пользователи', href: '/dashboard/hr/users', icon: UsersIcon },
           { name: 'Финансы', href: '/dashboard/cfo', icon: BanknotesIcon },
           { name: 'Тестирование', href: '/dashboard/tester', icon: BeakerIcon },
-          { name: 'Настройки', href: `${baseHref}/settings`, icon: CogIcon },
+          { name: 'Настройки', href: '/dashboard/settings', icon: CogIcon },
           { name: 'Аудит', href: `${baseHref}/audit`, icon: ClipboardDocumentListIcon }
         ]
 
