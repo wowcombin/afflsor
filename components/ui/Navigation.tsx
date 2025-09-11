@@ -59,6 +59,7 @@ export default function Navigation({ userRole }: NavigationProps) {
           { name: 'Команда', href: `${baseHref}/team`, icon: UsersIcon },
           { name: 'Карты', href: `${baseHref}/cards`, icon: CreditCardIcon },
           { name: 'Банки', href: `${baseHref}/banks`, icon: BuildingLibraryIcon },
+          { name: 'PayPal аккаунты', href: `${baseHref}/paypal`, icon: CreditCardIcon },
           { name: 'Назначения', href: `${baseHref}/assignments`, icon: UsersIcon },
           { name: 'Аналитика', href: `${baseHref}/analytics`, icon: ChartBarIcon },
           { name: 'Настройки', href: `${baseHref}/settings`, icon: CogIcon }
@@ -84,6 +85,7 @@ export default function Navigation({ userRole }: NavigationProps) {
           { name: 'Чаты и созвоны', href: `${baseHref}/teams`, icon: ChatBubbleLeftRightIcon },
           { name: 'Структура', href: `${baseHref}/structure`, icon: UsersIcon },
           { name: 'NDA', href: `${baseHref}/nda`, icon: DocumentTextIcon },
+          { name: 'PayPal отчеты', href: `${baseHref}/paypal`, icon: CreditCardIcon },
           { name: 'Отчеты', href: `${baseHref}/reports`, icon: ChartBarIcon },
           { name: 'Банки', href: `${baseHref}/banks`, icon: BuildingLibraryIcon },
           { name: 'Настройки', href: `${baseHref}/settings`, icon: CogIcon }
@@ -106,6 +108,7 @@ export default function Navigation({ userRole }: NavigationProps) {
           { name: 'Моя команда', href: `${baseHref}/team`, icon: UsersIcon },
           { name: 'Выводы команды', href: `${baseHref}/withdrawals`, icon: BanknotesIcon },
           { name: 'Карты команды', href: `${baseHref}/cards`, icon: CreditCardIcon },
+          { name: 'PayPal команды', href: `${baseHref}/paypal`, icon: CreditCardIcon },
           { name: 'Мои назначения', href: `${baseHref}/assignments`, icon: BuildingLibraryIcon },
           { name: 'Назначения казино', href: `${baseHref}/casino-assignments`, icon: ComputerDesktopIcon },
           { name: 'Настройки', href: `${baseHref}/settings`, icon: CogIcon }
