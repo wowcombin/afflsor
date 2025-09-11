@@ -148,6 +148,26 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL(correctPath, request.url))
     }
 
+    // Универсальные страницы доступны всем аутентифицированным пользователям
+    const universalPages = ['/dashboard/settings']
+    const isUniversalPage = universalPages.some(page => pathname === page)
+    
+    if (isUniversalPage) {
+      // Проверяем только что пользователь активен
+      const { data: userData } = await supabase
+        .from('users')
+        .select('status')
+        .eq('auth_id', user.id)
+        .single()
+
+      if (!userData || userData.status !== 'active') {
+        const errorMessage = userData?.status === 'terminated' ? 'account_terminated' : 'account_disabled'
+        return NextResponse.redirect(new URL(`/auth/login?error=${errorMessage}`, request.url))
+      }
+      
+      return response
+    }
+
     const roleFromPath = pathname.split('/')[2] // /dashboard/[role]/...
 
     if (roleFromPath) {
