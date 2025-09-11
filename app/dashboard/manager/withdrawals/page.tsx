@@ -112,11 +112,11 @@ export default function WithdrawalsQueue() {
 
   const fetchWithdrawals = async () => {
     try {
-      const response = await fetch('/api/universal/withdrawals')
+      const response = await fetch('/api/manager/withdrawals')
       const data = await response.json()
 
       if (data.success) {
-        setWithdrawals(data.withdrawals || [])
+        setWithdrawals(data.data || [])
       } else {
         addToast({ type: 'error', title: 'Ошибка', description: data.error || 'Не удалось загрузить выводы' })
       }
