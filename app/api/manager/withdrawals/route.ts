@@ -8,7 +8,7 @@ export async function GET() {
   try {
     console.log('=== Manager Withdrawals API Called ===')
     const supabase = await createClient()
-    
+
     // Проверка аутентификации и роли
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
@@ -42,7 +42,7 @@ export async function GET() {
 
     // Определяем доступных Junior'ов в зависимости от роли
     let teamJuniorIds: string[] = []
-    
+
     if (userData.role === 'teamlead') {
       // Team Lead видит только своих Junior'ов
       const { data: teamJuniors } = await supabase
@@ -51,7 +51,7 @@ export async function GET() {
         .eq('team_lead_id', userData.id)
         .eq('role', 'junior')
         .eq('status', 'active')
-      
+
       teamJuniorIds = teamJuniors?.map(j => j.id) || []
       if (teamJuniorIds.length === 0) {
         return NextResponse.json({
@@ -65,13 +65,13 @@ export async function GET() {
     // Получаем работы Junior'ов с учетом фильтра по роли
     let worksQuery = supabase.from('works')
       .select('id, junior_id')
-      
+
     if (userData.role === 'teamlead' && teamJuniorIds.length > 0) {
       worksQuery = worksQuery.in('junior_id', teamJuniorIds)
     }
-    
+
     const { data: works, error: worksError } = await worksQuery
-    
+
     if (worksError) {
       console.error('Works query error:', worksError)
       return NextResponse.json({
@@ -79,9 +79,9 @@ export async function GET() {
         details: worksError.message
       }, { status: 500 })
     }
-    
+
     const workIds = works?.map(w => w.id) || []
-    
+
     // Получаем выводы по работам
     const { data: juniorWithdrawals, error: juniorError } = await supabase
       .from('work_withdrawals')
@@ -125,9 +125,9 @@ export async function GET() {
       .in('work_id', workIds.length > 0 ? workIds : ['null'])
       .order('created_at', { ascending: false })
 
-    console.log('Junior withdrawals result:', { 
-      count: juniorWithdrawals?.length || 0, 
-      error: juniorError 
+    console.log('Junior withdrawals result:', {
+      count: juniorWithdrawals?.length || 0,
+      error: juniorError
     })
 
     // Получаем PayPal выводы
@@ -176,11 +176,11 @@ export async function GET() {
           url
         )
       `)
-      
+
     if (userData.role === 'teamlead' && teamJuniorIds.length > 0) {
       paypalQuery = paypalQuery.in('user_id', teamJuniorIds)
     }
-    
+
     const { data: paypalWithdrawals, error: paypalError } = await paypalQuery
       .order('created_at', { ascending: false })
 
@@ -190,9 +190,9 @@ export async function GET() {
       .select('*')
       .order('created_at', { ascending: false })
 
-    console.log('Test withdrawals result:', { 
-      count: testWithdrawals?.length || 0, 
-      error: testError 
+    console.log('Test withdrawals result:', {
+      count: testWithdrawals?.length || 0,
+      error: testError
     })
 
     if (juniorError || testError || paypalError) {
@@ -206,11 +206,11 @@ export async function GET() {
       const casino = work ? (Array.isArray(work.casinos) ? work.casinos[0] : work.casinos) : null
       const card = work ? (Array.isArray(work.cards) ? work.cards[0] : work.cards) : null
       const user = work ? (Array.isArray(work.users) ? work.users[0] : work.users) : null
-      
+
       // Извлекаем данные банковского аккаунта
       const bankAccount = card?.bank_account ? (Array.isArray(card.bank_account) ? card.bank_account[0] : card.bank_account) : null
       const bank = bankAccount?.bank ? (Array.isArray(bankAccount.bank) ? bankAccount.bank[0] : bankAccount.bank) : null
-      
+
       return {
         ...w,
         source_type: 'junior',
@@ -286,8 +286,8 @@ export async function GET() {
     const allWithdrawals = [...formattedTestWithdrawals, ...formattedJuniorWithdrawals, ...formattedPaypalWithdrawals]
       .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
 
-    return NextResponse.json({ 
-      success: true, 
+    return NextResponse.json({
+      success: true,
       data: allWithdrawals,
       count: allWithdrawals.length,
       tester_count: formattedTestWithdrawals.length,
@@ -304,7 +304,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const supabase = await createClient()
-    
+
     // Проверка аутентификации и роли
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
@@ -343,16 +343,16 @@ export async function POST(request: Request) {
     let updatedCount = 0
 
     // Обновляем выводы тестеров (если есть)
-    const testWithdrawalIds = withdrawal_ids.filter((_, index) => 
+    const testWithdrawalIds = withdrawal_ids.filter((_, index) =>
       source_types && source_types[index] === 'tester'
     )
-    
+
     if (testWithdrawalIds.length > 0) {
-      const testUpdateData = { 
+      const testUpdateData = {
         withdrawal_status: action === 'bulk_approve' ? 'approved' : 'rejected',
-        updated_at: new Date().toISOString() 
+        updated_at: new Date().toISOString()
       }
-      
+
       const { error: testUpdateError } = await supabase
         .from('test_withdrawals')
         .update(testUpdateData)
@@ -366,16 +366,16 @@ export async function POST(request: Request) {
     }
 
     // Обновляем выводы Junior (если есть)
-    const juniorWithdrawalIds = withdrawal_ids.filter((_, index) => 
+    const juniorWithdrawalIds = withdrawal_ids.filter((_, index) =>
       !source_types || source_types[index] === 'junior'
     )
-    
+
     if (juniorWithdrawalIds.length > 0) {
-      const juniorUpdateData = { 
+      const juniorUpdateData = {
         status: newStatus,
-        updated_at: new Date().toISOString() 
+        updated_at: new Date().toISOString()
       }
-      
+
       const { error: juniorUpdateError } = await supabase
         .from('work_withdrawals')
         .update(juniorUpdateData)
@@ -392,7 +392,7 @@ export async function POST(request: Request) {
     for (let i = 0; i < withdrawal_ids.length; i++) {
       const withdrawalId = withdrawal_ids[i]
       const sourceType = source_types ? source_types[i] : 'junior'
-      
+
       await supabase
         .from('action_history')
         .insert({
@@ -404,8 +404,8 @@ export async function POST(request: Request) {
         })
     }
 
-    return NextResponse.json({ 
-      success: true, 
+    return NextResponse.json({
+      success: true,
       message: `${updatedCount} withdrawals ${action === 'bulk_approve' ? 'approved' : 'rejected'}`,
       updated_count: updatedCount,
       test_updated: testWithdrawalIds.length,
