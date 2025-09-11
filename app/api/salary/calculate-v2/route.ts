@@ -37,9 +37,9 @@ export async function POST(request: NextRequest) {
 
     console.log(`Starting salary calculation for ${month} by user ${userData.id}`)
 
-    // Вызываем новую функцию расчета зарплат
+    // Вызываем обновленную функцию расчета зарплат (включая PayPal)
     const { data: salaryResults, error: calcError } = await supabase
-      .rpc('calculate_monthly_salaries_v2', {
+      .rpc('calculate_monthly_salaries_v3', {
         p_month: month,
         p_calculated_by: userData.id
       })
