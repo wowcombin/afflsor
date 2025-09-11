@@ -40,7 +40,6 @@ export async function GET() {
 // PATCH - Обновить данные текущего пользователя
 export async function PATCH(request: NextRequest) {
   try {
-    console.log('=== PATCH /api/users/me called ===')
     const supabase = await createClient()
 
     // Получаем текущего пользователя

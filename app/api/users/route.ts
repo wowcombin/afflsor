@@ -88,13 +88,10 @@ export async function POST(request: Request) {
       .eq('auth_id', user.id)
       .single()
 
-    console.log('🔥 POST /api/users - НОВАЯ ВЕРСИЯ API - User data check:', {
-      userData,
-      userError: userError?.message,
-      auth_id: user.id,
-      email: user.email,
-      timestamp: new Date().toISOString(),
-      version: 'v2.1-fixed'
+    console.log('POST /api/users - User data check:', {
+      role: userData?.role,
+      status: userData?.status,
+      email: user.email
     })
 
     if (userError) {
