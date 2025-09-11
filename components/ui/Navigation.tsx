@@ -66,6 +66,7 @@ export default function Navigation({ userRole }: NavigationProps) {
           { name: 'PayPal аккаунты', href: `${baseHref}/paypal`, icon: CreditCardIcon },
           { name: 'PayPal отчеты', href: `${baseHref}/paypal-reports`, icon: ChartBarIcon },
           { name: 'Назначения', href: `${baseHref}/assignments`, icon: UsersIcon },
+          { name: 'Задачи', href: `${baseHref}/tasks`, icon: ClipboardDocumentListIcon },
           { name: 'Аналитика', href: `${baseHref}/analytics`, icon: ChartBarIcon },
           { name: 'Статистика', href: `${baseHref}/statistics`, icon: TrophyIcon },
           { name: 'Настройки', href: `${baseHref}/settings`, icon: CogIcon }
@@ -78,6 +79,7 @@ export default function Navigation({ userRole }: NavigationProps) {
           { name: 'Тестовые работы', href: `${baseHref}/work`, icon: BeakerIcon },
           { name: 'Карты', href: `${baseHref}/cards`, icon: CreditCardIcon },
           { name: 'PayPal тесты', href: `${baseHref}/paypal`, icon: CreditCardIcon },
+          { name: 'QA задачи', href: `${baseHref}/tasks`, icon: ClipboardDocumentListIcon },
           { name: 'Мануалы', href: `${baseHref}/manuals`, icon: DocumentTextIcon },
           { name: 'Банки', href: `${baseHref}/banks`, icon: BuildingLibraryIcon },
           { name: 'История тестов', href: `${baseHref}/testing`, icon: ClockIcon },
@@ -92,6 +94,7 @@ export default function Navigation({ userRole }: NavigationProps) {
           { name: 'Чаты и созвоны', href: `${baseHref}/teams`, icon: ChatBubbleLeftRightIcon },
           { name: 'Структура', href: `${baseHref}/structure`, icon: UsersIcon },
           { name: 'NDA', href: `${baseHref}/nda`, icon: DocumentTextIcon },
+          { name: 'HR задачи', href: `${baseHref}/tasks`, icon: ClipboardDocumentListIcon },
           { name: 'PayPal отчеты', href: `${baseHref}/paypal`, icon: CreditCardIcon },
           { name: 'Отчеты', href: `${baseHref}/reports`, icon: ChartBarIcon },
           { name: 'Банки', href: `${baseHref}/banks`, icon: BuildingLibraryIcon },
