@@ -29,8 +29,7 @@ CREATE TABLE casino_paypal_assignments (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     
-    -- Уникальность: один PayPal аккаунт может быть протестирован с одним казино только один раз активно
-    CONSTRAINT unique_paypal_casino_active UNIQUE(casino_id, paypal_account_id) WHERE (is_active = TRUE)
+    -- Уникальность будет создана индексом
 );
 
 -- Создание индексов
@@ -39,6 +38,11 @@ CREATE INDEX idx_casino_paypal_assignments_paypal_account_id ON casino_paypal_as
 CREATE INDEX idx_casino_paypal_assignments_assigned_by ON casino_paypal_assignments(assigned_by);
 CREATE INDEX idx_casino_paypal_assignments_test_result ON casino_paypal_assignments(test_result);
 CREATE INDEX idx_casino_paypal_assignments_active ON casino_paypal_assignments(is_active);
+
+-- Создание уникального индекса с условием для активных отметок
+CREATE UNIQUE INDEX unique_paypal_casino_active 
+    ON casino_paypal_assignments(casino_id, paypal_account_id) 
+    WHERE is_active = TRUE;
 
 -- Триггер для обновления updated_at
 CREATE TRIGGER update_casino_paypal_assignments_updated_at 
