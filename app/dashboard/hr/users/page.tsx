@@ -274,7 +274,7 @@ export default function HRUsersPage() {
             {user.telegram_username ? `@${user.telegram_username.replace('@', '')}` : 'Не указан'}
           </div>
           <div className="text-sm text-gray-500">
-            {user.first_name || user.last_name
+            {user.first_name || user.last_name 
               ? `${user.first_name || ''} ${user.last_name || ''}`.trim()
               : user.email
             }
@@ -358,48 +358,6 @@ export default function HRUsersPage() {
     }
   ]
 
-  // Функция увольнения пользователя
-  async function handleTerminateUser(user: User) {
-    if (!confirm(`Вы уверены, что хотите уволить ${user.first_name} ${user.last_name} (${user.email})? Пользователь потеряет доступ к системе.`)) {
-      return
-    }
-
-    try {
-      const response = await fetch(`/api/users/${user.id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          ...user,
-          status: 'terminated'
-        })
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error)
-      }
-
-      addToast({
-        type: 'success',
-        title: 'Пользователь уволен',
-        description: `${user.email} больше не имеет доступа к системе`
-      })
-
-      await loadUsers()
-
-    } catch (error: any) {
-      console.error('Ошибка увольнения пользователя:', error)
-      addToast({
-        type: 'error',
-        title: 'Ошибка увольнения',
-        description: error.message
-      })
-    }
-  }
-
   const actions: ActionButton<User>[] = [
     {
       label: 'Редактировать',
@@ -408,19 +366,13 @@ export default function HRUsersPage() {
         setShowEditModal(true)
       },
       variant: 'primary',
-      condition: (user) => ['junior', 'teamlead'].includes(user.role) && user.status !== 'terminated'
-    },
-    {
-      label: 'Уволить',
-      action: handleTerminateUser,
-      variant: 'warning',
-      condition: (user) => ['junior', 'teamlead'].includes(user.role) && user.status === 'active'
+      condition: (user) => user.role !== 'admin' && user.role !== 'ceo' // HR не может редактировать Admin и CEO
     },
     {
       label: 'Удалить',
       action: handleDeleteUser,
       variant: 'danger',
-      condition: (user) => user.role !== 'admin' && user.role !== 'ceo' && user.status === 'terminated' // Можно удалять только уволенных
+      condition: (user) => user.role !== 'admin' && user.role !== 'ceo' // HR не может удалить Admin и CEO
     }
   ]
 
@@ -554,8 +506,12 @@ export default function HRUsersPage() {
                 required
               >
                 <option value="junior">Junior</option>
+                <option value="manager">Manager (Coordinator)</option>
                 <option value="teamlead">Team Lead</option>
+                <option value="tester">Manual QA</option>
                 <option value="qa_assistant">QA Assistant</option>
+                <option value="hr">HR</option>
+                <option value="cfo">CFO</option>
               </select>
             </div>
             <div>
@@ -599,17 +555,14 @@ export default function HRUsersPage() {
           </div>
 
           <div>
-            <label className="form-label">USDT кошелек (BEP20)</label>
+            <label className="form-label">USDT кошелек</label>
             <input
               type="text"
               value={newUserForm.usdt_wallet}
               onChange={(e) => setNewUserForm({ ...newUserForm, usdt_wallet: e.target.value })}
               className="form-input"
-              placeholder="0x1234567890abcdef1234567890abcdef12345678"
+              placeholder="TXXXxxxXXXxxxXXX..."
             />
-            <p className="text-xs text-blue-600 mt-1">
-              💡 <strong>Только BEP20 адреса!</strong> Формат: 0x + 40 символов (0-9, a-f)
-            </p>
           </div>
 
           <div className="flex justify-end space-x-3 pt-4">
@@ -671,24 +624,15 @@ export default function HRUsersPage() {
                   value={selectedUser.role}
                   onChange={(e) => setSelectedUser({ ...selectedUser, role: e.target.value as User['role'] })}
                   className="form-input"
-                  disabled={!['junior', 'teamlead'].includes(selectedUser.role)}
                 >
-                  {['junior', 'teamlead'].includes(selectedUser.role) ? (
-                    <>
-                      <option value="junior">Junior</option>
-                      <option value="teamlead">Team Lead</option>
-                    </>
-                  ) : (
-                    <option value={selectedUser.role}>
-                      {selectedUser.role} (только просмотр)
-                    </option>
-                  )}
+                  <option value="junior">Junior</option>
+                  <option value="manager">Manager (Coordinator)</option>
+                  <option value="teamlead">Team Lead</option>
+                  <option value="tester">Manual QA</option>
+                  <option value="qa_assistant">QA Assistant</option>
+                  <option value="hr">HR</option>
+                  <option value="cfo">CFO</option>
                 </select>
-                {!['junior', 'teamlead'].includes(selectedUser.role) && (
-                  <p className="text-xs text-gray-500 mt-1">
-                    HR может изменять роли только для Junior и Team Lead
-                  </p>
-                )}
               </div>
               <div>
                 <label className="form-label">Статус</label>
@@ -696,26 +640,11 @@ export default function HRUsersPage() {
                   value={selectedUser.status}
                   onChange={(e) => setSelectedUser({ ...selectedUser, status: e.target.value as User['status'] })}
                   className="form-input"
-                  disabled={!['junior', 'teamlead'].includes(selectedUser.role)}
                 >
-                  {['junior', 'teamlead'].includes(selectedUser.role) ? (
-                    <>
-                      <option value="active">Активен</option>
-                      <option value="inactive">Временно заблокирован</option>
-                      <option value="terminated">Уволен</option>
-                    </>
-                  ) : (
-                    <option value={selectedUser.status}>
-                      {selectedUser.status === 'active' ? 'Активен' :
-                        selectedUser.status === 'inactive' ? 'Неактивен' : 'Уволен'} (только просмотр)
-                    </option>
-                  )}
+                  <option value="active">Активен</option>
+                  <option value="inactive">Неактивен</option>
+                  <option value="terminated">Уволен</option>
                 </select>
-                {!['junior', 'teamlead'].includes(selectedUser.role) && (
-                  <p className="text-xs text-gray-500 mt-1">
-                    HR может изменять статус только для Junior и Team Lead
-                  </p>
-                )}
               </div>
             </div>
 
@@ -788,17 +717,14 @@ export default function HRUsersPage() {
             </div>
 
             <div>
-              <label className="form-label">USDT кошелек (BEP20)</label>
+              <label className="form-label">USDT кошелек</label>
               <input
                 type="text"
                 value={selectedUser.usdt_wallet || ''}
                 onChange={(e) => setSelectedUser({ ...selectedUser, usdt_wallet: e.target.value })}
                 className="form-input"
-                placeholder="0x1234567890abcdef1234567890abcdef12345678"
+                placeholder="TXXXxxxXXXxxxXXX..."
               />
-              <p className="text-xs text-blue-600 mt-1">
-                💡 <strong>Только BEP20 адреса!</strong> Формат: 0x + 40 символов (0-9, a-f)
-              </p>
             </div>
 
             <div className="flex justify-end space-x-3 pt-4">

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import {
+import { 
   ChartBarIcon,
   UsersIcon,
   CurrencyDollarIcon,
@@ -62,71 +62,81 @@ export default function HRReportsPage() {
   const loadReportData = async () => {
     try {
       setLoading(true)
-
-      // Получаем реальные данные пользователей
-      const usersResponse = await fetch('/api/users')
-      if (!usersResponse.ok) {
-        throw new Error('Ошибка загрузки пользователей')
-      }
-
-      const { users } = await usersResponse.json()
-
-      // Фильтруем пользователей по выбранной роли
-      const filteredUsers = selectedRole === 'all'
-        ? users
-        : users.filter((u: any) => u.role === selectedRole)
-
-      // Подсчитываем статистику
-      const totalEmployees = filteredUsers.length
-      const activeEmployees = filteredUsers.filter((u: any) => u.status === 'active').length
-
-      // Группируем по Team Lead для статистики команд
-      const teamLeads = users.filter((u: any) => u.role === 'teamlead' && u.status === 'active')
-      const teamStats: TeamStats[] = teamLeads.map((teamLead: any) => {
-        const teamMembers = users.filter((u: any) => u.team_lead_id === teamLead.id)
-        return {
-          teamLeadName: `${teamLead.first_name || ''} ${teamLead.last_name || ''}`.trim() || teamLead.email,
-          teamLeadId: teamLead.id,
-          totalMembers: teamMembers.length,
-          totalProfit: 0, // Пока нет данных о профите
-          avgSuccessRate: 0, // Пока нет данных об успешности
-          topPerformer: teamMembers.length > 0 ?
-            `${teamMembers[0].first_name || ''} ${teamMembers[0].last_name || ''}`.trim() || teamMembers[0].email :
-            'Нет участников'
-        }
-      })
-
-      // Создаем топ исполнителей на основе реальных данных
-      const topPerformers: EmployeeStats[] = filteredUsers
-        .filter((u: any) => ['junior', 'teamlead', 'tester', 'qa_assistant'].includes(u.role))
-        .slice(0, 10) // Топ 10
-        .map((user: any) => ({
-          id: user.id,
-          name: `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email,
-          email: user.email,
-          role: user.role,
-          totalProfit: 0, // Пока нет данных о профите
-          totalWithdrawals: 0, // Пока нет данных о выводах
-          successRate: 0, // Пока нет данных об успешности
-          activeWorks: 0, // Пока нет данных о работах
-          completedWorks: 0, // Пока нет данных о завершенных работах
-          avgDailyProfit: 0, // Пока нет данных о дневном профите
-          lastActivity: user.updated_at || user.created_at
-        }))
-
-      const reportData: ReportData = {
-        totalEmployees,
-        activeEmployees,
-        totalProfit: 0, // Пока нет данных о профите
-        avgSuccessRate: 0, // Пока нет данных об успешности
-        topPerformers,
-        teamStats,
+      
+      // Здесь будет API запрос для получения данных отчета
+      // Пока используем моковые данные
+      const mockData: ReportData = {
+        totalEmployees: 25,
+        activeEmployees: 22,
+        totalProfit: 45670.50,
+        avgSuccessRate: 78.5,
+        topPerformers: [
+          {
+            id: '1',
+            name: 'Иван Петров',
+            email: 'ivan@example.com',
+            role: 'junior',
+            totalProfit: 5670.50,
+            totalWithdrawals: 12,
+            successRate: 92.3,
+            activeWorks: 3,
+            completedWorks: 45,
+            avgDailyProfit: 189.02,
+            lastActivity: '2024-01-15T10:30:00Z'
+          },
+          {
+            id: '2',
+            name: 'Мария Сидорова',
+            email: 'maria@example.com',
+            role: 'junior',
+            totalProfit: 4890.25,
+            totalWithdrawals: 10,
+            successRate: 87.1,
+            activeWorks: 2,
+            completedWorks: 38,
+            avgDailyProfit: 162.34,
+            lastActivity: '2024-01-15T09:15:00Z'
+          },
+          {
+            id: '3',
+            name: 'Алексей Козлов',
+            email: 'alex@example.com',
+            role: 'junior',
+            totalProfit: 4234.75,
+            totalWithdrawals: 8,
+            successRate: 81.5,
+            activeWorks: 4,
+            completedWorks: 32,
+            avgDailyProfit: 140.49,
+            lastActivity: '2024-01-15T11:45:00Z'
+          }
+        ],
+        teamStats: [
+          {
+            teamLeadName: 'Анна Волкова',
+            teamLeadId: 'tl1',
+            totalMembers: 5,
+            totalProfit: 15670.25,
+            avgSuccessRate: 85.2,
+            topPerformer: 'Иван Петров'
+          },
+          {
+            teamLeadName: 'Дмитрий Орлов',
+            teamLeadId: 'tl2',
+            totalMembers: 4,
+            totalProfit: 12340.50,
+            avgSuccessRate: 79.8,
+            topPerformer: 'Мария Сидорова'
+          }
+        ],
         monthlyTrends: [
-          { month: 'Текущий месяц', profit: 0, employees: activeEmployees }
+          { month: 'Ноя 2023', profit: 38450.25, employees: 20 },
+          { month: 'Дек 2023', profit: 42130.75, employees: 23 },
+          { month: 'Янв 2024', profit: 45670.50, employees: 25 }
         ]
       }
 
-      setReportData(reportData)
+      setReportData(mockData)
     } catch (error) {
       console.error('Error loading report data:', error)
     } finally {
@@ -222,25 +232,6 @@ export default function HRReportsPage() {
         </div>
       </div>
 
-      {/* Уведомление о данных */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <div className="flex items-start">
-          <div className="flex-shrink-0">
-            <ChartBarIcon className="h-5 w-5 text-blue-400" />
-          </div>
-          <div className="ml-3">
-            <h3 className="text-sm font-medium text-blue-800">
-              Отчеты основаны на реальных данных пользователей
-            </h3>
-            <div className="mt-2 text-sm text-blue-700">
-              <p>• Данные о пользователях загружаются из системы</p>
-              <p>• Статистика команд формируется по Team Lead структуре</p>
-              <p>• Данные о профите и работах будут добавлены в следующих версиях</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Общая статистика */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="card">
@@ -265,14 +256,15 @@ export default function HRReportsPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Общий профит</p>
-                <p className="text-2xl font-bold text-gray-400">
-                  Недоступно
+                <p className="text-2xl font-bold text-gray-900">
+                  {formatCurrency(reportData?.totalProfit || 0)}
                 </p>
               </div>
-              <CurrencyDollarIcon className="w-8 h-8 text-gray-400" />
+              <CurrencyDollarIcon className="w-8 h-8 text-green-500" />
             </div>
             <div className="mt-2 flex items-center">
-              <span className="text-sm text-gray-500">Данные в разработке</span>
+              <ArrowTrendingUpIcon className="w-4 h-4 text-green-500 mr-1" />
+              <span className="text-sm text-green-600">+12.5% к прошлому месяцу</span>
             </div>
           </div>
         </div>
@@ -282,14 +274,15 @@ export default function HRReportsPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Средний успех</p>
-                <p className="text-2xl font-bold text-gray-400">
-                  Недоступно
+                <p className="text-2xl font-bold text-gray-900">
+                  {reportData?.avgSuccessRate.toFixed(1)}%
                 </p>
               </div>
-              <ChartBarIcon className="w-8 h-8 text-gray-400" />
+              <ChartBarIcon className="w-8 h-8 text-purple-500" />
             </div>
             <div className="mt-2 flex items-center">
-              <span className="text-sm text-gray-500">Данные в разработке</span>
+              <ArrowTrendingUpIcon className="w-4 h-4 text-green-500 mr-1" />
+              <span className="text-sm text-green-600">+3.2% к прошлому месяцу</span>
             </div>
           </div>
         </div>
@@ -299,14 +292,14 @@ export default function HRReportsPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Активные работы</p>
-                <p className="text-2xl font-bold text-gray-400">
-                  Недоступно
+                <p className="text-2xl font-bold text-gray-900">
+                  {reportData?.topPerformers.reduce((sum, emp) => sum + emp.activeWorks, 0)}
                 </p>
               </div>
-              <CalendarIcon className="w-8 h-8 text-gray-400" />
+              <CalendarIcon className="w-8 h-8 text-orange-500" />
             </div>
             <div className="mt-2 flex items-center">
-              <span className="text-sm text-gray-500">Данные в разработке</span>
+              <span className="text-sm text-gray-600">В процессе выполнения</span>
             </div>
           </div>
         </div>
@@ -366,11 +359,11 @@ export default function HRReportsPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
-                        {employee.role === 'junior' ? 'Junior' :
-                          employee.role === 'teamlead' ? 'Team Lead' :
-                            employee.role === 'tester' ? 'Manual QA' :
-                              employee.role === 'qa_assistant' ? 'QA Assistant' :
-                                employee.role.toUpperCase()}
+                        {employee.role === 'junior' ? 'Junior' : 
+                         employee.role === 'teamlead' ? 'Team Lead' :
+                         employee.role === 'tester' ? 'Manual QA' :
+                         employee.role === 'qa_assistant' ? 'QA Assistant' :
+                         employee.role.toUpperCase()}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">

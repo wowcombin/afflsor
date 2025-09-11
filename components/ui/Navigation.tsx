@@ -107,6 +107,7 @@ export default function Navigation({ userRole }: NavigationProps) {
           { name: 'Выводы команды', href: `${baseHref}/withdrawals`, icon: BanknotesIcon },
           { name: 'Карты команды', href: `${baseHref}/cards`, icon: CreditCardIcon },
           { name: 'Мои назначения', href: `${baseHref}/assignments`, icon: BuildingLibraryIcon },
+          { name: 'Назначения казино', href: `${baseHref}/casino-assignments`, icon: ComputerDesktopIcon },
           { name: 'Настройки', href: `${baseHref}/settings`, icon: CogIcon }
         ]
 
