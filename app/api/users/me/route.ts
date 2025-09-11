@@ -55,16 +55,20 @@ export async function PATCH(request: NextRequest) {
     const body = await request.json()
     console.log('Request body:', body)
 
-    const { name, surname, telegram_username, usdt_wallet, phone } = body
+    const { first_name, last_name, name, surname, telegram_username, usdt_wallet, phone } = body
 
     // Валидация данных
     const updateData: any = {}
 
-    if (name !== undefined) {
+    if (first_name !== undefined) {
+      updateData.first_name = first_name?.trim() || null
+    } else if (name !== undefined) {
       updateData.first_name = name?.trim() || null
     }
 
-    if (surname !== undefined) {
+    if (last_name !== undefined) {
+      updateData.last_name = last_name?.trim() || null
+    } else if (surname !== undefined) {
       updateData.last_name = surname?.trim() || null
     }
 

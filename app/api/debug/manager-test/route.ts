@@ -49,8 +49,8 @@ export async function GET(request: NextRequest) {
             })
         }
 
-    // Тест доступа к Manager API
-    let managerApiTest: any = { success: false, error: 'Not tested' }
+        // Тест доступа к Manager API
+        let managerApiTest: any = { success: false, error: 'Not tested' }
 
         if (userData.role === 'manager') {
             try {
@@ -60,11 +60,11 @@ export async function GET(request: NextRequest) {
                     .select('id, junior_id')
                     .limit(1)
 
-        managerApiTest = {
-          success: !worksError,
-          error: worksError?.message || 'No error',
-          works_count: testWorks?.length || 0
-        }
+                managerApiTest = {
+                    success: !worksError,
+                    error: worksError?.message || 'No error',
+                    works_count: testWorks?.length || 0
+                }
             } catch (error: any) {
                 managerApiTest = {
                     success: false,
