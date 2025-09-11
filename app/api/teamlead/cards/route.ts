@@ -78,27 +78,47 @@ export async function GET() {
             .from('cards')
             .select(`
         id,
-        card_number,
-        cardholder_name,
-        expiry_date,
-        cvv,
-        bank_name,
-        balance,
-        currency,
+        card_number_mask,
+        card_bin,
+        card_type,
+        exp_month,
+        exp_year,
         status,
+        assigned_to,
+        assigned_at,
         created_at,
-        assigned_to:assigned_to_id (
+        bank_accounts!inner (
+          id,
+          holder_name,
+          balance,
+          currency,
+          banks (
+            id,
+            name,
+            country
+          )
+        ),
+        users:assigned_to (
+          id,
           email,
           first_name,
           last_name,
           role
         ),
-        casino_assignment:card_casino_assignments (
-          casino_name,
-          assigned_at
+        card_casino_assignments (
+          id,
+          casino_id,
+          assignment_type,
+          status,
+          deposit_amount,
+          casinos (
+            id,
+            name,
+            company
+          )
         )
       `)
-            .in('assigned_to_id', juniorIds)
+            .in('assigned_to', juniorIds)
             .order('created_at', { ascending: false })
 
         if (cardsError) {
@@ -110,10 +130,23 @@ export async function GET() {
         }
 
         // Обрабатываем данные карт
-        const processedCards = (cards || []).map(card => ({
-            ...card,
-            casino_assignment: card.casino_assignment?.[0] || null
-        }))
+        const processedCards = (cards || []).map(card => {
+            const bankAccount = (card as any).bank_accounts
+            const bank = bankAccount?.banks
+            const assignee = (card as any).users
+            const casinoAssignments = (card as any).card_casino_assignments || []
+            
+            return {
+                ...card,
+                bank_name: bank?.name || 'Неизвестный банк',
+                bank_country: bank?.country || '',
+                holder_name: bankAccount?.holder_name || '',
+                balance: bankAccount?.balance || 0,
+                currency: bankAccount?.currency || 'USD',
+                assignee: assignee || null,
+                casino_assignments: casinoAssignments
+            }
+        })
 
         console.log(`Found ${processedCards.length} cards for Team Lead ${userData.email}`)
 
