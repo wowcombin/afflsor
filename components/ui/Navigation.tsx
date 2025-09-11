@@ -18,7 +18,8 @@ import {
   CogIcon,
   ClipboardDocumentListIcon,
   CommandLineIcon,
-  ChatBubbleLeftRightIcon
+  ChatBubbleLeftRightIcon,
+  ExclamationTriangleIcon
 } from '@heroicons/react/24/outline'
 
 interface NavigationItem {
@@ -99,6 +100,7 @@ export default function Navigation({ userRole }: NavigationProps) {
           { name: 'Dashboard', href: baseHref, icon: HomeIcon },
           { name: 'Зарплаты', href: `${baseHref}/salaries`, icon: BanknotesIcon },
           { name: 'Переводы', href: `${baseHref}/transfers`, icon: ClockIcon },
+          { name: 'Контроль выводов', href: `${baseHref}/withdrawals`, icon: ExclamationTriangleIcon },
           { name: 'Расходы', href: `${baseHref}/expenses`, icon: ChartBarIcon },
           { name: 'Банки', href: `${baseHref}/banks`, icon: BuildingLibraryIcon },
           { name: 'Отчеты', href: `${baseHref}/reports`, icon: DocumentTextIcon },
