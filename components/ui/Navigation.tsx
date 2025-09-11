@@ -19,7 +19,8 @@ import {
   ClipboardDocumentListIcon,
   CommandLineIcon,
   ChatBubbleLeftRightIcon,
-  ExclamationTriangleIcon
+  ExclamationTriangleIcon,
+  TrophyIcon
 } from '@heroicons/react/24/outline'
 
 interface NavigationItem {
@@ -65,6 +66,7 @@ export default function Navigation({ userRole }: NavigationProps) {
           { name: 'PayPal отчеты', href: `${baseHref}/paypal-reports`, icon: ChartBarIcon },
           { name: 'Назначения', href: `${baseHref}/assignments`, icon: UsersIcon },
           { name: 'Аналитика', href: `${baseHref}/analytics`, icon: ChartBarIcon },
+          { name: 'Статистика', href: `${baseHref}/statistics`, icon: TrophyIcon },
           { name: 'Настройки', href: `${baseHref}/settings`, icon: CogIcon }
         ]
 
