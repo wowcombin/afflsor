@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useToast } from '@/components/ui/Toast'
 import DataTable, { Column, ActionButton } from '@/components/ui/DataTable'
 import KPICard from '@/components/ui/KPICard'
@@ -76,8 +76,9 @@ interface PaymentMethodsStats {
 
 export default function PaymentMethodsPage() {
     const router = useRouter()
+    const searchParams = useSearchParams()
     const { addToast } = useToast()
-    
+
     // Данные
     const [cards, setCards] = useState<Card[]>([])
     const [paypalAccounts, setPaypalAccounts] = useState<PayPalAccount[]>([])
@@ -91,7 +92,7 @@ export default function PaymentMethodsPage() {
         payPalWithBalance: 0,
         totalPayPalBalance: 0
     })
-    
+
     // Состояние
     const [loading, setLoading] = useState(true)
     const [activeTab, setActiveTab] = useState<'cards' | 'paypal' | 'history'>('cards')
@@ -108,6 +109,7 @@ export default function PaymentMethodsPage() {
         authenticator_url: '',
         date_created: new Date().toISOString().split('T')[0],
         balance: 0,
+        currency: 'GBP', // По умолчанию фунты
         sender_paypal_email: '',
         balance_send: 0,
         send_paypal_balance: '',
@@ -116,7 +118,13 @@ export default function PaymentMethodsPage() {
 
     useEffect(() => {
         loadPaymentMethods()
-    }, [])
+
+        // Проверяем параметр tab из URL
+        const tabParam = searchParams.get('tab')
+        if (tabParam && ['cards', 'paypal', 'history'].includes(tabParam)) {
+            setActiveTab(tabParam as 'cards' | 'paypal' | 'history')
+        }
+    }, [searchParams])
 
     async function loadPaymentMethods() {
         try {
@@ -212,6 +220,7 @@ export default function PaymentMethodsPage() {
                 authenticator_url: '',
                 date_created: new Date().toISOString().split('T')[0],
                 balance: 0,
+                currency: 'GBP',
                 sender_paypal_email: '',
                 balance_send: 0,
                 send_paypal_balance: '',
@@ -253,11 +262,11 @@ export default function PaymentMethodsPage() {
     const activePayPalAccounts = paypalAccounts
         .filter(p => p.status === 'active' && p.balance > 0)
         .sort((a, b) => b.balance - a.balance)
-    
+
     const emptyPayPalAccounts = paypalAccounts
         .filter(p => p.status === 'active' && p.balance <= 0)
         .sort((a, b) => new Date(b.date_created).getTime() - new Date(a.date_created).getTime())
-    
+
     const blockedPayPalAccounts = paypalAccounts
         .filter(p => p.status !== 'active')
 
@@ -271,20 +280,18 @@ export default function PaymentMethodsPage() {
                     <div className="font-medium text-gray-900">{card.card_number_mask}</div>
                     <div className="text-sm text-gray-500">{card.bank_account.holder_name}</div>
                     <div className="flex items-center space-x-2 mt-1">
-                        <span className={`text-xs px-2 py-0.5 rounded ${
-                            card.card_type === 'pink' ? 'bg-pink-100 text-pink-800' :
+                        <span className={`text-xs px-2 py-0.5 rounded ${card.card_type === 'pink' ? 'bg-pink-100 text-pink-800' :
                             card.card_type === 'grey' ? 'bg-gray-100 text-gray-800' :
-                            'bg-blue-100 text-blue-800'
-                        }`}>
+                                'bg-blue-100 text-blue-800'
+                            }`}>
                             {card.card_type}
                         </span>
-                        <span className={`text-xs px-2 py-0.5 rounded ${
-                            card.status === 'active' ? 'bg-green-100 text-green-800' :
+                        <span className={`text-xs px-2 py-0.5 rounded ${card.status === 'active' ? 'bg-green-100 text-green-800' :
                             card.status === 'blocked' ? 'bg-red-100 text-red-800' :
-                            'bg-yellow-100 text-yellow-800'
-                        }`}>
+                                'bg-yellow-100 text-yellow-800'
+                            }`}>
                             {card.status === 'active' ? 'Активна' :
-                             card.status === 'blocked' ? 'Заблокирована' : 'Неактивна'}
+                                card.status === 'blocked' ? 'Заблокирована' : 'Неактивна'}
                         </span>
                     </div>
                 </div>
@@ -503,33 +510,30 @@ export default function PaymentMethodsPage() {
                 <nav className="-mb-px flex space-x-8">
                     <button
                         onClick={() => setActiveTab('cards')}
-                        className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                            activeTab === 'cards'
-                                ? 'border-blue-500 text-blue-600'
-                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                        }`}
+                        className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'cards'
+                            ? 'border-blue-500 text-blue-600'
+                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                            }`}
                     >
                         <CreditCardIcon className="h-5 w-5 inline mr-2" />
                         Банковские карты ({stats.activeCards})
                     </button>
                     <button
                         onClick={() => setActiveTab('paypal')}
-                        className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                            activeTab === 'paypal'
-                                ? 'border-blue-500 text-blue-600'
-                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                        }`}
+                        className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'paypal'
+                            ? 'border-blue-500 text-blue-600'
+                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                            }`}
                     >
                         <BanknotesIcon className="h-5 w-5 inline mr-2" />
                         PayPal аккаунты ({stats.activePayPalAccounts})
                     </button>
                     <button
                         onClick={() => setActiveTab('history')}
-                        className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                            activeTab === 'history'
-                                ? 'border-blue-500 text-blue-600'
-                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                        }`}
+                        className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'history'
+                            ? 'border-blue-500 text-blue-600'
+                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                            }`}
                     >
                         <ArrowPathIcon className="h-5 w-5 inline mr-2" />
                         История ({stats.blockedCards + blockedPayPalAccounts.length})
@@ -724,17 +728,38 @@ export default function PaymentMethodsPage() {
                             />
                         </div>
                         <div>
-                            <label className="form-label">Баланс ($)</label>
-                            <input
-                                type="number"
-                                value={newPayPalForm.balance}
-                                onChange={(e) => setNewPayPalForm({ ...newPayPalForm, balance: parseFloat(e.target.value) || 0 })}
-                                className="form-input"
-                                placeholder="0.00"
-                                min="0"
-                                step="0.01"
-                            />
+                            <label className="form-label">Баланс</label>
+                            <div className="relative">
+                                <input
+                                    type="number"
+                                    value={newPayPalForm.balance}
+                                    onChange={(e) => setNewPayPalForm({ ...newPayPalForm, balance: parseFloat(e.target.value) || 0 })}
+                                    className="form-input pr-16"
+                                    placeholder="0.00"
+                                    min="0"
+                                    step="0.01"
+                                />
+                                <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+                                    <span className="text-gray-500 text-sm font-medium bg-gray-100 px-2 py-1 rounded">
+                                        {newPayPalForm.currency}
+                                    </span>
+                                </div>
+                            </div>
                         </div>
+                    </div>
+
+                    <div>
+                        <label className="form-label">Валюта</label>
+                        <select
+                            value={newPayPalForm.currency}
+                            onChange={(e) => setNewPayPalForm({ ...newPayPalForm, currency: e.target.value })}
+                            className="form-input"
+                        >
+                            <option value="GBP">GBP (£) - Фунты стерлингов</option>
+                            <option value="USD">USD ($) - Доллары США</option>
+                            <option value="EUR">EUR (€) - Евро</option>
+                            <option value="CAD">CAD (C$) - Канадские доллары</option>
+                        </select>
                     </div>
 
                     <div>
