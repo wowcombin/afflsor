@@ -65,8 +65,8 @@ export async function POST(
       .single()
 
     // Отправляем уведомления
-    if (withdrawalInfo && withdrawalInfo.works) {
-      const juniorId = withdrawalInfo.works.junior_id
+    if (withdrawalInfo && withdrawalInfo.works && withdrawalInfo.works.length > 0) {
+      const juniorId = withdrawalInfo.works[0].junior_id
       const amount = withdrawalInfo.withdrawal_amount
 
       try {
