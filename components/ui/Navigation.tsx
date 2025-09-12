@@ -3,6 +3,7 @@
 import { useRouter, usePathname } from 'next/navigation'
 import { clsx } from 'clsx'
 import { UserRole } from '@/types/database.types'
+import NotificationCenter from './NotificationCenter'
 import {
   HomeIcon,
   UsersIcon,
@@ -153,14 +154,19 @@ export default function Navigation({ userRole }: NavigationProps) {
   return (
     <nav className="bg-white shadow-sm border-r border-gray-200 w-64 min-h-screen">
       <div className="p-6">
-        <div className="flex items-center mb-8">
-          <div className="h-8 w-8 bg-primary-600 rounded-lg flex items-center justify-center mr-3">
-            <span className="text-sm font-bold text-white">A</span>
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center">
+            <div className="h-8 w-8 bg-primary-600 rounded-lg flex items-center justify-center mr-3">
+              <span className="text-sm font-bold text-white">A</span>
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Afflsor ERP</h2>
+              <p className="text-xs text-gray-500 capitalize">{userRole}</p>
+            </div>
           </div>
-          <div>
-            <h2 className="text-lg font-semibold text-gray-900">Afflsor ERP</h2>
-            <p className="text-xs text-gray-500 capitalize">{userRole}</p>
-          </div>
+          
+          {/* Центр уведомлений */}
+          <NotificationCenter />
         </div>
 
         <ul className="space-y-2">
