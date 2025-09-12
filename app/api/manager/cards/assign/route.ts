@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import { notifyCardAssignment } from '@/lib/notifications'
 
 export const dynamic = 'force-dynamic'
 
@@ -212,6 +213,18 @@ export async function POST(request: Request) {
           card_id: card.id,
           card_mask: card.card_number_mask
         })
+
+        // Отправляем уведомление Junior'у о назначении карты
+        try {
+          await notifyCardAssignment(
+            user_id,
+            card.card_number_mask,
+            userData.id
+          )
+        } catch (notificationError) {
+          console.error('Failed to send card assignment notification:', notificationError)
+          // Не критично, продолжаем
+        }
 
       } catch (error) {
         console.error('Error assigning card', card.id, ':', error)

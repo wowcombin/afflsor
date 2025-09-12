@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import { notifyWithdrawalApproved, notifyWithdrawalBlocked } from '@/lib/notifications'
 
 export const dynamic = 'force-dynamic'
 
@@ -47,6 +48,49 @@ export async function POST(
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
+    // Получаем информацию о выводе для уведомлений
+    const { data: withdrawalInfo } = await supabase
+      .from('work_withdrawals')
+      .select(`
+        id,
+        withdrawal_amount,
+        works!inner(
+          id,
+          junior_id,
+          users!inner(id, first_name, last_name, email)
+        )
+      `)
+      .eq('id', withdrawalId)
+      .single()
+
+    // Отправляем уведомления
+    if (withdrawalInfo && withdrawalInfo.works) {
+      const juniorId = withdrawalInfo.works.junior_id
+      const amount = withdrawalInfo.withdrawal_amount
+      
+      try {
+        if (action === 'received') {
+          await notifyWithdrawalApproved(
+            juniorId,
+            amount,
+            'USD', // TODO: получить валюту из данных
+            userData.id
+          )
+        } else if (action === 'block') {
+          await notifyWithdrawalBlocked(
+            juniorId,
+            amount,
+            'USD', // TODO: получить валюту из данных
+            comment || 'Вывод заблокирован без указания причины',
+            userData.id
+          )
+        }
+      } catch (notificationError) {
+        console.error('Failed to send withdrawal notification:', notificationError)
+        // Не критично, продолжаем
+      }
     }
 
     const actionLabels = {
