@@ -54,6 +54,7 @@ interface PayPalAccount {
     authenticator_url: string
     date_created: string
     balance: number
+    currency: string
     sender_paypal_email?: string
     balance_send?: number
     send_paypal_balance?: string
@@ -61,6 +62,25 @@ interface PayPalAccount {
     status: 'active' | 'blocked' | 'suspended'
     created_at: string
     updated_at: string
+}
+
+interface PayPalOperation {
+    id: string
+    paypal_account_id: string
+    operation_type: 'send_money' | 'receive_money' | 'withdraw_to_card' | 'deposit_from_card' | 'casino_deposit' | 'casino_withdrawal'
+    amount: number
+    currency: string
+    recipient_paypal_email?: string
+    recipient_card_number?: string
+    casino_name?: string
+    status: 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled'
+    description?: string
+    transaction_id?: string
+    fee_amount: number
+    created_at: string
+    updated_at: string
+    completed_at?: string
+    paypal_accounts: PayPalAccount
 }
 
 interface PaymentMethodsStats {
@@ -99,6 +119,21 @@ export default function PaymentMethodsPage() {
     const [showSensitiveData, setShowSensitiveData] = useState<{ [key: string]: boolean }>({})
     const [showCreatePayPalModal, setShowCreatePayPalModal] = useState(false)
     const [creating, setCreating] = useState(false)
+    
+    // Операции PayPal
+    const [paypalOperations, setPaypalOperations] = useState<PayPalOperation[]>([])
+    const [showOperationsModal, setShowOperationsModal] = useState(false)
+    const [selectedPayPalAccount, setSelectedPayPalAccount] = useState<PayPalAccount | null>(null)
+    const [showCreateOperationModal, setShowCreateOperationModal] = useState(false)
+    const [newOperationForm, setNewOperationForm] = useState({
+        operation_type: 'send_money' as PayPalOperation['operation_type'],
+        amount: 0,
+        currency: 'USD',
+        recipient_paypal_email: '',
+        recipient_card_number: '',
+        casino_name: '',
+        description: ''
+    })
 
     // Форма нового PayPal аккаунта
     const [newPayPalForm, setNewPayPalForm] = useState({
@@ -185,8 +220,13 @@ export default function PaymentMethodsPage() {
     }, [cards, paypalAccounts])
 
     async function handleCreatePayPal() {
-        if (!newPayPalForm.name || !newPayPalForm.email || !newPayPalForm.password) {
-            addToast({ type: 'error', title: 'Заполните обязательные поля' })
+        if (!newPayPalForm.name || !newPayPalForm.email || !newPayPalForm.password || 
+            !newPayPalForm.phone_number || !newPayPalForm.authenticator_url) {
+            addToast({ 
+                type: 'error', 
+                title: 'Заполните обязательные поля',
+                description: 'Имя, email, пароль, телефон и ссылка аутентификатора обязательны'
+            })
             return
         }
 
@@ -724,6 +764,31 @@ export default function PaymentMethodsPage() {
                                 onChange={(e) => setNewPayPalForm({ ...newPayPalForm, password: e.target.value })}
                                 className="form-input"
                                 placeholder="пароль"
+                                required
+                            />
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="form-label">Номер телефона *</label>
+                            <input
+                                type="tel"
+                                value={newPayPalForm.phone_number}
+                                onChange={(e) => setNewPayPalForm({ ...newPayPalForm, phone_number: e.target.value })}
+                                className="form-input"
+                                placeholder="+1234567890"
+                                required
+                            />
+                        </div>
+                        <div>
+                            <label className="form-label">Ссылка аутентификатора *</label>
+                            <input
+                                type="url"
+                                value={newPayPalForm.authenticator_url}
+                                onChange={(e) => setNewPayPalForm({ ...newPayPalForm, authenticator_url: e.target.value })}
+                                className="form-input"
+                                placeholder="https://..."
                                 required
                             />
                         </div>
