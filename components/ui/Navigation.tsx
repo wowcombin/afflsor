@@ -119,6 +119,7 @@ export default function Navigation({ userRole }: NavigationProps) {
           { name: 'Dashboard', href: baseHref, icon: HomeIcon },
           { name: 'Команда', href: `${baseHref}/team`, icon: UsersIcon },
           { name: 'Выводы', href: `${baseHref}/withdrawals`, icon: BanknotesIcon },
+          { name: 'Банки', href: `${baseHref}/banks`, icon: BuildingLibraryIcon },
           { name: 'Карты', href: `${baseHref}/cards`, icon: CreditCardIcon },
           { name: 'Казино', href: `${baseHref}/casino-assignments`, icon: ComputerDesktopIcon },
           { name: 'Инструменты', href: `${baseHref}/tools`, icon: WrenchScrewdriverIcon },
