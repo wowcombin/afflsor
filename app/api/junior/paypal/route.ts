@@ -21,11 +21,14 @@ export async function GET(request: NextRequest) {
         }
 
         // Получаем PayPal аккаунты пользователя
+        console.log('Fetching PayPal accounts for user:', userData.id)
         const { data: paypalAccounts, error: paypalError } = await supabase
             .from('paypal_accounts')
             .select('*')
             .eq('user_id', userData.id)
             .order('created_at', { ascending: false })
+
+        console.log('PayPal query result:', { paypalAccounts, paypalError })
 
         if (paypalError) {
             console.error('Error fetching PayPal accounts:', paypalError)
@@ -37,7 +40,7 @@ export async function GET(request: NextRequest) {
 
         return NextResponse.json({
             success: true,
-            paypal_accounts: paypalAccounts || []
+            accounts: paypalAccounts || []
         })
 
     } catch (error: any) {
