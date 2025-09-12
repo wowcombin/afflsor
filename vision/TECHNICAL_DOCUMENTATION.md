@@ -94,16 +94,21 @@ Junior/QA Assistant (Исполнители)
 5. **Создание сессии**: Функция `create_user_session()` с проверкой лимита
 6. **Редирект по роли**:
    - Junior → `/dashboard/junior`
+   - TeamLead → `/dashboard/teamlead`
    - Manager → `/dashboard/manager`
+   - Tester → `/dashboard/tester`
    - HR → `/dashboard/hr`
    - CFO → `/dashboard/cfo`
    - Admin → `/dashboard/admin`
+   - CEO → `/dashboard/admin`
+   - QA Assistant → `/dashboard/junior`
 
 #### Контроль сессий:
-- Максимум 3 параллельные сессии на пользователя
-- Автоматическое завершение при превышении лимита
+- Максимум 1 сессия на пользователя (строгий контроль доступа)
+- Автоматическое завершение старых сессий при новом входе
 - Heartbeat каждые 30 секунд через `update_session_heartbeat()`
-- Принудительное завершение неактивных сессий
+- Принудительное завершение неактивных сессий через 15 минут
+- Функции управления: `create_user_session()`, `update_session_heartbeat()`, `terminate_session()`
 
 ---
 

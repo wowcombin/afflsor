@@ -1,841 +1,940 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useToast } from '@/components/ui/Toast'
-import DataTable, { Column, ActionButton } from '@/components/ui/DataTable'
-import KPICard from '@/components/ui/KPICard'
+import { useRouter } from 'next/navigation'
+import DataTable from '@/components/ui/DataTable'
+import Modal from '@/components/ui/Modal'
 import StatusBadge from '@/components/ui/StatusBadge'
+import { useToast } from '@/components/ui/Toast'
 import { convertToUSDSync, getCasinoCurrency } from '@/lib/currency'
-import { 
+import {
   ClockIcon,
-  BanknotesIcon,
   CheckCircleIcon,
   XCircleIcon,
-  ExclamationTriangleIcon,
-  CurrencyDollarIcon,
-  TrashIcon
+  StarIcon
 } from '@heroicons/react/24/outline'
 
-interface Work {
+interface WithdrawalData {
   id: string
+  source_type: 'tester' | 'junior' | 'paypal'
+  user_role: string
+  user_name: string
+  user_email: string
+  user_telegram: string
   deposit_amount: number
-  status: string
-  created_at: string
-  casino_login: string
-  casino_password: string
-  notes: string | null
-  work_date: string
+  deposit_date: string
   casino_name: string
-  casino_currency: string
-  casino_promo: string | null
-  card_mask: string
-  card_type: string
-  bank_name: string
-  bank_account_holder: string
-  withdrawals: WorkWithdrawal[]
-}
-
-interface WorkWithdrawal {
-  id: string
+  casino_company: string
+  casino_url: string
+  casino_currency?: string
+  card_mask?: string
+  card_type?: string
+  bank_name?: string
+  account_holder?: string
+  paypal_name?: string
+  paypal_email?: string
+  paypal_balance?: number
   withdrawal_amount: number
   status: string
+  manager_status?: string
+  teamlead_status?: string
+  manager_comment?: string
+  teamlead_comment?: string
+  hr_comment?: string
+  cfo_comment?: string
   created_at: string
-  checked_at: string | null
+  updated_at: string
 }
 
-interface WorkStats {
-  totalWorks: number
-  activeWorks: number
-  completedWorks: number
-  totalDeposits: number
-  totalWithdrawals: number
+type TabStatus = 'waiting' | 'new' | 'received' | 'block'
+type DateFilter = 'today' | '3days' | 'week' | 'month'
+
+interface Filters {
+  casino: string
+  worker: string
+  bankAccount: string
+  depositAmountMin: string
+  depositAmountMax: string
+  withdrawalAmountMin: string
+  withdrawalAmountMax: string
 }
 
-// Новый интерфейс для строк таблицы (работа + вывод)
-interface WorkRow {
-  id: string
-  work_id: string
-  casino_name: string
-  casino_currency: string
-  casino_promo: string | null
-  casino_login: string
-  casino_password: string
-  notes: string | null
-  work_date: string
-  created_at: string
-  deposit_amount: number
-  work_status: string
-  card_mask: string
-  card_type: string
-  bank_name: string
-  bank_account_holder: string
-  withdrawal?: WorkWithdrawal
-  is_deposit_row: boolean // true для строки депозита, false для строки вывода
-}
-
-export default function JuniorWithdrawalsPage() {
+export default function WithdrawalsQueue() {
+  const router = useRouter()
   const { addToast } = useToast()
-  const [works, setWorks] = useState<Work[]>([])
-  const [workRows, setWorkRows] = useState<WorkRow[]>([])
-  const [stats, setStats] = useState<WorkStats>({
-    totalWorks: 0,
-    activeWorks: 0,
-    completedWorks: 0,
-    totalDeposits: 0,
-    totalWithdrawals: 0
-  })
+  const [withdrawals, setWithdrawals] = useState<WithdrawalData[]>([])
+  const [selectedWithdrawals, setSelectedWithdrawals] = useState<string[]>([])
+  const [selectedWithdrawal, setSelectedWithdrawal] = useState<WithdrawalData | null>(null)
   const [loading, setLoading] = useState(true)
-  const [openDropdown, setOpenDropdown] = useState<string | null>(null)
+  const [actionLoading, setActionLoading] = useState(false)
   const [exchangeRates, setExchangeRates] = useState<any>(null)
+  const [activeTab, setActiveTab] = useState<TabStatus>('waiting')
+  const [dateFilter, setDateFilter] = useState<DateFilter>('today')
+  const [filters, setFilters] = useState<Filters>({
+    casino: '',
+    worker: '',
+    bankAccount: '',
+    depositAmountMin: '',
+    depositAmountMax: '',
+    withdrawalAmountMin: '',
+    withdrawalAmountMax: ''
+  })
 
   useEffect(() => {
     loadData()
   }, [])
 
   async function loadData() {
-    // Сначала загружаем курсы валют, затем работы
+    // Сначала загружаем курсы валют, затем выводы
     await loadExchangeRates()
-    await loadWorks()
+    await fetchWithdrawals()
   }
 
-  // Загрузка курсов валют
   async function loadExchangeRates() {
     try {
       const response = await fetch('/api/currency-rates')
       if (response.ok) {
-        const data = await response.json()
-        setExchangeRates(data.rates)
+        const rates = await response.json()
+        setExchangeRates(rates)
       }
     } catch (error) {
-      console.error('Ошибка загрузки курсов валют:', error)
-      // Используем fallback курсы
+      console.error('Failed to load exchange rates:', error)
+      // Устанавливаем fallback курсы
       setExchangeRates({
-        'USD': 1.0,
-        'EUR': 1.11,
-        'GBP': 1.31,
-        'CAD': 0.71
+        'GBP': 0.95 * 1.27, // Google rate -5%
+        'EUR': 0.95 * 1.09,
+        'CAD': 0.95 * 0.74,
+        'AUD': 0.95 * 0.67,
+        'USD': 1
       })
     }
   }
 
-  // Используем единую функцию конвертации из lib/currency.ts
-
-  // Закрываем dropdown при клике вне его
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (openDropdown && !(event.target as Element).closest('.status-dropdown')) {
-        setOpenDropdown(null)
-      }
-    }
-
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-    }
-  }, [openDropdown])
-
-  // Функция для создания строк таблицы из работ
-  function createWorkRows(works: Work[]): WorkRow[] {
-    const rows: WorkRow[] = []
-    
-    works.forEach(work => {
-      if (work.withdrawals.length === 0) {
-        // Если нет выводов, создаем только строку депозита
-        const depositRow: WorkRow = {
-          id: `${work.id}-deposit`,
-          work_id: work.id,
-          casino_name: work.casino_name,
-          casino_currency: work.casino_currency,
-          casino_promo: work.casino_promo,
-          casino_login: work.casino_login,
-          casino_password: work.casino_password,
-          notes: work.notes,
-          work_date: work.work_date,
-          created_at: work.created_at,
-          deposit_amount: work.deposit_amount,
-          work_status: work.status,
-          card_mask: work.card_mask,
-          card_type: work.card_type,
-          bank_name: work.bank_name,
-          bank_account_holder: work.bank_account_holder,
-          is_deposit_row: true
-        }
-        rows.push(depositRow)
-      } else {
-        // Если есть выводы, первый вывод объединяем с депозитом
-        const firstWithdrawal = work.withdrawals[0]
-        const depositWithFirstWithdrawalRow: WorkRow = {
-          id: `${work.id}-deposit-with-first-withdrawal`,
-          work_id: work.id,
-          casino_name: work.casino_name,
-          casino_currency: work.casino_currency,
-          casino_promo: work.casino_promo,
-          casino_login: work.casino_login,
-          casino_password: work.casino_password,
-          notes: work.notes,
-          work_date: work.work_date,
-          created_at: work.created_at,
-          deposit_amount: work.deposit_amount,
-          work_status: work.status,
-          card_mask: work.card_mask,
-          card_type: work.card_type,
-          bank_name: work.bank_name,
-          bank_account_holder: work.bank_account_holder,
-          withdrawal: firstWithdrawal,
-          is_deposit_row: true // Остается строкой депозита, но с первым выводом
-        }
-        rows.push(depositWithFirstWithdrawalRow)
-        
-        // Создаем строки для дополнительных выводов (начиная со второго)
-        work.withdrawals.slice(1).forEach(withdrawal => {
-          const additionalWithdrawalRow: WorkRow = {
-            id: `${work.id}-additional-withdrawal-${withdrawal.id}`,
-            work_id: work.id,
-            casino_name: work.casino_name,
-            casino_currency: work.casino_currency,
-            casino_promo: work.casino_promo,
-            casino_login: work.casino_login,
-            casino_password: work.casino_password,
-            notes: work.notes,
-            work_date: work.work_date,
-            created_at: withdrawal.created_at, // Используем дату создания вывода
-            deposit_amount: 0, // Для дополнительных выводов депозит = 0
-            work_status: work.status,
-            card_mask: work.card_mask,
-            card_type: work.card_type,
-            bank_name: work.bank_name,
-            bank_account_holder: work.bank_account_holder,
-            withdrawal: withdrawal,
-            is_deposit_row: false
-          }
-          rows.push(additionalWithdrawalRow)
-        })
-      }
-    })
-    
-    // Сортируем строки по дате создания (новые сверху)
-    return rows.sort((a, b) => {
-      const dateA = new Date(a.created_at).getTime()
-      const dateB = new Date(b.created_at).getTime()
-      return dateB - dateA // Убывающий порядок (новые сверху)
-    })
-  }
-
-  async function loadWorks() {
+  const fetchWithdrawals = async () => {
     try {
-      const response = await fetch('/api/works')
-      
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Ошибка загрузки работ')
+      const response = await fetch('/api/universal/withdrawals')
+      const data = await response.json()
+
+      if (data.success) {
+        setWithdrawals(data.withdrawals || [])
+      } else {
+        addToast({ type: 'error', title: 'Ошибка', description: data.error || 'Не удалось загрузить выводы' })
       }
-
-      const { works: worksData } = await response.json()
-      
-      // Форматируем данные для интерфейса
-      const formattedWorks = worksData.map((w: any) => ({
-        id: w.id,
-        deposit_amount: w.deposit_amount,
-        status: w.status,
-        created_at: w.created_at,
-        casino_login: w.casino_login,
-        casino_password: w.casino_password,
-        notes: w.notes,
-        work_date: w.work_date,
-        casino_name: w.casinos?.name || 'Неизвестное казино',
-        casino_currency: w.casinos?.currency || 'USD',
-        casino_promo: w.casinos?.promo || null,
-        card_mask: w.cards?.card_number_mask || 'Неизвестная карта',
-        card_type: w.cards?.card_type || 'Неизвестный тип',
-        bank_name: w.cards?.bank_account?.bank?.name || 'Неизвестный банк',
-        bank_account_holder: w.cards?.bank_account?.holder_name || 'Неизвестный аккаунт',
-        withdrawals: w.work_withdrawals || []
-      }))
-
-      setWorks(formattedWorks)
-      
-      // Создаем строки таблицы
-      const rows = createWorkRows(formattedWorks)
-      setWorkRows(rows)
-
-      // Рассчитываем статистику
-      const totalWorks = formattedWorks.length
-      const activeWorks = formattedWorks.filter((w: Work) => w.status === 'active').length
-      const completedWorks = formattedWorks.filter((w: Work) => w.status === 'completed').length
-      
-      // Конвертируем все депозиты в USD по курсу Google -5%
-      const totalDeposits = formattedWorks.reduce((sum: number, w: Work) => {
-        const depositInUSD = convertToUSDSync(w.deposit_amount, w.casino_currency, exchangeRates)
-        return sum + depositInUSD
-      }, 0)
-      
-      const totalWithdrawals = formattedWorks.reduce((sum: number, w: Work) => 
-        sum + w.withdrawals.filter((wd: WorkWithdrawal) => wd.status === 'received').length, 0)
-
-      setStats({
-        totalWorks,
-        activeWorks,
-        completedWorks,
-        totalDeposits,
-        totalWithdrawals
-      })
-
-    } catch (error: any) {
-      console.error('Ошибка загрузки работ:', error)
-      addToast({
-        type: 'error',
-        title: 'Ошибка загрузки работ',
-        description: error.message
-      })
+    } catch (error) {
+      addToast({ type: 'error', title: 'Ошибка', description: 'Ошибка сети' })
     } finally {
       setLoading(false)
     }
   }
 
-  // Функция для создания вывода
-  async function createWithdrawal(workId: string, amount: number) {
-    try {
-      const response = await fetch('/api/work-withdrawals', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          work_id: workId,
-          withdrawal_amount: amount
-        })
-      })
+  // Используем единую функцию конвертации из lib/currency.ts
 
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Ошибка создания вывода')
-      }
-
-      addToast({
-        type: 'success',
-        title: 'Вывод создан',
-        description: 'Вывод добавлен в очередь на проверку'
-      })
-
-      // Перезагружаем данные
-      loadWorks()
-
-    } catch (error: any) {
-      addToast({
-        type: 'error',
-        title: 'Ошибка создания вывода',
-        description: error.message
-      })
+  // Функция для копирования промо ссылки
+  const copyPromoLink = (casinoUrl: string) => {
+    if (casinoUrl) {
+      navigator.clipboard.writeText(casinoUrl)
+      addToast({ type: 'success', title: 'Скопировано', description: 'Промо ссылка скопирована в буфер обмена' })
     }
   }
 
-  // Функция для изменения статуса вывода
-  async function updateWithdrawalStatus(withdrawalId: string, newStatus: string) {
-    try {
-      const response = await fetch(`/api/work-withdrawals/${withdrawalId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus })
-      })
+  // Функция для получения рейтинга пользователя (заглушка)
+  const getUserRating = (userId: string): number => {
+    // В реальной системе это будет запрос к API
+    return Math.floor(Math.random() * 3) + 7 // 7-10 баллов
+  }
 
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Ошибка изменения статуса')
-      }
+  // Функция для получения диапазона дат по фильтру
+  const getDateRange = (filter: DateFilter) => {
+    const now = new Date()
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
 
-      addToast({
-        type: 'success',
-        title: 'Статус изменен',
-        description: `Статус вывода изменен на "${newStatus}"`
-      })
-
-      // Перезагружаем данные
-      loadWorks()
-
-    } catch (error: any) {
-      addToast({
-        type: 'error',
-        title: 'Ошибка изменения статуса',
-        description: error.message
-      })
+    switch (filter) {
+      case 'today':
+        return {
+          start: today,
+          end: new Date(today.getTime() + 24 * 60 * 60 * 1000 - 1)
+        }
+      case '3days':
+        const threeDaysAgo = new Date(today)
+        threeDaysAgo.setDate(today.getDate() - 2)
+        return {
+          start: threeDaysAgo,
+          end: new Date(today.getTime() + 24 * 60 * 60 * 1000 - 1)
+        }
+      case 'week':
+        const weekAgo = new Date(today)
+        weekAgo.setDate(today.getDate() - 6)
+        return {
+          start: weekAgo,
+          end: new Date(today.getTime() + 24 * 60 * 60 * 1000 - 1)
+        }
+      case 'month':
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+        const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59)
+        return {
+          start: monthStart,
+          end: monthEnd
+        }
+      default:
+        return { start: today, end: new Date(today.getTime() + 24 * 60 * 60 * 1000 - 1) }
     }
   }
 
-  // Функция для удаления работы
-  async function deleteWork(workId: string, workName: string) {
-    if (!confirm(`Вы уверены, что хотите удалить работу с ${workName}? Это действие нельзя отменить.`)) {
-      return
-    }
-
-    try {
-      const response = await fetch(`/api/works/${workId}`, {
-        method: 'DELETE'
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Ошибка удаления работы')
+  // Функция для фильтрации выводов по активной вкладке и фильтрам
+  const getFilteredWithdrawals = (): WithdrawalData[] => {
+    return withdrawals.filter(w => {
+      // Фильтр по статусу
+      let statusMatch = false
+      switch (activeTab) {
+        case 'waiting':
+          statusMatch = w.status === 'waiting'
+          break
+        case 'new':
+          statusMatch = w.status === 'new'
+          break
+        case 'received':
+          statusMatch = w.status === 'received'
+          break
+        case 'block':
+          statusMatch = w.status === 'block'
+          break
+        default:
+          statusMatch = true
       }
 
-      addToast({
-        type: 'success',
-        title: 'Работа удалена',
-        description: 'Работа успешно удалена'
-      })
+      if (!statusMatch) return false
 
-      // Перезагружаем данные
-      loadWorks()
+      // Фильтр по дате
+      const { start, end } = getDateRange(dateFilter)
+      const createdDate = new Date(w.created_at)
+      const dateMatch = createdDate >= start && createdDate <= end
 
-    } catch (error: any) {
-      addToast({
-        type: 'error',
-        title: 'Ошибка удаления работы',
-        description: error.message
-      })
-    }
-  }
+      if (!dateMatch) return false
 
-  // Функция для изменения статуса работы
-  async function updateWorkStatus(workId: string, newStatus: string, workName: string) {
-    try {
-      const response = await fetch(`/api/works/${workId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus })
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Ошибка изменения статуса')
+      // Фильтры по полям
+      if (filters.casino && !w.casino_name?.toLowerCase().includes(filters.casino.toLowerCase())) {
+        return false
       }
 
-      addToast({
-        type: 'success',
-        title: 'Статус работы изменен',
-        description: `Статус работы с ${workName} изменен на "${newStatus}"`
-      })
-
-      // Перезагружаем данные
-      loadWorks()
-
-    } catch (error: any) {
-      addToast({
-        type: 'error',
-        title: 'Ошибка изменения статуса работы',
-        description: error.message
-      })
-    }
-  }
-
-  // Функция для удаления вывода
-  async function deleteWithdrawal(withdrawalId: string, casinoName: string) {
-    try {
-      const response = await fetch(`/api/work-withdrawals/${withdrawalId}`, {
-        method: 'DELETE'
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Ошибка удаления вывода')
+      if (filters.worker && !w.user_name?.toLowerCase().includes(filters.worker.toLowerCase()) &&
+        !w.user_telegram?.toLowerCase().includes(filters.worker.toLowerCase())) {
+        return false
       }
 
-      addToast({
-        type: 'success',
-        title: 'Вывод удален',
-        description: `Вывод для ${casinoName} успешно удален`
-      })
+      if (filters.bankAccount &&
+        !w.account_holder?.toLowerCase().includes(filters.bankAccount.toLowerCase()) &&
+        !w.bank_name?.toLowerCase().includes(filters.bankAccount.toLowerCase())) {
+        return false
+      }
 
-      // Перезагружаем данные
-      loadWorks()
+      // Фильтры по суммам
+      if (filters.depositAmountMin && w.deposit_amount < parseFloat(filters.depositAmountMin)) {
+        return false
+      }
 
-    } catch (error: any) {
-      addToast({
-        type: 'error',
-        title: 'Ошибка удаления вывода',
-        description: error.message
-      })
-    }
-  }
+      if (filters.depositAmountMax && w.deposit_amount > parseFloat(filters.depositAmountMax)) {
+        return false
+      }
 
-  // Функция для копирования промо
-  function copyPromo(casinoName: string, promo: string | null) {
-    if (!promo) {
-      addToast({
-        type: 'warning',
-        title: 'Промо не найдено',
-        description: `У казино ${casinoName} нет промо-кода`
-      })
-      return
-    }
+      if (filters.withdrawalAmountMin && w.withdrawal_amount < parseFloat(filters.withdrawalAmountMin)) {
+        return false
+      }
 
-    navigator.clipboard.writeText(promo).then(() => {
-      addToast({
-        type: 'success',
-        title: 'Промо скопировано',
-        description: `Промо-код ${promo} скопирован в буфер обмена`
-      })
-    }).catch(() => {
-      addToast({
-        type: 'error',
-        title: 'Ошибка копирования',
-        description: 'Не удалось скопировать промо-код'
-      })
+      if (filters.withdrawalAmountMax && w.withdrawal_amount > parseFloat(filters.withdrawalAmountMax)) {
+        return false
+      }
+
+      return true
     })
   }
 
-  // Функция для форматирования времени
-  function formatTimeAgo(dateString: string) {
+  // Функция для получения статистики по месяцам
+  const getMonthlyStats = (status: TabStatus) => {
     const now = new Date()
-    const date = new Date(dateString)
-    const diffMs = now.getTime() - date.getTime()
-    const diffMinutes = Math.floor(diffMs / (1000 * 60))
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
-    const diffWeeks = Math.floor(diffDays / 7)
-    const diffMonths = Math.floor(diffDays / 30)
-    const diffYears = Math.floor(diffDays / 365)
+    const currentMonth = now.getMonth()
+    const currentYear = now.getFullYear()
 
-    if (diffMinutes < 60) {
-      return `${diffMinutes} мин назад`
-    } else if (diffHours < 24) {
-      return `${diffHours} ч назад`
-    } else if (diffDays < 7) {
-      return `${diffDays} д назад`
-    } else if (diffWeeks < 4) {
-      return `${diffWeeks} нед назад`
-    } else if (diffMonths < 12) {
-      return `${diffMonths} мес назад`
-    } else {
-      return `${diffYears} г назад`
+    // Первое число текущего месяца
+    const monthStart = new Date(currentYear, currentMonth, 1)
+    // Последнее число текущего месяца
+    const monthEnd = new Date(currentYear, currentMonth + 1, 0, 23, 59, 59)
+
+    return withdrawals.filter(w => {
+      const createdDate = new Date(w.created_at)
+      return w.status === status &&
+        createdDate >= monthStart &&
+        createdDate <= monthEnd
+    }).length
+  }
+
+  // Функция для расчета детальной аналитики
+  const getDetailedAnalytics = () => {
+    const filtered = getFilteredWithdrawals()
+
+    const totalDeposits = filtered.reduce((sum, w) => {
+      const currency = getCasinoCurrency(w)
+      const depositInUSD = convertToUSDSync(w.deposit_amount, currency, exchangeRates?.rates)
+      return sum + depositInUSD
+    }, 0)
+
+    const totalWithdrawals = filtered.reduce((sum, w) => {
+      const currency = getCasinoCurrency(w)
+      const withdrawalInUSD = convertToUSDSync(w.withdrawal_amount, currency, exchangeRates?.rates)
+      return sum + withdrawalInUSD
+    }, 0)
+
+    const totalProfit = totalWithdrawals - totalDeposits
+
+    return {
+      totalCount: filtered.length,
+      totalDeposits: totalDeposits,
+      totalWithdrawals: totalWithdrawals,
+      totalProfit: totalProfit,
+      selectedCount: selectedWithdrawals.length,
+      overdueCount: filtered.filter(w => {
+        const hours = Math.floor((Date.now() - new Date(w.created_at).getTime()) / (1000 * 60 * 60))
+        return hours > 4
+      }).length
     }
   }
 
-  const columns: Column<WorkRow>[] = [
+  const analytics = getDetailedAnalytics()
+
+  // Конфигурация вкладок
+  const tabs = [
     {
-      key: 'casino_info',
-      label: 'Казино',
-      render: (work) => (
+      id: 'waiting' as TabStatus,
+      label: 'Ожидание',
+      count: getMonthlyStats('waiting'),
+      color: 'text-warning-600 bg-warning-50 border-warning-200'
+    },
+    {
+      id: 'new' as TabStatus,
+      label: 'Новые аккаунты',
+      count: getMonthlyStats('new'),
+      color: 'text-blue-600 bg-blue-50 border-blue-200'
+    },
+    {
+      id: 'received' as TabStatus,
+      label: 'Получен',
+      count: getMonthlyStats('received'),
+      color: 'text-success-600 bg-success-50 border-success-200'
+    },
+    {
+      id: 'block' as TabStatus,
+      label: 'Заблокирован',
+      count: getMonthlyStats('block'),
+      color: 'text-danger-600 bg-danger-50 border-danger-200'
+    }
+  ]
+
+  const filteredWithdrawals = getFilteredWithdrawals()
+
+  const handleWithdrawalAction = async (withdrawalId: string, action: 'approve' | 'reject', comment?: string) => {
+    setActionLoading(true)
+    try {
+      const response = await fetch(`/api/manager/withdrawals/${withdrawalId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, comment })
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        addToast({ type: 'success', title: 'Успешно', description: `Вывод ${action === 'approve' ? 'одобрен' : 'отклонен'}` })
+        setSelectedWithdrawal(null)
+        fetchWithdrawals()
+      } else {
+        addToast({ type: 'error', title: 'Ошибка', description: data.error || 'Не удалось обновить статус' })
+      }
+    } catch (error) {
+      addToast({ type: 'error', title: 'Ошибка', description: 'Ошибка сети' })
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const columns = [
+    {
+      key: 'select',
+      label: '☐',
+      render: (item: WithdrawalData) => (
+        <input
+          type="checkbox"
+          checked={selectedWithdrawals.includes(item.id)}
+          onChange={(e) => {
+            if (e.target.checked) {
+              setSelectedWithdrawals([...selectedWithdrawals, item.id])
+            } else {
+              setSelectedWithdrawals(selectedWithdrawals.filter(id => id !== item.id))
+            }
+          }}
+          className="rounded border-gray-300"
+        />
+      )
+    },
+    {
+      key: 'created_at',
+      label: activeTab === 'received' || activeTab === 'block' ? 'Дата создания' : 'Время ожидания',
+      render: (item: WithdrawalData) => {
+        // Для финализированных статусов показываем дату создания
+        if (activeTab === 'received' || activeTab === 'block') {
+          const createdDate = new Date(item.created_at)
+          return (
+            <span className="text-gray-600">
+              {createdDate.toLocaleDateString('ru-RU', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric'
+              })}
+            </span>
+          )
+        }
+
+        // Для активных статусов показываем время ожидания
+        const now = Date.now()
+        const created = new Date(item.created_at).getTime()
+        const diffMs = now - created
+
+        const hours = Math.floor(diffMs / (1000 * 60 * 60))
+        const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60))
+        const isUrgent = hours > 4
+
+        return (
+          <span className={isUrgent ? 'text-danger-600 font-semibold' : 'text-gray-600'}>
+            {hours}ч {minutes}м
+          </span>
+        )
+      }
+    },
+    {
+      key: 'user_name',
+      label: 'Junior',
+      render: (item: WithdrawalData) => (
         <div>
-          <div 
-            className="casino-name"
-            onClick={() => copyPromo(work.casino_name, work.casino_promo)}
-            title={work.casino_promo ? `Кликните для копирования промо: ${work.casino_promo}` : 'Промо не указано'}
+          <div className="font-medium">
+            {item.user_telegram ? `@${item.user_telegram}` : item.user_name}
+          </div>
+          <div className="text-sm text-gray-500">
+            Рейтинг: {getUserRating(item.id)}/10
+          </div>
+        </div>
+      )
+    },
+    {
+      key: 'casino_name',
+      label: 'Казино',
+      render: (item: WithdrawalData) => (
+        <div>
+          <button
+            onClick={() => copyPromoLink(item.casino_url)}
+            className="font-medium text-primary-600 hover:text-primary-800 cursor-pointer"
           >
-            {work.casino_name}
-          </div>
-          <div className="login-info">
-            {work.casino_login} : {work.casino_password}
-          </div>
+            {item.casino_name}
+          </button>
+          <div className="text-sm text-gray-500">{item.casino_company}</div>
         </div>
       )
     },
     {
-      key: 'amount',
-      label: 'Сумма',
-      render: (row) => (
-        <div className="deposit-amount">
-          {row.is_deposit_row ? (
-            <div>
-              <span className="text-red-600">
-                -{row.deposit_amount} {row.casino_currency}
-        </span>
-              {row.withdrawal && (
-                <div className="text-green-600 text-sm">
-                  +{row.withdrawal.withdrawal_amount} {row.casino_currency}
-                </div>
-              )}
-            </div>
-          ) : (
-            <span className="text-green-600">
-              +{row.withdrawal?.withdrawal_amount || 0} {row.casino_currency}
-        </span>
-          )}
-        </div>
-      )
-    },
-    {
-      key: 'card_info',
+      key: 'card_mask',
       label: 'Карта',
-      render: (work) => (
-        <div className="card-info">
-          <div className="font-medium">{work.card_mask}</div>
-          <div className="text-sm text-gray-500">{work.bank_name}</div>
-          <div className="bank-account">Аккаунт: {work.bank_account_holder}</div>
+      render: (item: WithdrawalData) => (
+        <div>
+          <div className="font-mono text-sm">{item.card_mask}</div>
+          <div className="text-xs text-gray-500">
+            {item.bank_name} • {item.account_holder}
+          </div>
         </div>
       )
+    },
+    {
+      key: 'withdrawal_amount',
+      label: 'Сумма',
+      render: (item: WithdrawalData) => {
+        const currency = getCasinoCurrency(item)
+        const symbol = currency === 'USD' ? '$' : currency === 'GBP' ? '£' : currency === 'EUR' ? '€' : currency
+        return (
+          <div>
+            <div className="font-semibold text-lg">
+              {symbol}{item.withdrawal_amount}
+            </div>
+            <div className="text-sm text-gray-500">
+              Депозит: {symbol}{item.deposit_amount}
+            </div>
+          </div>
+        )
+      }
+    },
+    {
+      key: 'profit',
+      label: 'Профит',
+      render: (item: WithdrawalData) => {
+        const profit = item.withdrawal_amount - item.deposit_amount
+        const currency = getCasinoCurrency(item)
+        const symbol = currency === 'USD' ? '$' : currency === 'GBP' ? '£' : currency === 'EUR' ? '€' : currency
+
+        return (
+          <div className={`font-semibold ${profit > 0 ? 'text-success-600' : 'text-danger-600'}`}>
+            {symbol}{profit.toFixed(2)}
+          </div>
+        )
+      }
     },
     {
       key: 'status',
       label: 'Статус',
-      render: (row) => {
-        // Для строк депозита
-        if (row.is_deposit_row) {
-          // Если есть вывод в этой строке, показываем его статус
-          if (row.withdrawal) {
-            return (
-              <div className="status-dropdown">
-                <div 
-                  onClick={() => setOpenDropdown(openDropdown === `withdrawal-${row.withdrawal!.id}` ? null : `withdrawal-${row.withdrawal!.id}`)}
-                  style={{ cursor: 'pointer' }}
-                >
-                  <StatusBadge status={row.withdrawal.status} />
-                </div>
-                {openDropdown === `withdrawal-${row.withdrawal.id}` && (
-                  <div className="status-dropdown-content" style={{ display: 'block' }}>
-                    <a onClick={() => {
-                      updateWithdrawalStatus(row.withdrawal!.id, 'new')
-                      setOpenDropdown(null)
-                    }}>
-                      Новый
-                    </a>
-                    <a onClick={() => {
-                      updateWithdrawalStatus(row.withdrawal!.id, 'waiting')
-                      setOpenDropdown(null)
-                    }}>
-                      В ожидании
-                    </a>
-                    <a onClick={() => {
-                      updateWithdrawalStatus(row.withdrawal!.id, 'block')
-                      setOpenDropdown(null)
-                    }}>
-                      Заблокирован
-                    </a>
-
-                  </div>
-                )}
-              </div>
-            )
-          } else {
-            // Если нет вывода, показываем возможность создать
-            return (
-              <div className="status-dropdown">
-                <div 
-                  onClick={() => setOpenDropdown(openDropdown === `new-${row.work_id}` ? null : `new-${row.work_id}`)}
-                  style={{ cursor: 'pointer' }}
-                >
-                  <StatusBadge status="new" />
-                </div>
-                {openDropdown === `new-${row.work_id}` && (
-                  <div className="status-dropdown-content" style={{ display: 'block' }}>
-                    <a onClick={() => {
-                      const amount = prompt(`Введите сумму вывода для ${row.casino_name} (${row.casino_currency}):`)
-                      if (amount && !isNaN(Number(amount)) && Number(amount) > 0) {
-                        createWithdrawal(row.work_id, Number(amount))
-                        setOpenDropdown(null)
-                      }
-                    }}>
-                      Создать вывод
-                    </a>
-                  </div>
-                )}
-              </div>
-            )
-          }
-        }
-
-        // Для строк дополнительных выводов показываем статус вывода
-        if (row.withdrawal) {
-          return (
-            <div className="status-dropdown">
-              <div 
-                onClick={() => setOpenDropdown(openDropdown === `withdrawal-${row.withdrawal!.id}` ? null : `withdrawal-${row.withdrawal!.id}`)}
-                style={{ cursor: 'pointer' }}
-              >
-                <StatusBadge status={row.withdrawal.status} />
-              </div>
-              {openDropdown === `withdrawal-${row.withdrawal.id}` && (
-                <div className="status-dropdown-content" style={{ display: 'block' }}>
-                  <a onClick={() => {
-                    updateWithdrawalStatus(row.withdrawal!.id, 'new')
-                    setOpenDropdown(null)
-                  }}>
-                    Новый
-                  </a>
-                  <a onClick={() => {
-                    updateWithdrawalStatus(row.withdrawal!.id, 'waiting')
-                    setOpenDropdown(null)
-                  }}>
-                    В ожидании
-                  </a>
-                  <a onClick={() => {
-                    updateWithdrawalStatus(row.withdrawal!.id, 'block')
-                    setOpenDropdown(null)
-                  }}>
-                    Заблокирован
-                  </a>
-
-                </div>
-              )}
-            </div>
-          )
-        }
-
-        return <StatusBadge status="new" />
-      }
-    },
-    {
-      key: 'date_info',
-      label: 'Дата',
-      render: (work) => (
-        <div>
-          <div className="text-sm">{new Date(work.created_at).toLocaleDateString('ru-RU')}</div>
-          <div className="text-xs text-gray-500">{formatTimeAgo(work.created_at)}</div>
-        </div>
+      render: (item: WithdrawalData) => (
+        <StatusBadge status={item.status} />
       )
     }
   ]
 
-  // Добавляем колонку с действиями
-  const actionsColumn: Column<WorkRow> = {
-    key: 'actions',
-    label: 'Действия',
-    render: (row) => {
-      // Для строк депозита показываем основные действия
-      if (row.is_deposit_row) {
+  const actions = [
+    {
+      label: 'Проверить',
+      action: (item: WithdrawalData) => setSelectedWithdrawal(item),
+      variant: 'primary' as const
+    }
+  ]
 
-      const work = works.find(w => w.id === row.work_id)
-      if (!work) return null
+  // Массовые операции
+  const handleBulkAction = async (action: 'approve' | 'reject') => {
+    if (selectedWithdrawals.length === 0) {
+      addToast({ type: 'warning', title: 'Предупреждение', description: 'Выберите выводы для обработки' })
+      return
+    }
 
-      return (
-        <div className="flex items-center space-x-2">
-          {/* Кнопка создания первого вывода */}
-          {work.withdrawals.length === 0 && work.status === 'active' && (
-            <CurrencyDollarIcon
-              className="action-icon withdraw"
-              title="Создать вывод"
-              onClick={() => {
-                const amount = prompt(`Введите сумму вывода для ${row.casino_name} (${row.casino_currency}):`)
-                if (amount && !isNaN(Number(amount)) && Number(amount) > 0) {
-                  createWithdrawal(row.work_id, Number(amount))
-                }
-              }}
-            />
-          )}
-          
-          {/* Кнопка создания дополнительного вывода */}
-          {work.withdrawals.length > 0 && work.status === 'active' && (
-            <div className="flex items-center">
-              <span className="text-xs text-gray-500 mr-1">+</span>
-              <CurrencyDollarIcon
-                className="action-icon withdraw"
-                title="Добавить еще один вывод"
-                onClick={() => {
-                  const amount = prompt(`Введите сумму дополнительного вывода для ${row.casino_name} (${row.casino_currency}):`)
-                  if (amount && !isNaN(Number(amount)) && Number(amount) > 0) {
-                    createWithdrawal(row.work_id, Number(amount))
-                  }
-                }}
-              />
-            </div>
-          )}
-          
-          {work.status !== 'completed' && work.withdrawals.every(w => !['received', 'waiting'].includes(w.status)) && (
-            <TrashIcon
-              className="action-icon delete"
-              title="Удалить работу"
-              onClick={() => deleteWork(row.work_id, row.casino_name)}
-            />
-          )}
-        </div>
-      )
+    setActionLoading(true)
+    try {
+      const response = await fetch('/api/manager/withdrawals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: action === 'approve' ? 'bulk_approve' : 'bulk_reject',
+          withdrawal_ids: selectedWithdrawals,
+          comment: `Массовое ${action === 'approve' ? 'одобрение' : 'отклонение'} менеджером`
+        })
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        addToast({
+          type: 'success',
+          title: 'Успешно',
+          description: `${selectedWithdrawals.length} выводов ${action === 'approve' ? 'одобрено' : 'отклонено'}`
+        })
+        setSelectedWithdrawals([])
+        fetchWithdrawals()
+      } else {
+        addToast({ type: 'error', title: 'Ошибка', description: data.error || 'Не удалось обработать выводы' })
       }
-
-      // Для строк дополнительных выводов - показываем крестик удаления если статус "new"
-      if (!row.is_deposit_row && row.withdrawal && row.withdrawal.status === 'new') {
-        return (
-          <div className="flex items-center space-x-2">
-            <TrashIcon
-              className="action-icon delete"
-              title="Удалить вывод"
-              onClick={() => {
-                if (confirm(`Удалить вывод на сумму ${row.withdrawal!.withdrawal_amount} ${row.casino_currency}?`)) {
-                  deleteWithdrawal(row.withdrawal!.id, row.casino_name)
-                }
-              }}
-            />
-          </div>
-        )
-      }
-
-      return null
+    } catch (error) {
+      addToast({ type: 'error', title: 'Ошибка', description: 'Ошибка сети' })
+    } finally {
+      setActionLoading(false)
     }
   }
 
-  // Добавляем колонку действий к основным колонкам
-  const allColumns = [...columns, actionsColumn]
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="loading-spinner"></div>
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Очередь выводов</h1>
+          <p className="text-gray-600">Проверка и одобрение выводов от junior'ов</p>
+        </div>
+        <div className="flex gap-2">
+          <button className="btn-secondary" onClick={() => router.push('/dashboard/manager')}>
+            ← Назад
+          </button>
+          <button
+            className="btn-secondary"
+            onClick={() => {
+              if (selectedWithdrawals.length === filteredWithdrawals.length && filteredWithdrawals.length > 0) {
+                setSelectedWithdrawals([])
+              } else {
+                setSelectedWithdrawals(filteredWithdrawals.map(w => w.id))
+              }
+            }}
+          >
+            {selectedWithdrawals.length === filteredWithdrawals.length && filteredWithdrawals.length > 0 ? 'Снять выделение' : 'Выбрать все'}
+          </button>
+          {selectedWithdrawals.length > 0 && (
+            <>
+              <button
+                className="btn-success"
+                onClick={() => handleBulkAction('approve')}
+                disabled={actionLoading}
+              >
+                <CheckCircleIcon className="h-4 w-4 mr-2" />
+                Одобрить выбранные ({selectedWithdrawals.length})
+              </button>
+              <button
+                className="btn-danger"
+                onClick={() => handleBulkAction('reject')}
+                disabled={actionLoading}
+              >
+                <XCircleIcon className="h-4 w-4 mr-2" />
+                Отклонить выбранные ({selectedWithdrawals.length})
+              </button>
+            </>
+          )}
+        </div>
       </div>
-    )
+
+      {/* Вкладки статусов */}
+      <div className="border-b border-gray-200">
+        <nav className="-mb-px flex space-x-8">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => {
+                setActiveTab(tab.id)
+                setSelectedWithdrawals([]) // Сбрасываем выделение при смене вкладки
+              }}
+              className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${activeTab === tab.id
+                ? 'border-primary-500 text-primary-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+            >
+              {tab.label}
+              <span className={`ml-2 py-0.5 px-2 rounded-full text-xs font-medium ${activeTab === tab.id ? tab.color : 'bg-gray-100 text-gray-600'
+                }`}>
+                {tab.count}
+              </span>
+            </button>
+          ))}
+        </nav>
+      </div>
+
+      {/* Фильтр по периоду */}
+      <div className="flex gap-2 mb-4">
+        <select
+          value={dateFilter}
+          onChange={(e) => setDateFilter(e.target.value as DateFilter)}
+          className="form-select"
+        >
+          <option value="today">Сегодня</option>
+          <option value="3days">За 3 дня</option>
+          <option value="week">На этой неделе</option>
+          <option value="month">В этом месяце</option>
+        </select>
+      </div>
+
+      {/* Расширенная статистика */}
+      <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-6">
+        <div className="card">
+          <h3 className="text-sm font-medium text-gray-500">Всего аккаунтов</h3>
+          <p className="text-2xl font-bold text-primary-600">
+            {analytics.totalCount}
+          </p>
+        </div>
+        {activeTab !== 'block' && (
+          <div className="card">
+            <h3 className="text-sm font-medium text-gray-500">
+              {activeTab === 'received' ? 'Просрочено было' : 'Просрочено (>4ч)'}
+            </h3>
+            <p className="text-2xl font-bold text-danger-600">
+              {analytics.overdueCount}
+            </p>
+          </div>
+        )}
+        <div className="card">
+          <h3 className="text-sm font-medium text-gray-500">Выбрано</h3>
+          <p className="text-2xl font-bold text-gray-600">
+            {analytics.selectedCount}
+          </p>
+        </div>
+        <div className="card">
+          <h3 className="text-sm font-medium text-gray-500">Депозиты</h3>
+          <p className="text-2xl font-bold text-blue-600">
+            ${analytics.totalDeposits.toFixed(2)}
+          </p>
+        </div>
+        <div className="card">
+          <h3 className="text-sm font-medium text-gray-500">Выводы</h3>
+          <p className="text-2xl font-bold text-green-600">
+            ${analytics.totalWithdrawals.toFixed(2)}
+          </p>
+        </div>
+        <div className="card">
+          <h3 className="text-sm font-medium text-gray-500">
+            {activeTab === 'block' ? 'Общая потеря' : 'Профит'}
+          </h3>
+          <p className={`text-2xl font-bold ${activeTab === 'block'
+            ? 'text-danger-600'
+            : analytics.totalProfit >= 0
+              ? 'text-success-600'
+              : 'text-danger-600'
+            }`}>
+            ${activeTab === 'block' ? analytics.totalWithdrawals.toFixed(2) : analytics.totalProfit.toFixed(2)}
+          </p>
+        </div>
+        {activeTab === 'block' && (
+          <div className="card bg-red-50 border-red-200">
+            <h3 className="text-sm font-medium text-red-700">Общий процент потерь</h3>
+            <p className="text-2xl font-bold text-red-600">
+              {(analytics.totalDeposits + analytics.totalWithdrawals) > 0
+                ? ((analytics.totalWithdrawals / (analytics.totalDeposits + analytics.totalWithdrawals)) * 100).toFixed(1)
+                : 0}%
+            </p>
+            <p className="text-xs text-red-600 mt-1">
+              Процент недозаработанного профита от общего оборота
+            </p>
+          </div>
+        )}
+      </div>
+
+
+      {/* Фильтры */}
+      <div className="card mb-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Фильтры</h3>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Сайт</label>
+            <input
+              type="text"
+              value={filters.casino}
+              onChange={(e) => setFilters({ ...filters, casino: e.target.value })}
+              placeholder="Поиск по казино..."
+              className="form-input"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Работник</label>
+            <input
+              type="text"
+              value={filters.worker}
+              onChange={(e) => setFilters({ ...filters, worker: e.target.value })}
+              placeholder="Имя или @telegram..."
+              className="form-input"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Банк аккаунт</label>
+            <input
+              type="text"
+              value={filters.bankAccount}
+              onChange={(e) => setFilters({ ...filters, bankAccount: e.target.value })}
+              placeholder="Банк или держатель..."
+              className="form-input"
+            />
+          </div>
+          <div>
+            <button
+              onClick={() => setFilters({
+                casino: '',
+                worker: '',
+                bankAccount: '',
+                depositAmountMin: '',
+                depositAmountMax: '',
+                withdrawalAmountMin: '',
+                withdrawalAmountMax: ''
+              })}
+              className="btn-secondary mt-6"
+            >
+              Сбросить фильтры
+            </button>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Депозит от</label>
+            <input
+              type="number"
+              value={filters.depositAmountMin}
+              onChange={(e) => setFilters({ ...filters, depositAmountMin: e.target.value })}
+              placeholder="0"
+              className="form-input"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Депозит до</label>
+            <input
+              type="number"
+              value={filters.depositAmountMax}
+              onChange={(e) => setFilters({ ...filters, depositAmountMax: e.target.value })}
+              placeholder="1000"
+              className="form-input"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Вывод от</label>
+            <input
+              type="number"
+              value={filters.withdrawalAmountMin}
+              onChange={(e) => setFilters({ ...filters, withdrawalAmountMin: e.target.value })}
+              placeholder="0"
+              className="form-input"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Вывод до</label>
+            <input
+              type="number"
+              value={filters.withdrawalAmountMax}
+              onChange={(e) => setFilters({ ...filters, withdrawalAmountMax: e.target.value })}
+              placeholder="5000"
+              className="form-input"
+            />
+          </div>
+        </div>
+      </div>
+
+      <DataTable
+        data={filteredWithdrawals}
+        columns={columns}
+        actions={actions}
+        loading={loading}
+      />
+
+      {/* Модальное окно проверки вывода */}
+      {selectedWithdrawal && (
+        <WithdrawalReviewModal
+          withdrawal={selectedWithdrawal}
+          onClose={() => setSelectedWithdrawal(null)}
+          onAction={handleWithdrawalAction}
+          loading={actionLoading}
+        />
+      )}
+    </div>
+  )
+}
+
+// Компонент модального окна для проверки вывода
+function WithdrawalReviewModal({
+  withdrawal,
+  onClose,
+  onAction,
+  loading
+}: {
+  withdrawal: WithdrawalData
+  onClose: () => void
+  onAction: (id: string, action: 'approve' | 'reject', comment?: string) => void
+  loading: boolean
+}) {
+  const [comment, setComment] = useState('')
+
+  const profit = withdrawal.withdrawal_amount - withdrawal.deposit_amount
+  const currency = getCasinoCurrency(withdrawal)
+  const symbol = currency === 'USD' ? '$' : currency === 'GBP' ? '£' : currency === 'EUR' ? '€' : currency
+
+  // Функция для определения валюты казино (дублируем здесь для доступности)
+  function getCasinoCurrency(item: WithdrawalData): string {
+    if ((item as any).casino_currency) {
+      return (item as any).casino_currency
+    }
+    const casinoName = item.casino_name.toLowerCase()
+    if (casinoName.includes('uk') || casinoName.includes('british') || casinoName.includes('virgin')) {
+      return 'GBP'
+    }
+    if (casinoName.includes('euro')) {
+      return 'EUR'
+    }
+    return 'USD'
   }
 
   return (
-    <div className="container-main">
-      <div className="flex justify-between items-center mb-6">
-      <div>
-          <h1 className="text-2xl font-bold text-gray-900">Мои работы и выводы</h1>
-          <p className="text-gray-600">Управление депозитами и выводами средств</p>
-        </div>
-      </div>
-
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-6">
-        <KPICard
-          title="Всего работ"
-          value={stats.totalWorks}
-          icon={<BanknotesIcon className="h-6 w-6" />}
-          color="primary"
-        />
-        <KPICard
-          title="Активные"
-          value={stats.activeWorks}
-          icon={<ClockIcon className="h-6 w-6" />}
-          color="warning"
-        />
-        <KPICard
-          title="Завершенные"
-          value={stats.completedWorks}
-          icon={<CheckCircleIcon className="h-6 w-6" />}
-          color="success"
-        />
-        <KPICard
-          title="Общий депозит"
-          value={`$${stats.totalDeposits.toFixed(2)}`}
-          icon={<BanknotesIcon className="h-6 w-6" />}
-          color="primary"
-        />
-        <KPICard
-          title="Выводов получено"
-          value={stats.totalWithdrawals}
-          icon={<CheckCircleIcon className="h-6 w-6" />}
-          color="success"
-        />
-      </div>
-
-      {/* Works Table */}
-      <div className="card">
-        <div className="card-header">
-          <h2 className="text-lg font-semibold text-gray-900">Список работ</h2>
-        </div>
-        
-        {works.length === 0 ? (
-          <div className="text-center py-8">
-            <BanknotesIcon className="mx-auto h-12 w-12 text-gray-400" />
-            <h3 className="mt-2 text-sm font-medium text-gray-900">Нет работ</h3>
-            <p className="mt-1 text-sm text-gray-500">
-              Создайте первую работу, чтобы начать зарабатывать
+    <Modal isOpen={true} onClose={onClose} title="Проверка вывода">
+      <div className="space-y-6">
+        {/* Основная информация */}
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <h3 className="font-semibold text-gray-900 mb-2">Junior</h3>
+            <p className="font-medium">
+              {withdrawal.user_telegram ? `@${withdrawal.user_telegram}` : withdrawal.user_name}
             </p>
+            <p className="text-sm text-gray-500">{withdrawal.user_email}</p>
+            <p className="text-sm text-gray-500">Рейтинг: 8/10</p>
           </div>
-        ) : (
-                  <div className="compact-table">
-        <DataTable
-            data={workRows}
-            columns={allColumns}
+          <div>
+            <h3 className="font-semibold text-gray-900 mb-2">Казино</h3>
+            <p className="font-medium">{withdrawal.casino_name}</p>
+            <p className="text-sm text-gray-500">{withdrawal.casino_company}</p>
+            <button
+              onClick={() => {
+                if (withdrawal.casino_url) {
+                  navigator.clipboard.writeText(withdrawal.casino_url)
+                }
+              }}
+              className="text-sm text-primary-600 hover:text-primary-800"
+            >
+              Скопировать промо ссылку
+            </button>
+          </div>
+        </div>
+
+        {/* Финансовые детали */}
+        <div className="bg-gray-50 p-4 rounded-lg">
+          <div className="grid grid-cols-3 gap-4 text-center">
+            <div>
+              <p className="text-sm text-gray-500">Депозит</p>
+              <p className="text-lg font-semibold">{symbol}{withdrawal.deposit_amount}</p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-500">Вывод</p>
+              <p className="text-lg font-semibold">{symbol}{withdrawal.withdrawal_amount}</p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-500">Профит</p>
+              <p className={`text-lg font-semibold ${profit > 0 ? 'text-success-600' : 'text-danger-600'}`}>
+                {symbol}{profit.toFixed(2)}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Карта */}
+        <div>
+          <h3 className="font-semibold text-gray-900 mb-2">Карта</h3>
+          <div className="space-y-2">
+            <div className="font-mono text-sm">{withdrawal.card_mask}</div>
+            <div className="text-sm text-gray-600">{withdrawal.bank_name}</div>
+            <div className="text-xs text-gray-500">{withdrawal.account_holder}</div>
+          </div>
+        </div>
+
+        {/* Комментарий */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Комментарий (опционально)
+          </label>
+          <textarea
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            className="w-full p-3 border border-gray-300 rounded-lg"
+            rows={3}
+            placeholder="Добавьте комментарий к решению..."
           />
         </div>
-        )}
+
+        {/* Действия */}
+        <div className="flex gap-3">
+          <button
+            onClick={() => onAction(withdrawal.id, 'approve', comment)}
+            disabled={loading}
+            className="btn-success flex-1"
+          >
+            {loading ? 'Обработка...' : '✓ Одобрить'}
+          </button>
+          <button
+            onClick={() => onAction(withdrawal.id, 'reject', comment)}
+            disabled={loading}
+            className="btn-danger flex-1"
+          >
+            {loading ? 'Обработка...' : '✗ Отклонить'}
+          </button>
+          <button
+            onClick={onClose}
+            disabled={loading}
+            className="btn-secondary"
+          >
+            Отмена
+          </button>
+        </div>
       </div>
-    </div>
+    </Modal>
   )
 }

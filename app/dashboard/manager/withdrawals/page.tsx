@@ -16,7 +16,7 @@ import {
 
 interface WithdrawalData {
   id: string
-  source_type: 'tester' | 'junior'
+  source_type: 'tester' | 'junior' | 'paypal'
   user_role: string
   user_name: string
   user_email: string
@@ -27,12 +27,21 @@ interface WithdrawalData {
   casino_company: string
   casino_url: string
   casino_currency?: string
-  card_mask: string
-  card_type: string
+  card_mask?: string
+  card_type?: string
   bank_name?: string
   account_holder?: string
+  paypal_name?: string
+  paypal_email?: string
+  paypal_balance?: number
   withdrawal_amount: number
   status: string
+  manager_status?: string
+  teamlead_status?: string
+  manager_comment?: string
+  teamlead_comment?: string
+  hr_comment?: string
+  cfo_comment?: string
   created_at: string
   updated_at: string
 }
@@ -107,7 +116,7 @@ export default function WithdrawalsQueue() {
       const data = await response.json()
 
       if (data.success) {
-        setWithdrawals(data.data)
+        setWithdrawals(data.data || [])
       } else {
         addToast({ type: 'error', title: 'Ошибка', description: data.error || 'Не удалось загрузить выводы' })
       }

@@ -66,11 +66,14 @@ export default function LoginPage() {
       // Редирект по роли
       const roleRoutes = {
         junior: '/dashboard/junior',
+        teamlead: '/dashboard/teamlead',
         manager: '/dashboard/manager',
         tester: '/dashboard/tester',
         hr: '/dashboard/hr',
         cfo: '/dashboard/cfo',
-        admin: '/dashboard/admin'
+        admin: '/dashboard/admin',
+        ceo: '/dashboard/admin',
+        qa_assistant: '/dashboard/junior'
       }
 
       const redirectPath = roleRoutes[userData.role as keyof typeof roleRoutes] || '/dashboard'

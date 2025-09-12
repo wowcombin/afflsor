@@ -16,7 +16,7 @@ sql
 POST /auth/login - проверка credentials
 При включенном 2FA - модальное окно для TOTP кода
 POST /auth/2fa/verify - проверка TOTP
-Создание сессии через create_user_session() с проверкой лимита (макс. 3 параллельные)
+Создание сессии через create_user_session() с проверкой лимита (макс. 1 сессия)
 Редирект по роли:
 Junior → /junior/dashboard
 Manager → /manager/dashboard
