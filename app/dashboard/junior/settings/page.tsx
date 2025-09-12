@@ -243,69 +243,71 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          <div>
-            <label className="form-label flex items-center">
-              <ChatBubbleLeftRightIcon className="h-4 w-4 mr-2" />
-              Telegram Username
-            </label>
-            <input
-              type="text"
-              value={formData.telegram_username}
-              onChange={(e) => handleInputChange('telegram_username', e.target.value)}
-              className={`form-input ${
-                formData.telegram_username && !validateTelegramUsername(formData.telegram_username)
-                  ? 'border-red-300 focus:border-red-500'
-                  : ''
-              }`}
-              placeholder="@username или username"
-            />
-            {formData.telegram_username && !validateTelegramUsername(formData.telegram_username) && (
-              <p className="text-sm text-red-600 mt-1">
-                Некорректный формат. Используйте @username или username (5-32 символа, только буквы, цифры и _)
-              </p>
-            )}
-            <p className="text-xs text-gray-500 mt-1">
-              Telegram username будет приоритетным для отображения в системе
-            </p>
-          </div>
-
-          <div>
-            <label className="form-label flex items-center">
-              <CurrencyDollarIcon className="h-4 w-4 mr-2" />
-              USDT Кошелек
-            </label>
-            <div className="relative">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="form-label flex items-center">
+                <ChatBubbleLeftRightIcon className="h-4 w-4 mr-2" />
+                Telegram Username
+              </label>
               <input
-                type={showWallet ? "text" : "password"}
-                value={formData.usdt_wallet}
-                onChange={(e) => handleInputChange('usdt_wallet', e.target.value)}
-                className={`form-input pr-10 ${
-                  formData.usdt_wallet && !validateUsdtWallet(formData.usdt_wallet)
+                type="text"
+                value={formData.telegram_username}
+                onChange={(e) => handleInputChange('telegram_username', e.target.value)}
+                className={`form-input ${
+                  formData.telegram_username && !validateTelegramUsername(formData.telegram_username)
                     ? 'border-red-300 focus:border-red-500'
                     : ''
                 }`}
-                placeholder="BEP20 адрес кошелька (0x...)"
+                placeholder="@username"
               />
-              <button
-                type="button"
-                onClick={() => setShowWallet(!showWallet)}
-                className="absolute inset-y-0 right-0 pr-3 flex items-center"
-              >
-                {showWallet ? (
-                  <EyeSlashIcon className="h-4 w-4 text-gray-400" />
-                ) : (
-                  <EyeIcon className="h-4 w-4 text-gray-400" />
-                )}
-              </button>
-            </div>
-            {formData.usdt_wallet && !validateUsdtWallet(formData.usdt_wallet) && (
-              <p className="text-sm text-red-600 mt-1">
-                Некорректный адрес кошелька. Поддерживается только BEP20 формат (0x...)
+              {formData.telegram_username && !validateTelegramUsername(formData.telegram_username) && (
+                <p className="text-sm text-red-600 mt-1">
+                  Некорректный формат
+                </p>
+              )}
+              <p className="text-xs text-gray-500 mt-1">
+                Приоритетное имя в системе
               </p>
-            )}
-            <p className="text-xs text-gray-500 mt-1">
-              BEP20 адрес кошелька для получения выплат в USDT (Binance Smart Chain)
-            </p>
+            </div>
+            
+            <div className="md:col-span-2">
+              <label className="form-label flex items-center">
+                <CurrencyDollarIcon className="h-4 w-4 mr-2" />
+                USDT Кошелек (BEP20)
+              </label>
+              <div className="relative">
+                <input
+                  type={showWallet ? "text" : "password"}
+                  value={formData.usdt_wallet}
+                  onChange={(e) => handleInputChange('usdt_wallet', e.target.value)}
+                  className={`form-input pr-10 ${
+                    formData.usdt_wallet && !validateUsdtWallet(formData.usdt_wallet)
+                      ? 'border-red-300 focus:border-red-500'
+                      : ''
+                  }`}
+                  placeholder="0x1234567890abcdef1234567890abcdef12345678"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowWallet(!showWallet)}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                >
+                  {showWallet ? (
+                    <EyeSlashIcon className="h-4 w-4 text-gray-400" />
+                  ) : (
+                    <EyeIcon className="h-4 w-4 text-gray-400" />
+                  )}
+                </button>
+              </div>
+              {formData.usdt_wallet && !validateUsdtWallet(formData.usdt_wallet) && (
+                <p className="text-sm text-red-600 mt-1">
+                  Некорректный адрес кошелька. Поддерживается только BEP20 формат (0x...)
+                </p>
+              )}
+              <p className="text-xs text-gray-500 mt-1">
+                BEP20 адрес для получения выплат в USDT (Binance Smart Chain)
+              </p>
+            </div>
           </div>
 
           <div className="flex justify-end pt-4">
