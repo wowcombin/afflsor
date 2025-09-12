@@ -146,9 +146,25 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
             .eq('id', paypalId)
             .single()
 
+        console.log('DELETE PayPal Debug:', {
+            paypalId,
+            checkError,
+            existingPayPal,
+            userData: { id: userData.id, role: userData.role },
+            auth_user: { id: user.id, email: user.email }
+        })
+
         if (checkError || !existingPayPal) {
             console.error('PayPal account check error:', checkError)
-            return NextResponse.json({ error: 'PayPal account not found' }, { status: 404 })
+            return NextResponse.json({ 
+                error: 'PayPal account not found',
+                debug: {
+                    paypalId,
+                    checkError: checkError?.message,
+                    user_id: userData.id,
+                    auth_id: user.id
+                }
+            }, { status: 404 })
         }
 
         if (existingPayPal.junior_id !== userData.id) {
