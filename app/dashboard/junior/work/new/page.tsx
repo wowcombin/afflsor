@@ -4,13 +4,18 @@ import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useToast } from '@/components/ui/Toast'
 import Modal from '@/components/ui/Modal'
+import KPICard from '@/components/ui/KPICard'
 import { 
   BriefcaseIcon,
   CreditCardIcon,
   ComputerDesktopIcon,
   EyeIcon,
   ArrowLeftIcon,
-  ClockIcon
+  ClockIcon,
+  BanknotesIcon,
+  CheckCircleIcon,
+  XCircleIcon,
+  ExclamationTriangleIcon
 } from '@heroicons/react/24/outline'
 
 interface Casino {
@@ -22,6 +27,7 @@ interface Casino {
   status: string
   allowed_bins: string[]
   auto_approve_limit: number
+  payment_methods: string[] // ['card', 'paypal']
 }
 
 interface Card {
@@ -54,277 +60,94 @@ interface Card {
   }>
 }
 
-// Компонент для показа реквизитов карты
-function CardDetailsModal({ card, onClose }: { card: Card, onClose: () => void }) {
-  const { addToast } = useToast()
-  const [pinCode, setPinCode] = useState('')
-  const [revealing, setRevealing] = useState(false)
-  const [revealedData, setRevealedData] = useState<any>(null)
-  const [timeLeft, setTimeLeft] = useState(0)
-
-  useEffect(() => {
-    let interval: NodeJS.Timeout
-    if (timeLeft > 0) {
-      interval = setInterval(() => {
-        setTimeLeft(prev => {
-          if (prev <= 1) {
-            setRevealedData(null)
-            return 0
-          }
-          return prev - 1
-        })
-      }, 1000)
-    }
-    return () => {
-      if (interval) clearInterval(interval)
-    }
-  }, [timeLeft])
-
-  async function handleRevealCard() {
-    if (!pinCode) {
-      addToast({ type: 'error', title: 'Введите PIN код' })
-      return
-    }
-
-    setRevealing(true)
-
-    try {
-      const response = await fetch(`/api/cards/${card.id}/reveal`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          pin_code: pinCode,
-          context: { purpose: 'work_creation', timestamp: new Date().toISOString() }
-        })
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error)
-      }
-
-      setRevealedData(data.card_data)
-      setTimeLeft(data.ttl || 60)
-      setPinCode('')
-
-      addToast({
-        type: 'success',
-        title: 'Реквизиты получены',
-        description: `Доступ на ${data.ttl} секунд`
-      })
-
-    } catch (error: any) {
-      addToast({
-        type: 'error',
-        title: 'Ошибка получения реквизитов',
-        description: error.message
-      })
-    } finally {
-      setRevealing(false)
-    }
-  }
-
-  function copyToClipboard(text: string, label: string) {
-    navigator.clipboard.writeText(text)
-    addToast({
-      type: 'success',
-      title: `${label} скопирован`,
-      description: 'Данные в буфере обмена'
-    })
-  }
-
-  return (
-    <div className="space-y-4">
-      {!revealedData ? (
-        <>
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <div className="text-sm text-blue-800">
-              <p className="font-medium text-blue-900">Информация о карте</p>
-              <div className="mt-2 space-y-1 text-blue-700">
-                <p>Номер: {card.card_number_mask}</p>
-                <p>Тип: {card.card_type}</p>
-                <p>Банк: {card.bank_account?.bank?.name}</p>
-                <p>Аккаунт: {card.bank_account?.holder_name}</p>
-                <p>Валюта: {card.account_currency}</p>
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <label className="form-label">PIN код для получения реквизитов</label>
-            <input
-              type="password"
-              value={pinCode}
-              onChange={(e) => setPinCode(e.target.value)}
-              className="form-input"
-              placeholder="Введите PIN (1234)"
-              maxLength={4}
-            />
-          </div>
-
-          <div className="flex justify-end space-x-3">
-            <button onClick={onClose} className="btn-secondary" disabled={revealing}>
-              Отмена
-            </button>
-            <button
-              onClick={handleRevealCard}
-              className="btn-primary"
-              disabled={revealing || !pinCode}
-            >
-              {revealing ? 'Получение...' : 'Показать реквизиты'}
-            </button>
-          </div>
-        </>
-      ) : (
-        <>
-          <div className="bg-success-50 border border-success-200 rounded-lg p-4">
-            <div className="flex items-center justify-between mb-4">
-              <h4 className="font-medium text-success-900">Реквизиты карты</h4>
-              <div className="flex items-center text-success-700">
-                <ClockIcon className="h-4 w-4 mr-1" />
-                <span className="font-mono">{timeLeft}s</span>
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <div>
-                <label className="text-xs font-medium text-green-800">Номер карты</label>
-                <div className="flex items-center space-x-2">
-                  <code className="bg-white px-3 py-2 rounded border font-mono text-lg text-gray-900">
-                    {revealedData.pan}
-                  </code>
-                  <button
-                    onClick={() => copyToClipboard(revealedData.pan, 'Номер карты')}
-                    className="btn-secondary text-xs"
-                  >
-                    Копировать
-                  </button>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs font-medium text-green-800">CVV</label>
-                  <div className="flex items-center space-x-2">
-                    <code className="bg-white px-3 py-2 rounded border font-mono text-gray-900">
-                      {revealedData.cvv}
-                    </code>
-                    <button
-                      onClick={() => copyToClipboard(revealedData.cvv, 'CVV')}
-                      className="btn-secondary text-xs"
-                    >
-                      Копировать
-                    </button>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-xs font-medium text-green-800">Срок действия</label>
-                  <div className="bg-white px-3 py-2 rounded border font-mono text-gray-900">
-                    {String(revealedData.exp_month).padStart(2, '0')}/{revealedData.exp_year}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-4 text-xs text-green-700">
-              ⚠️ Данные автоматически скроются через {timeLeft} секунд
-            </div>
-          </div>
-        </>
-      )}
-    </div>
-  )
+interface PayPalAccount {
+  id: string
+  name: string
+  email: string
+  balance: number
+  status: 'active' | 'blocked' | 'suspended'
+  sender_paypal_email?: string
+  balance_send?: number
+  date_created: string
+  info?: string
 }
 
-export default function NewWorkPage() {
+export default function NewWorkPageV2() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { addToast } = useToast()
+  
+  // Данные
   const [casinos, setCasinos] = useState<Casino[]>([])
   const [cards, setCards] = useState<Card[]>([])
-  const [activeWorks, setActiveWorks] = useState<any[]>([])
+  const [paypalAccounts, setPaypalAccounts] = useState<PayPalAccount[]>([])
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
   
-  // Состояние для поиска казино
-  const [casinoSearch, setCasinoSearch] = useState('')
-  const [showCasinoDropdown, setShowCasinoDropdown] = useState(false)
-  const [filteredCasinos, setFilteredCasinos] = useState<Casino[]>([])
-  
-  // Состояние для просмотра карты
-  const [showCardDetailsModal, setShowCardDetailsModal] = useState(false)
-  const [selectedCardForDetails, setSelectedCardForDetails] = useState<Card | null>(null)
-
   // Форма создания работы
   const [workForm, setWorkForm] = useState({
     casino_id: '',
+    payment_method: 'card', // 'card' или 'paypal'
     card_id: '',
+    paypal_account_id: '',
     deposit_amount: 0,
     casino_login: '',
     casino_password: '',
     notes: ''
   })
 
-  const [showCardModal, setShowCardModal] = useState(false)
-  const [selectedCard, setSelectedCard] = useState<Card | null>(null)
+  // Состояние для поиска казино
+  const [casinoSearch, setCasinoSearch] = useState('')
+  const [showCasinoDropdown, setShowCasinoDropdown] = useState(false)
+  const [filteredCasinos, setFilteredCasinos] = useState<Casino[]>([])
 
   useEffect(() => {
     loadData()
   }, [])
 
-  // Закрытие выпадающего списка при клике вне его
   useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      const target = event.target as HTMLElement
-      if (!target.closest('.casino-search-container')) {
-        setShowCasinoDropdown(false)
-      }
+    // Фильтрация казино по поиску
+    if (casinoSearch) {
+      const filtered = casinos.filter(casino =>
+        casino.name.toLowerCase().includes(casinoSearch.toLowerCase()) ||
+        casino.url.toLowerCase().includes(casinoSearch.toLowerCase())
+      )
+      setFilteredCasinos(filtered)
+      setShowCasinoDropdown(true)
+    } else {
+      setFilteredCasinos(casinos)
+      setShowCasinoDropdown(false)
     }
-
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-    }
-  }, [])
+  }, [casinoSearch, casinos])
 
   async function loadData() {
     try {
-      // Получаем card_id из URL параметров
       const preselectedCardId = searchParams.get('card_id')
 
-      // Загружаем доступные казино
+      // Загружаем казино
       const casinosResponse = await fetch('/api/casinos?status=approved')
       if (casinosResponse.ok) {
         const { casinos: casinosData } = await casinosResponse.json()
         setCasinos(casinosData.filter((c: Casino) => c.status === 'approved'))
       }
 
-      // Загружаем назначенные карты
+      // Загружаем карты
       const cardsResponse = await fetch('/api/cards')
       if (cardsResponse.ok) {
         const { cards: cardsData } = await cardsResponse.json()
         const availableCards = cardsData.filter((c: Card) => c.status === 'active')
         setCards(availableCards)
 
-        // Предзаполняем карту из URL параметра
         if (preselectedCardId && availableCards.find((c: Card) => c.id === preselectedCardId)) {
           setWorkForm(prev => ({ ...prev, card_id: preselectedCardId }))
-          addToast({
-            type: 'success',
-            title: 'Карта выбрана',
-            description: 'Карта автоматически выбрана из ссылки'
-          })
         }
       }
 
-      // Загружаем все работы для проверки уже используемых карт
-      const worksResponse = await fetch('/api/works')
-      if (worksResponse.ok) {
-        const { works: worksData } = await worksResponse.json()
-        // Теперь сохраняем все работы, не только активные
-        setActiveWorks(worksData)
+      // Загружаем PayPal аккаунты
+      const paypalResponse = await fetch('/api/junior/paypal')
+      if (paypalResponse.ok) {
+        const { accounts: paypalData } = await paypalResponse.json()
+        setPaypalAccounts(paypalData.filter((p: PayPalAccount) => p.status === 'active'))
       }
 
     } catch (error: any) {
@@ -340,8 +163,18 @@ export default function NewWorkPage() {
   }
 
   async function handleCreateWork() {
-    if (!workForm.casino_id || !workForm.card_id || !workForm.deposit_amount) {
+    if (!workForm.casino_id || !workForm.deposit_amount) {
       addToast({ type: 'error', title: 'Заполните все обязательные поля' })
+      return
+    }
+
+    if (workForm.payment_method === 'card' && !workForm.card_id) {
+      addToast({ type: 'error', title: 'Выберите карту для оплаты' })
+      return
+    }
+
+    if (workForm.payment_method === 'paypal' && !workForm.paypal_account_id) {
+      addToast({ type: 'error', title: 'Выберите PayPal аккаунт для оплаты' })
       return
     }
 
@@ -353,14 +186,16 @@ export default function NewWorkPage() {
     setCreating(true)
 
     try {
-      const response = await fetch('/api/works', {
+      const endpoint = workForm.payment_method === 'paypal' ? '/api/paypal-works' : '/api/works'
+      
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           casino_id: workForm.casino_id,
-          card_id: workForm.card_id,
+          ...(workForm.payment_method === 'card' ? { card_id: workForm.card_id } : { paypal_account_id: workForm.paypal_account_id }),
           deposit_amount: workForm.deposit_amount,
           casino_login: workForm.casino_login,
           casino_password: workForm.casino_password,
@@ -377,11 +212,10 @@ export default function NewWorkPage() {
       addToast({
         type: 'success',
         title: 'Работа создана',
-        description: data.message
+        description: `${workForm.payment_method === 'paypal' ? 'PayPal' : 'Карточная'} работа успешно создана`
       })
 
-      // Перенаправляем на дашборд
-      router.push('/dashboard/junior/withdrawals')
+      router.push('/dashboard/junior')
 
     } catch (error: any) {
       addToast({
@@ -394,366 +228,432 @@ export default function NewWorkPage() {
     }
   }
 
-  function getSelectedCasino() {
-    return casinos.find(c => c.id === workForm.casino_id)
-  }
-
-  function getSelectedCard() {
-    return cards.find(c => c.id === workForm.card_id)
-  }
-
-  // Фильтрация казино по поиску
-  function handleCasinoSearch(value: string) {
-    setCasinoSearch(value)
-    const filtered = casinos.filter(casino => 
-      casino.name.toLowerCase().includes(value.toLowerCase())
-    )
-    setFilteredCasinos(filtered)
-    setShowCasinoDropdown(value.length > 0 && filtered.length > 0)
-  }
-
-  // Выбор казино из поиска
   function selectCasino(casino: Casino) {
-    // Сначала устанавливаем казино
-    setWorkForm({ 
-      ...workForm, 
-      casino_id: casino.id, 
-      card_id: '' // Сбрасываем карту
-    })
+    setWorkForm(prev => ({ ...prev, casino_id: casino.id }))
     setCasinoSearch(casino.name)
     setShowCasinoDropdown(false)
     
-    // Затем находим доступные карты для этого казино (не используемые)
-    const assignedCards = cards.filter(card => 
-      card.casino_assignments.some(assignment => 
-        assignment.casino_id === casino.id && 
-        assignment.status === 'active'
-      )
-    )
-    
-    // Исключаем карты, которые уже используются в работах для ЭТОГО КОНКРЕТНОГО казино
-    const usedCardIdsForThisCasino = activeWorks
-      .filter(work => {
-        // Проверяем только работы для выбранного казино
-        if (work.casino?.id !== casino.id) return false
-        
-        // Если работа активна - карта используется для этого казино
-        if (work.status === 'active') return true
-        
-        // Если есть активные выводы - карта используется для этого казино
-        const hasActiveWithdrawals = work.withdrawals && work.withdrawals.some((w: any) => 
-          ['new', 'waiting', 'received'].includes(w.status)
-        )
-        
-        return hasActiveWithdrawals
-      })
-      .map(work => work.card?.id)
-    
-    const availableCards = assignedCards.filter(card => !usedCardIdsForThisCasino.includes(card.id))
-    
-    // Автоматически выбираем первую доступную карту
-    if (availableCards.length > 0) {
-      setWorkForm(prev => ({ 
-        ...prev, 
-        card_id: availableCards[0].id
-      }))
-      addToast({
-        type: 'success',
-        title: 'Карта выбрана',
-        description: `Автоматически выбрана карта ${availableCards[0].card_number_mask}`
-      })
+    // Проверяем поддерживаемые методы оплаты
+    if (casino.payment_methods && !casino.payment_methods.includes(workForm.payment_method)) {
+      if (casino.payment_methods.includes('card')) {
+        setWorkForm(prev => ({ ...prev, payment_method: 'card' }))
+      } else if (casino.payment_methods.includes('paypal')) {
+        setWorkForm(prev => ({ ...prev, payment_method: 'paypal' }))
+      }
     }
   }
 
-  // Получить карты, назначенные на выбранное казино и не используемые в активных работах для этого казино
-  function getAvailableCards() {
-    if (!workForm.casino_id) return []
-    
-    // Получаем карты, назначенные на выбранное казино
-    const assignedCards = cards.filter(card => 
-      card.casino_assignments.some(assignment => 
-        assignment.casino_id === workForm.casino_id && 
-        assignment.status === 'active'
-      )
-    )
-    
-    // Исключаем карты, которые уже используются в работах для ЭТОГО КОНКРЕТНОГО казино
-    // Карта считается используемой для казино если:
-    // 1. Есть активная работа для этого казино (status === 'active')
-    // 2. Есть работа для этого казино с выводами в статусе 'new', 'waiting', 'received'
-    const usedCardIdsForThisCasino = activeWorks
-      .filter(work => {
-        // Проверяем только работы для выбранного казино
-        if (work.casino?.id !== workForm.casino_id) return false
-        
-        // Если работа активна - карта используется для этого казино
-        if (work.status === 'active') return true
-        
-        // Если есть активные выводы - карта используется для этого казино
-        const hasActiveWithdrawals = work.withdrawals && work.withdrawals.some((w: any) => 
-          ['new', 'waiting', 'received'].includes(w.status)
-        )
-        
-        return hasActiveWithdrawals
-      })
-      .map(work => work.card?.id)
-    
-    return assignedCards.filter(card => !usedCardIdsForThisCasino.includes(card.id))
-  }
+  const selectedCasino = casinos.find(c => c.id === workForm.casino_id)
+  const selectedCard = cards.find(c => c.id === workForm.card_id)
+  const selectedPayPal = paypalAccounts.find(p => p.id === workForm.paypal_account_id)
+
+  // Сортировка PayPal аккаунтов
+  const activePayPalAccounts = paypalAccounts.filter(p => p.balance > 0).sort((a, b) => b.balance - a.balance)
+  const emptyPayPalAccounts = paypalAccounts.filter(p => p.balance <= 0)
 
   if (loading) {
     return (
-      <div className="space-y-6">
-        <div className="animate-pulse">
-          <div className="h-8 bg-gray-200 rounded w-1/3 mb-6"></div>
-          <div className="grid grid-cols-2 gap-6">
-            <div className="h-64 bg-gray-200 rounded"></div>
-            <div className="h-64 bg-gray-200 rounded"></div>
-          </div>
-        </div>
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="loading-spinner"></div>
       </div>
     )
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center space-x-4">
-        <button
-          onClick={() => router.back()}
-          className="btn-secondary"
-        >
-          <ArrowLeftIcon className="h-5 w-5 mr-2" />
-          Назад
-        </button>
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Создать новую работу</h1>
-          <p className="text-gray-600">Выберите казино и карту для создания депозита</p>
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-4">
+          <button
+            onClick={() => router.back()}
+            className="btn-secondary"
+          >
+            <ArrowLeftIcon className="h-5 w-5 mr-2" />
+            Назад
+          </button>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Создать новую работу</h1>
+            <p className="text-gray-600">Выберите казино и способ оплаты для создания работы</p>
+          </div>
         </div>
       </div>
 
-      <div className="max-w-2xl">
-        {/* Форма создания */}
+      {/* Статистика методов оплаты */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <KPICard
+          title="Доступные карты"
+          value={cards.length}
+          icon={<CreditCardIcon className="h-6 w-6" />}
+          color="primary"
+        />
+        <KPICard
+          title="PayPal с балансом"
+          value={activePayPalAccounts.length}
+          icon={<BanknotesIcon className="h-6 w-6" />}
+          color="success"
+        />
+        <KPICard
+          title="PayPal пустые"
+          value={emptyPayPalAccounts.length}
+          icon={<ExclamationTriangleIcon className="h-6 w-6" />}
+          color="warning"
+        />
+        <KPICard
+          title="Всего казино"
+          value={casinos.length}
+          icon={<ComputerDesktopIcon className="h-6 w-6" />}
+          color="gray"
+        />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Форма создания работы */}
         <div className="card">
           <div className="card-header">
             <h3 className="text-lg font-semibold text-gray-900">Параметры работы</h3>
           </div>
 
-          <div className="space-y-4">
-            <div className="relative casino-search-container">
+          <div className="space-y-6">
+            {/* Поиск казино */}
+            <div className="casino-search-container relative">
               <label className="form-label">Казино *</label>
               <input
                 type="text"
                 value={casinoSearch}
-                onChange={(e) => handleCasinoSearch(e.target.value)}
-                onFocus={() => {
-                  if (casinoSearch && filteredCasinos.length > 0) {
-                    setShowCasinoDropdown(true)
-                  }
-                }}
+                onChange={(e) => setCasinoSearch(e.target.value)}
+                onFocus={() => setShowCasinoDropdown(true)}
                 className="form-input"
-                placeholder="Начните вводить название казино..."
-                required
+                placeholder="Поиск казино по названию или URL..."
               />
               
-              {/* Выпадающий список казино */}
-              {showCasinoDropdown && (
+              {showCasinoDropdown && filteredCasinos.length > 0 && (
                 <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto">
-                  {filteredCasinos.map(casino => (
-                    <div
+                  {filteredCasinos.map((casino) => (
+                    <button
                       key={casino.id}
                       onClick={() => selectCasino(casino)}
-                      className="px-4 py-2 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-b-0"
+                      className="w-full px-4 py-2 text-left hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
                     >
-                      <div className="font-medium">{casino.name}</div>
-                      <div className="text-sm text-gray-500">{casino.currency}</div>
-                    </div>
+                      <div className="font-medium text-gray-900">{casino.name}</div>
+                      <div className="text-sm text-gray-500">{casino.url}</div>
+                      <div className="flex items-center space-x-2 mt-1">
+                        <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded">
+                          {casino.currency}
+                        </span>
+                        {casino.payment_methods?.includes('paypal') && (
+                          <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded">
+                            PayPal
+                          </span>
+                        )}
+                      </div>
+                    </button>
                   ))}
-                </div>
-              )}
-              
-              {getSelectedCasino() && (
-                <div className="mt-2">
-                  <button
-                    onClick={() => {
-                      const casino = getSelectedCasino()!
-                      const promoText = casino.promo || 'Промо-код не указан'
-                      navigator.clipboard.writeText(promoText)
-                      addToast({
-                        type: 'success',
-                        title: 'Скопировано!',
-                        description: casino.promo ? 'Промо-код скопирован в буфер обмена' : 'Промо-код не найден'
-                      })
-                    }}
-                    className="btn-secondary text-xs"
-                    disabled={!getSelectedCasino()?.promo}
-                  >
-                    📋 Скопировать промо
-                  </button>
                 </div>
               )}
             </div>
 
-            <div>
-              <label className="form-label">Карта *</label>
-              {workForm.card_id ? (
-                // Показываем выбранную карту как readonly
-                <div className="form-input bg-gray-50 flex items-center justify-between">
-                  <span>
-                    {getSelectedCard()?.card_number_mask} - {getSelectedCard()?.bank_account?.bank?.name || 'Неизвестный банк'}
-                  </span>
+            {/* Выбор метода оплаты */}
+            {selectedCasino && (
+              <div>
+                <label className="form-label">Метод оплаты *</label>
+                <div className="grid grid-cols-2 gap-3">
                   <button
-                    type="button"
-                    onClick={() => setWorkForm({ ...workForm, card_id: '' })}
-                    className="text-gray-400 hover:text-gray-600 text-sm"
+                    onClick={() => setWorkForm(prev => ({ ...prev, payment_method: 'card', paypal_account_id: '' }))}
+                    className={`p-4 border-2 rounded-lg transition-colors ${
+                      workForm.payment_method === 'card'
+                        ? 'border-blue-500 bg-blue-50'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                    disabled={selectedCasino.payment_methods && !selectedCasino.payment_methods.includes('card')}
                   >
-                    Изменить
+                    <CreditCardIcon className="h-8 w-8 mx-auto mb-2 text-blue-600" />
+                    <div className="font-medium">Банковская карта</div>
+                    <div className="text-sm text-gray-500">{cards.length} доступно</div>
+                  </button>
+                  
+                  <button
+                    onClick={() => setWorkForm(prev => ({ ...prev, payment_method: 'paypal', card_id: '' }))}
+                    className={`p-4 border-2 rounded-lg transition-colors ${
+                      workForm.payment_method === 'paypal'
+                        ? 'border-blue-500 bg-blue-50'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                    disabled={selectedCasino.payment_methods && !selectedCasino.payment_methods.includes('paypal')}
+                  >
+                    <BanknotesIcon className="h-8 w-8 mx-auto mb-2 text-green-600" />
+                    <div className="font-medium">PayPal</div>
+                    <div className="text-sm text-gray-500">{activePayPalAccounts.length} с балансом</div>
                   </button>
                 </div>
-              ) : (
-                // Показываем select только если карта не выбрана
+              </div>
+            )}
+
+            {/* Выбор карты */}
+            {workForm.payment_method === 'card' && (
+              <div>
+                <label className="form-label">Карта *</label>
                 <select
                   value={workForm.card_id}
-                  onChange={(e) => setWorkForm({ ...workForm, card_id: e.target.value })}
+                  onChange={(e) => setWorkForm(prev => ({ ...prev, card_id: e.target.value }))}
                   className="form-input"
-                  required
-                  disabled={!workForm.casino_id}
                 >
-                  <option value="">
-                    {!workForm.casino_id ? 'Сначала выберите казино' : 'Выберите карту'}
-                  </option>
-                  {getAvailableCards().map(card => (
+                  <option value="">Выберите карту</option>
+                  {cards.map((card) => (
                     <option key={card.id} value={card.id}>
-                      {card.card_number_mask} - {card.bank_account?.bank?.name || 'Неизвестный банк'}
+                      {card.card_number_mask} - {card.bank_account.holder_name} ({card.account_currency} ${card.account_balance.toFixed(2)})
                     </option>
                   ))}
                 </select>
-              )}
-              {getSelectedCard() && (
-                <div className="mt-2 flex items-center justify-between">
-                  <div className="text-sm text-gray-600">
-                    <div>Тип: {getSelectedCard()!.card_type}</div>
-                    <div>Аккаунт: {getSelectedCard()!.bank_account?.holder_name || 'Неизвестный аккаунт'}</div>
+              </div>
+            )}
+
+            {/* Выбор PayPal */}
+            {workForm.payment_method === 'paypal' && (
+              <div>
+                <label className="form-label">PayPal аккаунт *</label>
+                
+                {/* Активные PayPal с балансом */}
+                {activePayPalAccounts.length > 0 && (
+                  <div className="space-y-2 mb-4">
+                    <div className="text-sm font-medium text-green-700">💰 С балансом (рекомендуется)</div>
+                    {activePayPalAccounts.map((paypal) => (
+                      <button
+                        key={paypal.id}
+                        onClick={() => setWorkForm(prev => ({ ...prev, paypal_account_id: paypal.id }))}
+                        className={`w-full p-3 border-2 rounded-lg text-left transition-colors ${
+                          workForm.paypal_account_id === paypal.id
+                            ? 'border-green-500 bg-green-50'
+                            : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        <div className="flex justify-between items-center">
+                          <div>
+                            <div className="font-medium text-gray-900">{paypal.name}</div>
+                            <div className="text-sm text-gray-500">{paypal.email}</div>
+                          </div>
+                          <div className="text-right">
+                            <div className="font-bold text-green-600">${paypal.balance.toFixed(2)}</div>
+                            <div className="text-xs text-gray-500">
+                              {new Date(paypal.date_created).toLocaleDateString('ru-RU')}
+                            </div>
+                          </div>
+                        </div>
+                      </button>
+                    ))}
                   </div>
-                  <button
-                    onClick={() => {
-                      setSelectedCardForDetails(getSelectedCard()!)
-                      setShowCardDetailsModal(true)
-                    }}
-                    className="btn-secondary text-xs"
-                  >
-                    👁️ Реквизиты
-                  </button>
-                </div>
-              )}
-              {!workForm.casino_id && (
-                <div className="mt-2 text-sm text-gray-500">
-                  Выберите казино, чтобы увидеть назначенные карты
-                </div>
-              )}
-              {workForm.casino_id && getAvailableCards().length === 0 && (
-                <div className="mt-2 text-sm text-orange-600">
-                  На это казино не назначено ни одной карты
-                </div>
-              )}
-            </div>
+                )}
 
+                {/* Пустые PayPal */}
+                {emptyPayPalAccounts.length > 0 && (
+                  <div className="space-y-2">
+                    <div className="text-sm font-medium text-orange-700">⚠️ Без баланса (требуется пополнение)</div>
+                    {emptyPayPalAccounts.map((paypal) => (
+                      <button
+                        key={paypal.id}
+                        onClick={() => setWorkForm(prev => ({ ...prev, paypal_account_id: paypal.id }))}
+                        className={`w-full p-3 border-2 rounded-lg text-left transition-colors ${
+                          workForm.paypal_account_id === paypal.id
+                            ? 'border-orange-500 bg-orange-50'
+                            : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        <div className="flex justify-between items-center">
+                          <div>
+                            <div className="font-medium text-gray-900">{paypal.name}</div>
+                            <div className="text-sm text-gray-500">{paypal.email}</div>
+                          </div>
+                          <div className="text-right">
+                            <div className="font-bold text-orange-600">$0.00</div>
+                            <div className="text-xs text-orange-500">Требует пополнения</div>
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {paypalAccounts.length === 0 && (
+                  <div className="text-center py-8 text-gray-500">
+                    <BanknotesIcon className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                    <p>У вас нет PayPal аккаунтов</p>
+                    <button
+                      onClick={() => router.push('/dashboard/junior/paypal')}
+                      className="btn-primary mt-4"
+                    >
+                      Добавить PayPal аккаунт
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Сумма депозита */}
             <div>
-              <label className="form-label">
-                Сумма депозита ({getSelectedCasino()?.currency || '$'}) *
-              </label>
-              <input
-                type="number"
-                value={workForm.deposit_amount || ''}
-                onChange={(e) => setWorkForm({ ...workForm, deposit_amount: parseFloat(e.target.value) || 0 })}
-                className="form-input"
-                placeholder="Введите сумму депозита"
-                min="1"
-                step="0.01"
-                required
-              />
+              <label className="form-label">Сумма депозита *</label>
+              <div className="relative">
+                <input
+                  type="number"
+                  value={workForm.deposit_amount || ''}
+                  onChange={(e) => setWorkForm(prev => ({ ...prev, deposit_amount: parseFloat(e.target.value) || 0 }))}
+                  className="form-input pl-8"
+                  placeholder="0.00"
+                  min="0"
+                  step="0.01"
+                />
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center">
+                  <span className="text-gray-500 text-sm">
+                    {selectedCasino?.currency || '$'}
+                  </span>
+                </div>
+              </div>
             </div>
 
+            {/* Данные для входа в казино */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="form-label">Логин для казино</label>
+                <label className="form-label">Логин казино</label>
                 <input
                   type="text"
                   value={workForm.casino_login}
-                  onChange={(e) => setWorkForm({ ...workForm, casino_login: e.target.value })}
+                  onChange={(e) => setWorkForm(prev => ({ ...prev, casino_login: e.target.value }))}
                   className="form-input"
-                  placeholder="username"
+                  placeholder="email или username"
                 />
               </div>
               <div>
-                <label className="form-label">Пароль для казино</label>
+                <label className="form-label">Пароль казино</label>
                 <input
-                  type="text"
+                  type="password"
                   value={workForm.casino_password}
-                  onChange={(e) => setWorkForm({ ...workForm, casino_password: e.target.value })}
+                  onChange={(e) => setWorkForm(prev => ({ ...prev, casino_password: e.target.value }))}
                   className="form-input"
-                  placeholder="Введите пароль"
+                  placeholder="пароль"
                 />
               </div>
             </div>
 
+            {/* Заметки */}
             <div>
               <label className="form-label">Заметки</label>
               <textarea
                 value={workForm.notes}
-                onChange={(e) => setWorkForm({ ...workForm, notes: e.target.value })}
+                onChange={(e) => setWorkForm(prev => ({ ...prev, notes: e.target.value }))}
                 className="form-input"
                 rows={3}
-                placeholder="Особенности, заметки по работе..."
+                placeholder="Дополнительная информация о работе..."
               />
+            </div>
+
+            {/* Кнопка создания */}
+            <div className="flex space-x-3 pt-4">
+              <button
+                onClick={() => router.back()}
+                className="btn-secondary flex-1"
+                disabled={creating}
+              >
+                Отмена
+              </button>
+              <button
+                onClick={handleCreateWork}
+                className="btn-primary flex-1"
+                disabled={creating || !workForm.casino_id || !workForm.deposit_amount || 
+                  (workForm.payment_method === 'card' && !workForm.card_id) ||
+                  (workForm.payment_method === 'paypal' && !workForm.paypal_account_id)}
+              >
+                {creating ? 'Создание...' : 'Создать работу'}
+              </button>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Кнопки действий */}
-      <div className="flex justify-end space-x-4">
-        <button
-          onClick={() => router.push('/dashboard/junior')}
-          className="btn-secondary"
-        >
-          Отмена
-        </button>
-        <button
-          onClick={handleCreateWork}
-          disabled={creating || !workForm.casino_id || !workForm.card_id || !workForm.deposit_amount}
-          className="btn-primary"
-        >
-          {creating ? 'Создание...' : 'Создать работу'}
-        </button>
-      </div>
+        {/* Превью работы */}
+        <div className="card">
+          <div className="card-header">
+            <h3 className="text-lg font-semibold text-gray-900">Превью работы</h3>
+          </div>
 
-      {/* Modal показа реквизитов карты */}
-      <Modal
-        isOpen={showCardDetailsModal}
-        onClose={() => {
-          setShowCardDetailsModal(false)
-          setSelectedCardForDetails(null)
-        }}
-        title={`Реквизиты карты ${selectedCardForDetails?.card_number_mask}`}
-        size="md"
-      >
-        {selectedCardForDetails && (
-          <CardDetailsModal 
-            card={selectedCardForDetails}
-            onClose={() => setShowCardDetailsModal(false)}
-          />
-        )}
-      </Modal>
+          <div className="space-y-4">
+            {selectedCasino ? (
+              <>
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Казино</label>
+                  <div className="mt-1 p-3 bg-gray-50 rounded-lg">
+                    <div className="font-medium text-gray-900">{selectedCasino.name}</div>
+                    <div className="text-sm text-gray-500">{selectedCasino.url}</div>
+                    <div className="flex items-center space-x-2 mt-2">
+                      <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded">
+                        {selectedCasino.currency}
+                      </span>
+                      {selectedCasino.payment_methods?.includes('paypal') && (
+                        <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded">
+                          PayPal поддерживается
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
 
-      {/* Инструкции */}
-      <div className="bg-primary-50 border border-primary-200 rounded-lg p-6">
-        <h3 className="font-medium text-primary-900 mb-3">📋 Создание работы</h3>
-        <div className="text-sm text-primary-800 space-y-2">
-          <div>1. <strong>Выберите одобренное казино</strong> из списка</div>
-          <div>2. <strong>Выберите доступную карту</strong> с достаточным балансом</div>
-          <div>3. <strong>Укажите сумму депозита</strong> для работы</div>
-          <div>4. <strong>Заполните данные входа</strong> в казино (если есть)</div>
-          <div>5. <strong>Создайте работу</strong> и переходите к выполнению</div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Метод оплаты</label>
+                  <div className="mt-1 p-3 bg-gray-50 rounded-lg">
+                    <div className="flex items-center">
+                      {workForm.payment_method === 'card' ? (
+                        <CreditCardIcon className="h-5 w-5 mr-2 text-blue-600" />
+                      ) : (
+                        <BanknotesIcon className="h-5 w-5 mr-2 text-green-600" />
+                      )}
+                      <span className="font-medium">
+                        {workForm.payment_method === 'card' ? 'Банковская карта' : 'PayPal'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {workForm.payment_method === 'card' && selectedCard && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Выбранная карта</label>
+                    <div className="mt-1 p-3 bg-gray-50 rounded-lg">
+                      <div className="font-medium text-gray-900">{selectedCard.card_number_mask}</div>
+                      <div className="text-sm text-gray-500">{selectedCard.bank_account.holder_name}</div>
+                      <div className="text-sm text-green-600">
+                        Баланс: {selectedCard.account_currency} ${selectedCard.account_balance.toFixed(2)}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {workForm.payment_method === 'paypal' && selectedPayPal && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Выбранный PayPal</label>
+                    <div className="mt-1 p-3 bg-gray-50 rounded-lg">
+                      <div className="font-medium text-gray-900">{selectedPayPal.name}</div>
+                      <div className="text-sm text-gray-500">{selectedPayPal.email}</div>
+                      <div className={`text-sm ${selectedPayPal.balance > 0 ? 'text-green-600' : 'text-orange-600'}`}>
+                        Баланс: ${selectedPayPal.balance.toFixed(2)}
+                        {selectedPayPal.balance <= 0 && ' (требует пополнения)'}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {workForm.deposit_amount > 0 && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Сумма депозита</label>
+                    <div className="mt-1 p-3 bg-gray-50 rounded-lg">
+                      <div className="text-2xl font-bold text-gray-900">
+                        {selectedCasino.currency} {workForm.deposit_amount.toFixed(2)}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                <ComputerDesktopIcon className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                <p>Выберите казино для создания работы</p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

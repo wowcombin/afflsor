@@ -49,15 +49,11 @@ export default function Navigation({ userRole }: NavigationProps) {
         return [
           { name: 'Dashboard', href: baseHref, icon: HomeIcon },
           { name: 'Мои задачи', href: `${baseHref}/tasks`, icon: ClipboardDocumentListIcon },
-          { name: 'Командная доска', href: `${baseHref}/team-board`, icon: UserGroupIcon },
-          { name: 'Новая работа', href: `${baseHref}/work/new`, icon: BriefcaseIcon },
-          { name: 'Мои выводы', href: `${baseHref}/withdrawals`, icon: ClockIcon },
-          { name: 'Мои карты', href: `${baseHref}/cards`, icon: CreditCardIcon },
-          { name: 'PayPal аккаунты', href: `${baseHref}/paypal`, icon: BanknotesIcon },
-          { name: 'PayPal работы', href: `${baseHref}/paypal-work`, icon: ComputerDesktopIcon },
+          { name: 'Создать работу', href: `${baseHref}/work/new`, icon: BriefcaseIcon },
+          { name: 'Мои работы', href: `${baseHref}/withdrawals`, icon: ClockIcon },
+          { name: 'Платежные средства', href: `${baseHref}/payment-methods`, icon: CreditCardIcon },
           { name: 'Статистика', href: `${baseHref}/stats`, icon: ChartBarIcon },
-          { name: 'Генератор данных', href: `${baseHref}/generator`, icon: CommandLineIcon },
-          { name: 'Настройки', href: '/dashboard/settings', icon: CogIcon }
+          { name: 'Настройки', href: `${baseHref}/settings`, icon: CogIcon }
         ]
 
       case 'manager':
