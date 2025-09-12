@@ -128,26 +128,35 @@ export default function NewWorkPageV2() {
       const casinosResponse = await fetch('/api/casinos?status=approved')
       if (casinosResponse.ok) {
         const { casinos: casinosData } = await casinosResponse.json()
-        setCasinos(casinosData.filter((c: Casino) => c.status === 'approved'))
+        const validCasinos = Array.isArray(casinosData) ? casinosData.filter((c: Casino) => c.status === 'approved') : []
+        setCasinos(validCasinos)
+      } else {
+        setCasinos([])
       }
 
       // Загружаем карты
       const cardsResponse = await fetch('/api/cards')
       if (cardsResponse.ok) {
         const { cards: cardsData } = await cardsResponse.json()
-        const availableCards = cardsData.filter((c: Card) => c.status === 'active')
+        const validCards = Array.isArray(cardsData) ? cardsData : []
+        const availableCards = validCards.filter((c: Card) => c.status === 'active')
         setCards(availableCards)
 
         if (preselectedCardId && availableCards.find((c: Card) => c.id === preselectedCardId)) {
           setWorkForm(prev => ({ ...prev, card_id: preselectedCardId }))
         }
+      } else {
+        setCards([])
       }
 
       // Загружаем PayPal аккаунты
       const paypalResponse = await fetch('/api/junior/paypal')
       if (paypalResponse.ok) {
         const { accounts: paypalData } = await paypalResponse.json()
-        setPaypalAccounts(paypalData.filter((p: PayPalAccount) => p.status === 'active'))
+        const validPaypal = Array.isArray(paypalData) ? paypalData.filter((p: PayPalAccount) => p.status === 'active') : []
+        setPaypalAccounts(validPaypal)
+      } else {
+        setPaypalAccounts([])
       }
 
     } catch (error: any) {

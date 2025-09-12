@@ -192,13 +192,17 @@ export default function PaymentMethodsPage() {
             // Обрабатываем карты
             if (cardsResponse.ok) {
                 const { cards: cardsData } = await cardsResponse.json()
-                setCards(cardsData)
+                setCards(Array.isArray(cardsData) ? cardsData : [])
+            } else {
+                setCards([])
             }
 
             // Обрабатываем PayPal
             if (paypalResponse.ok) {
                 const { accounts: paypalData } = await paypalResponse.json()
-                setPaypalAccounts(paypalData)
+                setPaypalAccounts(Array.isArray(paypalData) ? paypalData : [])
+            } else {
+                setPaypalAccounts([])
             }
 
         } catch (error: any) {

@@ -65,9 +65,9 @@ export async function POST(request: NextRequest) {
 
     } catch (error: any) {
         console.error('Change password error:', error)
-        return NextResponse.json({ 
+        return NextResponse.json({
             error: 'Internal server error',
-            details: error.message 
+            details: error.message
         }, { status: 500 })
     }
 }

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useToast } from '@/components/ui/Toast'
-import { 
+import {
   CogIcon,
   UserIcon,
   CurrencyDollarIcon,
@@ -25,7 +25,7 @@ interface UserSettings {
 
 export default function SettingsPage() {
   const { addToast } = useToast()
-  
+
   const [settings, setSettings] = useState<UserSettings | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -33,7 +33,7 @@ export default function SettingsPage() {
   const [changingPassword, setChangingPassword] = useState(false)
   const [showCurrentPassword, setShowCurrentPassword] = useState(false)
   const [showNewPassword, setShowNewPassword] = useState(false)
-  
+
   const [formData, setFormData] = useState({
     first_name: '',
     last_name: '',
@@ -55,10 +55,10 @@ export default function SettingsPage() {
   async function loadUserSettings() {
     try {
       setLoading(true)
-      
+
       // Загружаем данные пользователя через API
       const response = await fetch('/api/users/me')
-      
+
       if (!response.ok) {
         throw new Error('Не удалось загрузить настройки пользователя')
       }
@@ -67,7 +67,7 @@ export default function SettingsPage() {
       const userData = data.user || data
 
       setSettings(userData)
-      
+
       // Заполняем форму текущими данными
       setFormData({
         first_name: userData.first_name || '',
@@ -91,7 +91,7 @@ export default function SettingsPage() {
   async function saveSettings() {
     try {
       setSaving(true)
-      
+
       // Подготавливаем данные для обновления
       const updateData = {
         first_name: formData.first_name?.trim() || null,
@@ -116,7 +116,7 @@ export default function SettingsPage() {
 
       const updatedUser = await response.json()
       setSettings(updatedUser)
-      
+
       addToast({
         type: 'success',
         title: 'Настройки сохранены',
@@ -322,7 +322,7 @@ export default function SettingsPage() {
                 placeholder="Введите ваше имя"
               />
             </div>
-            
+
             <div>
               <label className="form-label">Фамилия</label>
               <input
@@ -345,11 +345,10 @@ export default function SettingsPage() {
                 type="text"
                 value={formData.telegram_username}
                 onChange={(e) => handleInputChange('telegram_username', e.target.value)}
-                className={`form-input ${
-                  formData.telegram_username && !validateTelegramUsername(formData.telegram_username)
+                className={`form-input ${formData.telegram_username && !validateTelegramUsername(formData.telegram_username)
                     ? 'border-red-300 focus:border-red-500'
                     : ''
-                }`}
+                  }`}
                 placeholder="@username"
               />
               {formData.telegram_username && !validateTelegramUsername(formData.telegram_username) && (
@@ -361,7 +360,7 @@ export default function SettingsPage() {
                 Приоритетное имя в системе
               </p>
             </div>
-            
+
             <div className="md:col-span-2">
               <label className="form-label flex items-center">
                 <CurrencyDollarIcon className="h-4 w-4 mr-2" />
@@ -372,11 +371,10 @@ export default function SettingsPage() {
                   type={showWallet ? "text" : "password"}
                   value={formData.usdt_wallet}
                   onChange={(e) => handleInputChange('usdt_wallet', e.target.value)}
-                  className={`form-input pr-10 ${
-                    formData.usdt_wallet && !validateUsdtWallet(formData.usdt_wallet)
+                  className={`form-input pr-10 ${formData.usdt_wallet && !validateUsdtWallet(formData.usdt_wallet)
                       ? 'border-red-300 focus:border-red-500'
                       : ''
-                  }`}
+                    }`}
                   placeholder="0x1234567890abcdef1234567890abcdef12345678"
                 />
                 <button
@@ -447,7 +445,7 @@ export default function SettingsPage() {
                 </button>
               </div>
             </div>
-            
+
             <div>
               <label className="form-label">Новый пароль *</label>
               <div className="relative">
@@ -484,11 +482,10 @@ export default function SettingsPage() {
                 type="password"
                 value={passwordData.confirmPassword}
                 onChange={(e) => handlePasswordChange('confirmPassword', e.target.value)}
-                className={`form-input ${
-                  passwordData.confirmPassword && passwordData.newPassword !== passwordData.confirmPassword
+                className={`form-input ${passwordData.confirmPassword && passwordData.newPassword !== passwordData.confirmPassword
                     ? 'border-red-300 focus:border-red-500'
                     : ''
-                }`}
+                  }`}
                 placeholder="Повторите новый пароль"
               />
               {passwordData.confirmPassword && passwordData.newPassword !== passwordData.confirmPassword && (
@@ -497,14 +494,14 @@ export default function SettingsPage() {
                 </p>
               )}
             </div>
-            
+
             <div className="flex items-end">
               <button
                 onClick={changePassword}
                 disabled={
-                  changingPassword || 
-                  !passwordData.currentPassword || 
-                  !passwordData.newPassword || 
+                  changingPassword ||
+                  !passwordData.currentPassword ||
+                  !passwordData.newPassword ||
                   !passwordData.confirmPassword ||
                   passwordData.newPassword !== passwordData.confirmPassword ||
                   passwordData.newPassword.length < 6
