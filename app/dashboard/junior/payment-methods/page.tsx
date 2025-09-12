@@ -955,7 +955,8 @@ export default function PaymentMethodsPage() {
                                 <select
                                     value={newPayPalForm.currency}
                                     onChange={(e) => setNewPayPalForm({ ...newPayPalForm, currency: e.target.value })}
-                                    className="form-input w-12 flex-shrink-0"
+                                    className="form-input flex-shrink-0"
+                                    style={{ width: '60px', minWidth: '60px', maxWidth: '60px' }}
                                 >
                                     <option value="GBP">GBP</option>
                                     <option value="USD">USD</option>
@@ -1085,7 +1086,8 @@ export default function PaymentMethodsPage() {
                                 <select
                                     value={editPayPalForm.currency}
                                     onChange={(e) => setEditPayPalForm({ ...editPayPalForm, currency: e.target.value })}
-                                    className="form-input w-12 flex-shrink-0"
+                                    className="form-input flex-shrink-0"
+                                    style={{ width: '60px', minWidth: '60px', maxWidth: '60px' }}
                                 >
                                     <option value="GBP">GBP</option>
                                     <option value="USD">USD</option>
@@ -1259,7 +1261,8 @@ export default function PaymentMethodsPage() {
                                         ...newOperationForm, 
                                         currency: e.target.value 
                                     })}
-                                    className="form-input w-12 flex-shrink-0"
+                                    className="form-input flex-shrink-0"
+                                    style={{ width: '60px', minWidth: '60px', maxWidth: '60px' }}
                                 >
                                     <option value="GBP">GBP</option>
                                     <option value="USD">USD</option>
