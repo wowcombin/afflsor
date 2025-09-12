@@ -67,10 +67,7 @@ export async function middleware(request: NextRequest) {
     '/api/nda/sign', // API для подписания NDA
     '/api/nda/files', // API для файлов NDA
     '/debug/auth-check', // Диагностическая страница
-    '/debug/settings-test', // Тест настроек
-    '/api/debug/auth-status', // Диагностический API
-    '/api/debug/manager-test', // Тест Manager API
-    '/api/debug/settings-test' // Тест Settings API
+    '/api/debug/auth-status' // Диагностический API
   ]
   const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route))
 
