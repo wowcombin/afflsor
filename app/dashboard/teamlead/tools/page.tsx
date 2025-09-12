@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { useToast } from '@/components/ui/Toast'
 import {
     WrenchScrewdriverIcon,
@@ -11,7 +12,10 @@ import {
     ArrowPathIcon,
     DocumentDuplicateIcon,
     TrashIcon,
-    PlayIcon
+    PlayIcon,
+    ClipboardDocumentListIcon,
+    BuildingLibraryIcon,
+    CreditCardIcon
 } from '@heroicons/react/24/outline'
 
 interface GeneratedAccount {
@@ -21,16 +25,26 @@ interface GeneratedAccount {
     phoneNumber: string
 }
 
+interface ToolSection {
+    title: string
+    description: string
+    icon: React.ComponentType<{ className?: string }>
+    href?: string
+    action?: () => void
+    color: string
+}
+
 export default function TeamLeadToolsPage() {
+    const router = useRouter()
     const { addToast } = useToast()
     const [activeTab, setActiveTab] = useState<'generator' | 'formatter'>('generator')
-
+    
     // Генератор британских аккаунтов
     const [count, setCount] = useState<number>(10)
     const [customNames, setCustomNames] = useState<string>('')
     const [generatedData, setGeneratedData] = useState<GeneratedAccount[]>([])
     const [generating, setGenerating] = useState(false)
-
+    
     // Форматирование текста (только нижний регистр)
     const [inputText, setInputText] = useState('')
     const [outputText, setOutputText] = useState('')
@@ -84,14 +98,14 @@ export default function TeamLeadToolsPage() {
         const domains = ['gmail.com', 'yahoo.co.uk', 'outlook.com', 'hotmail.co.uk', 'btinternet.com']
         const domain = domains[Math.floor(Math.random() * domains.length)]
         const randomNum = Math.floor(Math.random() * 999) + 1
-
+        
         const emailVariations = [
             `${firstName.toLowerCase()}.${lastName.toLowerCase()}${randomNum}@${domain}`,
             `${firstName.toLowerCase()}${lastName.toLowerCase()}${randomNum}@${domain}`,
             `${firstName.toLowerCase()}${randomNum}@${domain}`,
             `${firstName.charAt(0).toLowerCase()}${lastName.toLowerCase()}${randomNum}@${domain}`
         ]
-
+        
         return emailVariations[Math.floor(Math.random() * emailVariations.length)]
     }
 
@@ -101,21 +115,21 @@ export default function TeamLeadToolsPage() {
         const lowercase = 'abcdefghijklmnopqrstuvwxyz'
         const numbers = '0123456789'
         const symbols = '!@#$%^&*'
-
+        
         const allChars = uppercase + lowercase + numbers + symbols
         let password = ''
-
+        
         // Обеспечиваем наличие хотя бы одного символа каждого типа
         password += uppercase[Math.floor(Math.random() * uppercase.length)]
         password += lowercase[Math.floor(Math.random() * lowercase.length)]
         password += numbers[Math.floor(Math.random() * numbers.length)]
         password += symbols[Math.floor(Math.random() * symbols.length)]
-
+        
         // Добавляем остальные символы
         for (let i = 4; i < 12; i++) {
             password += allChars[Math.floor(Math.random() * allChars.length)]
         }
-
+        
         // Перемешиваем пароль
         return password.split('').sort(() => Math.random() - 0.5).join('')
     }
@@ -129,21 +143,21 @@ export default function TeamLeadToolsPage() {
             `${firstName.charAt(0).toLowerCase()}${lastName.toLowerCase()}${randomNum}`,
             `${lastName.toLowerCase()}${firstName.charAt(0).toLowerCase()}${randomNum}`
         ]
-
+        
         return usernameVariations[Math.floor(Math.random() * usernameVariations.length)]
     }
 
     // Основная функция генерации аккаунтов
     const generateAccounts = async () => {
         setGenerating(true)
-
+        
         try {
             const accounts: GeneratedAccount[] = []
             const names = customNames.trim() ? customNames.split('\n').filter(name => name.trim()) : []
-
+            
             for (let i = 0; i < count; i++) {
                 let firstName: string, lastName: string
-
+                
                 if (names.length > 0 && i < names.length) {
                     const fullName = names[i].trim().split(' ')
                     firstName = fullName[0] || britishFirstNames[Math.floor(Math.random() * britishFirstNames.length)]
@@ -152,7 +166,7 @@ export default function TeamLeadToolsPage() {
                     firstName = britishFirstNames[Math.floor(Math.random() * britishFirstNames.length)]
                     lastName = britishLastNames[Math.floor(Math.random() * britishLastNames.length)]
                 }
-
+                
                 accounts.push({
                     username: generateUsername(firstName, lastName),
                     password: generatePassword(),
@@ -160,14 +174,14 @@ export default function TeamLeadToolsPage() {
                     phoneNumber: generateUKPhoneNumber()
                 })
             }
-
+            
             setGeneratedData(accounts)
             addToast({
                 type: 'success',
                 title: 'Аккаунты сгенерированы',
                 description: `Создано ${accounts.length} британских аккаунтов`
             })
-
+            
         } catch (error) {
             addToast({
                 type: 'error',
@@ -193,11 +207,11 @@ export default function TeamLeadToolsPage() {
     // Функция копирования всех данных
     const copyAllData = () => {
         if (generatedData.length === 0) return
-
-        const formatted = generatedData.map(account =>
+        
+        const formatted = generatedData.map(account => 
             `Username: ${account.username}\nPassword: ${account.password}\nEmail: ${account.email}\nPhone: ${account.phoneNumber}\n---`
         ).join('\n')
-
+        
         copyToClipboard(formatted, 'Все данные')
     }
 
@@ -226,13 +240,44 @@ export default function TeamLeadToolsPage() {
         }, 500)
     }
 
+    const toolSections: ToolSection[] = [
+        {
+            title: 'Управление задачами',
+            description: 'Создание и делегирование задач Junior\'ам',
+            icon: ClipboardDocumentListIcon,
+            href: '/dashboard/teamlead/tasks',
+            color: 'bg-blue-50 border-blue-200 text-blue-700'
+        },
+        {
+            title: 'Kanban доска',
+            description: 'Визуальное управление задачами команды',
+            icon: ClipboardDocumentListIcon,
+            href: '/dashboard/teamlead/kanban',
+            color: 'bg-green-50 border-green-200 text-green-700'
+        },
+        {
+            title: 'PayPal команды',
+            description: 'Управление PayPal аккаунтами Junior\'ов',
+            icon: CreditCardIcon,
+            href: '/dashboard/teamlead/paypal',
+            color: 'bg-purple-50 border-purple-200 text-purple-700'
+        },
+        {
+            title: 'Мои назначения',
+            description: 'Просмотр назначенных ресурсов и казино',
+            icon: BuildingLibraryIcon,
+            href: '/dashboard/teamlead/assignments',
+            color: 'bg-orange-50 border-orange-200 text-orange-700'
+        }
+    ]
+
     return (
         <div className="space-y-6">
             <div className="flex items-center gap-3">
                 <WrenchScrewdriverIcon className="h-8 w-8 text-gray-700" />
                 <div>
                     <h1 className="text-2xl font-bold text-gray-900">Инструменты TeamLead</h1>
-                    <p className="text-gray-600">Генератор британских аккаунтов и форматирование текста</p>
+                    <p className="text-gray-600">Генератор данных, управление задачами и ресурсами</p>
                 </div>
             </div>
 
@@ -240,20 +285,22 @@ export default function TeamLeadToolsPage() {
             <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg">
                 <button
                     onClick={() => setActiveTab('generator')}
-                    className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${activeTab === 'generator'
+                    className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
+                        activeTab === 'generator'
                             ? 'bg-white text-gray-900 shadow-sm'
                             : 'text-gray-500 hover:text-gray-700'
-                        }`}
+                    }`}
                 >
                     <CommandLineIcon className="h-4 w-4 inline mr-2" />
                     Генератор аккаунтов
                 </button>
                 <button
                     onClick={() => setActiveTab('formatter')}
-                    className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${activeTab === 'formatter'
+                    className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
+                        activeTab === 'formatter'
                             ? 'bg-white text-gray-900 shadow-sm'
                             : 'text-gray-500 hover:text-gray-700'
-                        }`}
+                    }`}
                 >
                     <DocumentTextIcon className="h-4 w-4 inline mr-2" />
                     Форматирование
@@ -409,29 +456,6 @@ export default function TeamLeadToolsPage() {
                             </div>
                         </div>
                     </div>
-
-                    {/* Информация о генераторе */}
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-                        <h3 className="text-lg font-semibold text-blue-900 mb-4">🇬🇧 Особенности британского генератора</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-blue-800">
-                            <div>
-                                <h4 className="font-medium mb-2">📱 Номера телефонов:</h4>
-                                <ul className="space-y-1 text-xs">
-                                    <li>• Префиксы реальных британских операторов</li>
-                                    <li>• O2, Vodafone, EE, Three, Lycamobile</li>
-                                    <li>• Формат: +44 XXX XXXXXXXX</li>
-                                </ul>
-                            </div>
-                            <div>
-                                <h4 className="font-medium mb-2">📧 Email адреса:</h4>
-                                <ul className="space-y-1 text-xs">
-                                    <li>• Популярные британские домены</li>
-                                    <li>• gmail.com, yahoo.co.uk, outlook.com</li>
-                                    <li>• btinternet.com, hotmail.co.uk</li>
-                                </ul>
-                            </div>
-                        </div>
-                    </div>
                 </div>
             )}
 
@@ -498,17 +522,52 @@ export default function TeamLeadToolsPage() {
                             />
                         </div>
                     </div>
+                </div>
+            )}
 
-                    <div className="mt-6 bg-gray-50 border border-gray-200 rounded-lg p-4">
-                        <h4 className="font-medium text-gray-900 mb-2">💡 Возможности форматирования:</h4>
-                        <ul className="text-sm text-gray-700 space-y-1">
-                            <li>• <strong>Нижний регистр:</strong> Преобразует весь текст в строчные буквы</li>
-                            <li>• <strong>Очистка стилей:</strong> Удаляет форматирование при копировании из Google Sheets</li>
-                            <li>• <strong>Быстрое копирование:</strong> Одним кликом копируете результат в буфер обмена</li>
+            {/* Дополнительные инструменты */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {toolSections.map((section) => (
+                    <div
+                        key={section.href || section.title}
+                        onClick={() => section.href && router.push(section.href)}
+                        className={`${section.color} border rounded-lg p-6 cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-105`}
+                    >
+                        <div className="flex items-start gap-4">
+                            <section.icon className="h-8 w-8 flex-shrink-0" />
+                            <div>
+                                <h3 className="text-lg font-semibold mb-2">{section.title}</h3>
+                                <p className="text-sm opacity-80">{section.description}</p>
+                            </div>
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+            {/* Информация */}
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">🛠️ Возможности TeamLead</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-700">
+                    <div>
+                        <h4 className="font-medium mb-2">⚡ Генерация данных:</h4>
+                        <ul className="space-y-1 text-xs">
+                            <li>• Британские имена пользователей</li>
+                            <li>• Безопасные пароли</li>
+                            <li>• UK Email адреса</li>
+                            <li>• Британские номера телефонов</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h4 className="font-medium mb-2">📝 Управление командой:</h4>
+                        <ul className="space-y-1 text-xs">
+                            <li>• Создание и делегирование задач</li>
+                            <li>• Kanban доска для визуализации</li>
+                            <li>• Управление PayPal аккаунтами</li>
+                            <li>• Контроль назначений</li>
                         </ul>
                     </div>
                 </div>
-            )}
+            </div>
         </div>
     )
 }
