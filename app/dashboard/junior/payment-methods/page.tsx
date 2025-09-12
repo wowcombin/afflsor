@@ -590,6 +590,40 @@ export default function PaymentMethodsPage() {
             },
             variant: 'secondary',
             condition: (paypal) => paypal.status === 'active'
+        },
+        {
+            label: 'Заблокировать',
+            action: async (paypal) => {
+                if (confirm(`Вы уверены, что хотите заблокировать PayPal аккаунт "${paypal.name}"?`)) {
+                    try {
+                        const response = await fetch(`/api/junior/paypal/${paypal.id}`, {
+                            method: 'DELETE'
+                        })
+                        
+                        if (response.ok) {
+                            addToast({
+                                type: 'success',
+                                title: 'PayPal аккаунт заблокирован'
+                            })
+                            loadPaymentMethods()
+                        } else {
+                            const error = await response.json()
+                            addToast({
+                                type: 'error',
+                                title: error.error || 'Ошибка при блокировке аккаунта'
+                            })
+                        }
+                    } catch (error) {
+                        console.error('Error blocking PayPal:', error)
+                        addToast({
+                            type: 'error',
+                            title: 'Ошибка при блокировке аккаунта'
+                        })
+                    }
+                }
+            },
+            variant: 'danger',
+            condition: (paypal) => paypal.status === 'active'
         }
     ]
 
@@ -921,7 +955,7 @@ export default function PaymentMethodsPage() {
                                 <select
                                     value={newPayPalForm.currency}
                                     onChange={(e) => setNewPayPalForm({ ...newPayPalForm, currency: e.target.value })}
-                                    className="form-input w-24 flex-shrink-0"
+                                    className="form-input w-16 flex-shrink-0"
                                 >
                                     <option value="GBP">GBP</option>
                                     <option value="USD">USD</option>
@@ -1051,7 +1085,7 @@ export default function PaymentMethodsPage() {
                                 <select
                                     value={editPayPalForm.currency}
                                     onChange={(e) => setEditPayPalForm({ ...editPayPalForm, currency: e.target.value })}
-                                    className="form-input w-24 flex-shrink-0"
+                                    className="form-input w-16 flex-shrink-0"
                                 >
                                     <option value="GBP">GBP</option>
                                     <option value="USD">USD</option>
@@ -1225,7 +1259,7 @@ export default function PaymentMethodsPage() {
                                         ...newOperationForm, 
                                         currency: e.target.value 
                                     })}
-                                    className="form-input w-24 flex-shrink-0"
+                                    className="form-input w-16 flex-shrink-0"
                                 >
                                     <option value="GBP">GBP</option>
                                     <option value="USD">USD</option>
