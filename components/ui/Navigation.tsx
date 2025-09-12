@@ -62,16 +62,11 @@ export default function Navigation({ userRole }: NavigationProps) {
       case 'manager':
         return [
           { name: 'Dashboard', href: baseHref, icon: HomeIcon },
-          { name: 'Очередь выводов', href: `${baseHref}/withdrawals`, icon: ClockIcon },
           { name: 'Команда', href: `${baseHref}/team`, icon: UsersIcon },
-          { name: 'Карты', href: `${baseHref}/cards`, icon: CreditCardIcon },
-          { name: 'Банки', href: `${baseHref}/banks`, icon: BuildingLibraryIcon },
-          { name: 'PayPal аккаунты', href: `${baseHref}/paypal`, icon: CreditCardIcon },
-          { name: 'PayPal отчеты', href: `${baseHref}/paypal-reports`, icon: ChartBarIcon },
-          { name: 'Назначения', href: `${baseHref}/assignments`, icon: UsersIcon },
-          { name: 'Задачи', href: `${baseHref}/tasks`, icon: ClipboardDocumentListIcon },
-          { name: 'Аналитика', href: `${baseHref}/analytics`, icon: ChartBarIcon },
-          { name: 'Статистика', href: `${baseHref}/statistics`, icon: TrophyIcon },
+          { name: 'Выводы', href: `${baseHref}/withdrawals`, icon: BanknotesIcon },
+          { name: 'Казино', href: `${baseHref}/assignments`, icon: ComputerDesktopIcon },
+          { name: 'Инструменты', href: `${baseHref}/tools`, icon: WrenchScrewdriverIcon },
+          { name: 'Отчеты', href: `${baseHref}/reports`, icon: ChartBarIcon },
           { name: 'Настройки', href: '/dashboard/settings', icon: CogIcon }
         ]
 
@@ -122,15 +117,11 @@ export default function Navigation({ userRole }: NavigationProps) {
       case 'teamlead':
         return [
           { name: 'Dashboard', href: baseHref, icon: HomeIcon },
-          { name: 'Управление задачами', href: `${baseHref}/tasks`, icon: ClipboardDocumentListIcon },
-          { name: 'Kanban доска', href: `${baseHref}/kanban`, icon: ClipboardDocumentListIcon },
-          { name: 'Моя команда', href: `${baseHref}/team`, icon: UsersIcon },
-          { name: 'Выводы команды', href: `${baseHref}/withdrawals`, icon: BanknotesIcon },
-          { name: 'Карты команды', href: `${baseHref}/cards`, icon: CreditCardIcon },
-          { name: 'PayPal команды', href: `${baseHref}/paypal`, icon: CreditCardIcon },
-          { name: 'Генератор данных', href: `${baseHref}/generator`, icon: CommandLineIcon },
-          { name: 'Мои назначения', href: `${baseHref}/assignments`, icon: BuildingLibraryIcon },
-          { name: 'Назначения казино', href: `${baseHref}/casino-assignments`, icon: ComputerDesktopIcon },
+          { name: 'Команда', href: `${baseHref}/team`, icon: UsersIcon },
+          { name: 'Выводы', href: `${baseHref}/withdrawals`, icon: BanknotesIcon },
+          { name: 'Карты', href: `${baseHref}/cards`, icon: CreditCardIcon },
+          { name: 'Казино', href: `${baseHref}/casino-assignments`, icon: ComputerDesktopIcon },
+          { name: 'Инструменты', href: `${baseHref}/tools`, icon: WrenchScrewdriverIcon },
           { name: 'Настройки', href: '/dashboard/settings', icon: CogIcon }
         ]
 
