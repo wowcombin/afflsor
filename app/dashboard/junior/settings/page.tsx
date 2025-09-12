@@ -14,8 +14,8 @@ import {
 interface UserSettings {
   id: string
   email: string
-  name: string | null
-  surname: string | null
+  first_name: string | null
+  last_name: string | null
   telegram_username: string | null
   usdt_wallet: string | null
   phone: string | null
@@ -31,8 +31,8 @@ export default function SettingsPage() {
   const [showWallet, setShowWallet] = useState(false)
   
   const [formData, setFormData] = useState({
-    name: '',
-    surname: '',
+    first_name: '',
+    last_name: '',
     telegram_username: '',
     usdt_wallet: ''
   })
@@ -53,14 +53,15 @@ export default function SettingsPage() {
         throw new Error('Не удалось загрузить настройки пользователя')
       }
 
-      const userData = await response.json()
+      const data = await response.json()
+      const userData = data.user || data
 
       setSettings(userData)
       
       // Заполняем форму текущими данными
       setFormData({
-        name: userData.name || '',
-        surname: userData.surname || '',
+        first_name: userData.first_name || '',
+        last_name: userData.last_name || '',
         telegram_username: userData.telegram_username || '',
         usdt_wallet: userData.usdt_wallet || ''
       })
@@ -83,8 +84,8 @@ export default function SettingsPage() {
       
       // Подготавливаем данные для обновления
       const updateData = {
-        name: formData.name?.trim() || null,
-        surname: formData.surname?.trim() || null,
+        first_name: formData.first_name?.trim() || null,
+        last_name: formData.last_name?.trim() || null,
         telegram_username: formData.telegram_username?.trim()?.replace('@', '') || null,
         usdt_wallet: formData.usdt_wallet?.trim() || null
       }
@@ -124,7 +125,7 @@ export default function SettingsPage() {
   }
 
   // Обработка изменений в форме
-  function handleInputChange(field: string, value: string) {
+  function handleInputChange(field: keyof typeof formData, value: string) {
     setFormData(prev => ({
       ...prev,
       [field]: value
@@ -151,8 +152,8 @@ export default function SettingsPage() {
     if (settings?.telegram_username) {
       return `@${settings.telegram_username.replace('@', '')}`
     }
-    if (settings?.name || settings?.surname) {
-      return `${settings.name || ''} ${settings.surname || ''}`.trim()
+    if (settings?.first_name || settings?.last_name) {
+      return `${settings.first_name || ''} ${settings.last_name || ''}`.trim()
     }
     return settings?.email || 'Пользователь'
   }
@@ -223,8 +224,8 @@ export default function SettingsPage() {
               <label className="form-label">Имя</label>
               <input
                 type="text"
-                value={formData.name}
-                onChange={(e) => handleInputChange('name', e.target.value)}
+                value={formData.first_name}
+                onChange={(e) => handleInputChange('first_name', e.target.value)}
                 className="form-input"
                 placeholder="Введите ваше имя"
               />
@@ -234,8 +235,8 @@ export default function SettingsPage() {
               <label className="form-label">Фамилия</label>
               <input
                 type="text"
-                value={formData.surname}
-                onChange={(e) => handleInputChange('surname', e.target.value)}
+                value={formData.last_name}
+                onChange={(e) => handleInputChange('last_name', e.target.value)}
                 className="form-input"
                 placeholder="Введите вашу фамилию"
               />
