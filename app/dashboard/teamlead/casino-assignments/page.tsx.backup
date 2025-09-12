@@ -27,7 +27,8 @@ interface JuniorCasinoAssignment {
     junior: {
         id: string
         email: string
-        name?: string
+        first_name?: string
+        last_name?: string
         status: string
     }
 }
@@ -189,7 +190,7 @@ export default function TeamLeadCasinoAssignmentsPage() {
             render: (assignment) => (
                 <div>
                     <div className="font-medium text-gray-900">
-                        {assignment.junior.name || assignment.junior.email}
+                        {`${assignment.junior.first_name || ''} ${assignment.junior.last_name || ''}`.trim() || assignment.junior.email}
                     </div>
                     <div className="text-sm text-gray-500">{assignment.junior.email}</div>
                 </div>
@@ -337,7 +338,7 @@ export default function TeamLeadCasinoAssignmentsPage() {
                             <option value="">Выберите Junior'а</option>
                             {teamJuniors.map((junior: any) => (
                                 <option key={junior.id} value={junior.id}>
-                                    {junior.name || junior.email}
+                                    {`${junior.first_name || ''} ${junior.last_name || ''}`.trim() || junior.email}
                                 </option>
                             ))}
                         </select>

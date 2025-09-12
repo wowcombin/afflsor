@@ -24,13 +24,13 @@ interface GeneratedAccount {
 export default function TeamLeadToolsPage() {
     const { addToast } = useToast()
     const [activeTab, setActiveTab] = useState<'generator' | 'formatter'>('generator')
-    
+
     // Генератор британских аккаунтов
     const [count, setCount] = useState<number>(10)
     const [customNames, setCustomNames] = useState<string>('')
     const [generatedData, setGeneratedData] = useState<GeneratedAccount[]>([])
     const [generating, setGenerating] = useState(false)
-    
+
     // Форматирование текста (только нижний регистр)
     const [inputText, setInputText] = useState('')
     const [outputText, setOutputText] = useState('')
@@ -84,14 +84,14 @@ export default function TeamLeadToolsPage() {
         const domains = ['gmail.com', 'yahoo.co.uk', 'outlook.com', 'hotmail.co.uk', 'btinternet.com']
         const domain = domains[Math.floor(Math.random() * domains.length)]
         const randomNum = Math.floor(Math.random() * 999) + 1
-        
+
         const emailVariations = [
             `${firstName.toLowerCase()}.${lastName.toLowerCase()}${randomNum}@${domain}`,
             `${firstName.toLowerCase()}${lastName.toLowerCase()}${randomNum}@${domain}`,
             `${firstName.toLowerCase()}${randomNum}@${domain}`,
             `${firstName.charAt(0).toLowerCase()}${lastName.toLowerCase()}${randomNum}@${domain}`
         ]
-        
+
         return emailVariations[Math.floor(Math.random() * emailVariations.length)]
     }
 
@@ -101,21 +101,21 @@ export default function TeamLeadToolsPage() {
         const lowercase = 'abcdefghijklmnopqrstuvwxyz'
         const numbers = '0123456789'
         const symbols = '!@#$%^&*'
-        
+
         const allChars = uppercase + lowercase + numbers + symbols
         let password = ''
-        
+
         // Обеспечиваем наличие хотя бы одного символа каждого типа
         password += uppercase[Math.floor(Math.random() * uppercase.length)]
         password += lowercase[Math.floor(Math.random() * lowercase.length)]
         password += numbers[Math.floor(Math.random() * numbers.length)]
         password += symbols[Math.floor(Math.random() * symbols.length)]
-        
+
         // Добавляем остальные символы
         for (let i = 4; i < 12; i++) {
             password += allChars[Math.floor(Math.random() * allChars.length)]
         }
-        
+
         // Перемешиваем пароль
         return password.split('').sort(() => Math.random() - 0.5).join('')
     }
@@ -129,21 +129,21 @@ export default function TeamLeadToolsPage() {
             `${firstName.charAt(0).toLowerCase()}${lastName.toLowerCase()}${randomNum}`,
             `${lastName.toLowerCase()}${firstName.charAt(0).toLowerCase()}${randomNum}`
         ]
-        
+
         return usernameVariations[Math.floor(Math.random() * usernameVariations.length)]
     }
 
     // Основная функция генерации аккаунтов
     const generateAccounts = async () => {
         setGenerating(true)
-        
+
         try {
             const accounts: GeneratedAccount[] = []
             const names = customNames.trim() ? customNames.split('\n').filter(name => name.trim()) : []
-            
+
             for (let i = 0; i < count; i++) {
                 let firstName: string, lastName: string
-                
+
                 if (names.length > 0 && i < names.length) {
                     const fullName = names[i].trim().split(' ')
                     firstName = fullName[0] || britishFirstNames[Math.floor(Math.random() * britishFirstNames.length)]
@@ -152,7 +152,7 @@ export default function TeamLeadToolsPage() {
                     firstName = britishFirstNames[Math.floor(Math.random() * britishFirstNames.length)]
                     lastName = britishLastNames[Math.floor(Math.random() * britishLastNames.length)]
                 }
-                
+
                 accounts.push({
                     username: generateUsername(firstName, lastName),
                     password: generatePassword(),
@@ -160,14 +160,14 @@ export default function TeamLeadToolsPage() {
                     phoneNumber: generateUKPhoneNumber()
                 })
             }
-            
+
             setGeneratedData(accounts)
             addToast({
                 type: 'success',
                 title: 'Аккаунты сгенерированы',
                 description: `Создано ${accounts.length} британских аккаунтов`
             })
-            
+
         } catch (error) {
             addToast({
                 type: 'error',
@@ -193,11 +193,11 @@ export default function TeamLeadToolsPage() {
     // Функция копирования всех данных
     const copyAllData = () => {
         if (generatedData.length === 0) return
-        
-        const formatted = generatedData.map(account => 
+
+        const formatted = generatedData.map(account =>
             `Username: ${account.username}\nPassword: ${account.password}\nEmail: ${account.email}\nPhone: ${account.phoneNumber}\n---`
         ).join('\n')
-        
+
         copyToClipboard(formatted, 'Все данные')
     }
 
@@ -240,22 +240,20 @@ export default function TeamLeadToolsPage() {
             <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg">
                 <button
                     onClick={() => setActiveTab('generator')}
-                    className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
-                        activeTab === 'generator'
+                    className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${activeTab === 'generator'
                             ? 'bg-white text-gray-900 shadow-sm'
                             : 'text-gray-500 hover:text-gray-700'
-                    }`}
+                        }`}
                 >
                     <CommandLineIcon className="h-4 w-4 inline mr-2" />
                     Генератор аккаунтов
                 </button>
                 <button
                     onClick={() => setActiveTab('formatter')}
-                    className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
-                        activeTab === 'formatter'
+                    className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${activeTab === 'formatter'
                             ? 'bg-white text-gray-900 shadow-sm'
                             : 'text-gray-500 hover:text-gray-700'
-                    }`}
+                        }`}
                 >
                     <DocumentTextIcon className="h-4 w-4 inline mr-2" />
                     Форматирование
