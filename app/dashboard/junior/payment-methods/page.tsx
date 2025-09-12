@@ -118,7 +118,10 @@ export default function PaymentMethodsPage() {
     const [activeTab, setActiveTab] = useState<'cards' | 'paypal' | 'history'>('cards')
     const [showSensitiveData, setShowSensitiveData] = useState<{ [key: string]: boolean }>({})
     const [showCreatePayPalModal, setShowCreatePayPalModal] = useState(false)
+    const [showEditPayPalModal, setShowEditPayPalModal] = useState(false)
+    const [editingPayPal, setEditingPayPal] = useState<PayPalAccount | null>(null)
     const [creating, setCreating] = useState(false)
+    const [updating, setUpdating] = useState(false)
     
     // Операции PayPal
     const [paypalOperations, setPaypalOperations] = useState<PayPalOperation[]>([])
@@ -145,6 +148,21 @@ export default function PaymentMethodsPage() {
         date_created: new Date().toISOString().split('T')[0],
         balance: 0,
         currency: 'GBP', // По умолчанию фунты
+        sender_paypal_email: '',
+        balance_send: 0,
+        send_paypal_balance: '',
+        info: ''
+    })
+
+    // Форма редактирования PayPal аккаунта
+    const [editPayPalForm, setEditPayPalForm] = useState({
+        name: '',
+        email: '',
+        password: '',
+        phone_number: '',
+        authenticator_url: '',
+        balance: 0,
+        currency: 'GBP',
         sender_paypal_email: '',
         balance_send: 0,
         send_paypal_balance: '',
@@ -277,6 +295,75 @@ export default function PaymentMethodsPage() {
             })
         } finally {
             setCreating(false)
+        }
+    }
+
+    // Открыть редактирование PayPal аккаунта
+    function openEditPayPal(account: PayPalAccount) {
+        setEditingPayPal(account)
+        setEditPayPalForm({
+            name: account.name,
+            email: account.email,
+            password: account.password,
+            phone_number: account.phone_number,
+            authenticator_url: account.authenticator_url,
+            balance: account.balance,
+            currency: account.currency,
+            sender_paypal_email: account.sender_paypal_email || '',
+            balance_send: account.balance_send || 0,
+            send_paypal_balance: account.send_paypal_balance || '',
+            info: account.info || ''
+        })
+        setShowEditPayPalModal(true)
+    }
+
+    // Обновить PayPal аккаунт
+    async function handleUpdatePayPal() {
+        if (!editingPayPal) return
+
+        if (!editPayPalForm.name || !editPayPalForm.email || !editPayPalForm.password ||
+            !editPayPalForm.phone_number || !editPayPalForm.authenticator_url) {
+            addToast({
+                type: 'error',
+                title: 'Заполните обязательные поля',
+                description: 'Имя, email, пароль, телефон и ссылка аутентификатора обязательны'
+            })
+            return
+        }
+
+        setUpdating(true)
+
+        try {
+            const response = await fetch(`/api/junior/paypal/${editingPayPal.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(editPayPalForm)
+            })
+
+            const data = await response.json()
+
+            if (!response.ok) {
+                throw new Error(data.error)
+            }
+
+            addToast({
+                type: 'success',
+                title: 'PayPal аккаунт обновлен',
+                description: `${editPayPalForm.name} успешно обновлен`
+            })
+
+            setShowEditPayPalModal(false)
+            setEditingPayPal(null)
+            await loadPaymentMethods()
+
+        } catch (error: any) {
+            addToast({
+                type: 'error',
+                title: 'Ошибка обновления аккаунта',
+                description: error.message
+            })
+        } finally {
+            setUpdating(false)
         }
     }
 
@@ -473,9 +560,35 @@ export default function PaymentMethodsPage() {
 
     const paypalActions: ActionButton<PayPalAccount>[] = [
         {
+            label: 'Редактировать',
+            action: (paypal) => openEditPayPal(paypal),
+            variant: 'secondary',
+            condition: (paypal) => paypal.status === 'active'
+        },
+        {
             label: 'Создать работу',
             action: (paypal) => router.push(`/dashboard/junior/work/new?paypal_id=${paypal.id}`),
             variant: 'primary',
+            condition: (paypal) => paypal.status === 'active'
+        },
+        {
+            label: 'Операции',
+            action: async (paypal) => {
+                setSelectedPayPalAccount(paypal)
+                setShowOperationsModal(true)
+                
+                // Загружаем операции для этого аккаунта
+                try {
+                    const response = await fetch(`/api/paypal/operations?paypal_account_id=${paypal.id}`)
+                    if (response.ok) {
+                        const data = await response.json()
+                        setPaypalOperations(data.operations || [])
+                    }
+                } catch (error) {
+                    console.error('Error loading operations:', error)
+                }
+            },
+            variant: 'secondary',
             condition: (paypal) => paypal.status === 'active'
         }
     ]
@@ -767,9 +880,6 @@ export default function PaymentMethodsPage() {
                                 required
                             />
                         </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
                         <div>
                             <label className="form-label">Номер телефона *</label>
                             <input
@@ -781,6 +891,9 @@ export default function PaymentMethodsPage() {
                                 required
                             />
                         </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
                         <div>
                             <label className="form-label">Ссылка аутентификатора *</label>
                             <input
@@ -793,38 +906,31 @@ export default function PaymentMethodsPage() {
                             />
                         </div>
                         <div>
-                            <label className="form-label">Баланс</label>
-                            <div className="relative">
-                                <input
-                                    type="number"
-                                    value={newPayPalForm.balance}
-                                    onChange={(e) => setNewPayPalForm({ ...newPayPalForm, balance: parseFloat(e.target.value) || 0 })}
-                                    className="form-input pr-16"
-                                    placeholder="0.00"
-                                    min="0"
-                                    step="0.01"
-                                />
-                                <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
-                                    <span className="text-gray-500 text-sm font-medium bg-gray-100 px-2 py-1 rounded">
-                                        {newPayPalForm.currency}
-                                    </span>
+                            <label className="form-label">Баланс и валюта</label>
+                            <div className="flex gap-2">
+                                <div className="flex-1 relative">
+                                    <input
+                                        type="number"
+                                        value={newPayPalForm.balance}
+                                        onChange={(e) => setNewPayPalForm({ ...newPayPalForm, balance: parseFloat(e.target.value) || 0 })}
+                                        className="form-input"
+                                        placeholder="0.00"
+                                        min="0"
+                                        step="0.01"
+                                    />
                                 </div>
+                                <select
+                                    value={newPayPalForm.currency}
+                                    onChange={(e) => setNewPayPalForm({ ...newPayPalForm, currency: e.target.value })}
+                                    className="form-input w-24"
+                                >
+                                    <option value="GBP">GBP</option>
+                                    <option value="USD">USD</option>
+                                    <option value="EUR">EUR</option>
+                                    <option value="CAD">CAD</option>
+                                </select>
                             </div>
                         </div>
-                    </div>
-
-                    <div>
-                        <label className="form-label">Валюта</label>
-                        <select
-                            value={newPayPalForm.currency}
-                            onChange={(e) => setNewPayPalForm({ ...newPayPalForm, currency: e.target.value })}
-                            className="form-input"
-                        >
-                            <option value="GBP">GBP (£) - Фунты стерлингов</option>
-                            <option value="USD">USD ($) - Доллары США</option>
-                            <option value="EUR">EUR (€) - Евро</option>
-                            <option value="CAD">CAD (C$) - Канадские доллары</option>
-                        </select>
                     </div>
 
                     <div>
@@ -852,6 +958,417 @@ export default function PaymentMethodsPage() {
                             disabled={creating}
                         >
                             {creating ? 'Создание...' : 'Создать аккаунт'}
+                        </button>
+                    </div>
+                </div>
+            </Modal>
+
+            {/* Модальное окно редактирования PayPal аккаунта */}
+            <Modal
+                isOpen={showEditPayPalModal}
+                onClose={() => {
+                    setShowEditPayPalModal(false)
+                    setEditingPayPal(null)
+                }}
+                title="Редактировать PayPal аккаунт"
+                size="lg"
+            >
+                <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="form-label">Имя *</label>
+                            <input
+                                type="text"
+                                value={editPayPalForm.name}
+                                onChange={(e) => setEditPayPalForm({ ...editPayPalForm, name: e.target.value })}
+                                className="form-input"
+                                placeholder="PHILIP JOHN KNIGHT"
+                                required
+                            />
+                        </div>
+                        <div>
+                            <label className="form-label">Email *</label>
+                            <input
+                                type="email"
+                                value={editPayPalForm.email}
+                                onChange={(e) => setEditPayPalForm({ ...editPayPalForm, email: e.target.value })}
+                                className="form-input"
+                                placeholder="example@outlook.com"
+                                required
+                            />
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="form-label">Пароль *</label>
+                            <input
+                                type="password"
+                                value={editPayPalForm.password}
+                                onChange={(e) => setEditPayPalForm({ ...editPayPalForm, password: e.target.value })}
+                                className="form-input"
+                                placeholder="пароль"
+                                required
+                            />
+                        </div>
+                        <div>
+                            <label className="form-label">Номер телефона *</label>
+                            <input
+                                type="tel"
+                                value={editPayPalForm.phone_number}
+                                onChange={(e) => setEditPayPalForm({ ...editPayPalForm, phone_number: e.target.value })}
+                                className="form-input"
+                                placeholder="+1234567890"
+                                required
+                            />
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="form-label">Ссылка аутентификатора *</label>
+                            <input
+                                type="url"
+                                value={editPayPalForm.authenticator_url}
+                                onChange={(e) => setEditPayPalForm({ ...editPayPalForm, authenticator_url: e.target.value })}
+                                className="form-input"
+                                placeholder="https://..."
+                                required
+                            />
+                        </div>
+                        <div>
+                            <label className="form-label">Баланс и валюта</label>
+                            <div className="flex gap-2">
+                                <div className="flex-1 relative">
+                                    <input
+                                        type="number"
+                                        value={editPayPalForm.balance}
+                                        onChange={(e) => setEditPayPalForm({ ...editPayPalForm, balance: parseFloat(e.target.value) || 0 })}
+                                        className="form-input"
+                                        placeholder="0.00"
+                                        min="0"
+                                        step="0.01"
+                                    />
+                                </div>
+                                <select
+                                    value={editPayPalForm.currency}
+                                    onChange={(e) => setEditPayPalForm({ ...editPayPalForm, currency: e.target.value })}
+                                    className="form-input w-24"
+                                >
+                                    <option value="GBP">GBP</option>
+                                    <option value="USD">USD</option>
+                                    <option value="EUR">EUR</option>
+                                    <option value="CAD">CAD</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="form-label">Дополнительная информация</label>
+                        <textarea
+                            value={editPayPalForm.info}
+                            onChange={(e) => setEditPayPalForm({ ...editPayPalForm, info: e.target.value })}
+                            className="form-input"
+                            rows={3}
+                            placeholder="Заметки об аккаунте..."
+                        />
+                    </div>
+
+                    <div className="flex justify-end space-x-3 pt-4">
+                        <button
+                            onClick={() => {
+                                setShowEditPayPalModal(false)
+                                setEditingPayPal(null)
+                            }}
+                            className="btn-secondary"
+                            disabled={updating}
+                        >
+                            Отмена
+                        </button>
+                        <button
+                            onClick={handleUpdatePayPal}
+                            className="btn-primary"
+                            disabled={updating}
+                        >
+                            {updating ? 'Обновление...' : 'Обновить аккаунт'}
+                        </button>
+                    </div>
+                </div>
+            </Modal>
+
+            {/* Модальное окно операций PayPal */}
+            <Modal
+                isOpen={showOperationsModal}
+                onClose={() => {
+                    setShowOperationsModal(false)
+                    setSelectedPayPalAccount(null)
+                }}
+                title={`Операции PayPal - ${selectedPayPalAccount?.name}`}
+                size="xl"
+            >
+                <div className="space-y-4">
+                    <div className="flex justify-between items-center">
+                        <h3 className="text-lg font-semibold">История операций</h3>
+                        <button
+                            onClick={() => setShowCreateOperationModal(true)}
+                            className="btn-primary"
+                        >
+                            <PlusIcon className="h-5 w-5 mr-2" />
+                            Записать операцию
+                        </button>
+                    </div>
+
+                    {/* Список операций */}
+                    <div className="max-h-96 overflow-y-auto">
+                        {paypalOperations.length === 0 ? (
+                            <div className="text-center py-8 text-gray-500">
+                                Операции не найдены
+                            </div>
+                        ) : (
+                            <div className="space-y-2">
+                                {paypalOperations.map((operation) => (
+                                    <div key={operation.id} className="border rounded-lg p-4">
+                                        <div className="flex justify-between items-start">
+                                            <div>
+                                                <div className="font-medium">
+                                                    {operation.operation_type === 'send_money' && '📤 Отправка денег'}
+                                                    {operation.operation_type === 'receive_money' && '📥 Получение денег'}
+                                                    {operation.operation_type === 'withdraw_to_card' && '💳 Вывод на карту'}
+                                                    {operation.operation_type === 'deposit_from_card' && '💳 Пополнение с карты'}
+                                                    {operation.operation_type === 'casino_deposit' && '🎰 Депозит в казино'}
+                                                    {operation.operation_type === 'casino_withdrawal' && '🎰 Вывод из казино'}
+                                                </div>
+                                                <div className="text-sm text-gray-600">
+                                                    {operation.amount} {operation.currency}
+                                                    {operation.fee_amount > 0 && ` (комиссия: ${operation.fee_amount})`}
+                                                </div>
+                                                {operation.description && (
+                                                    <div className="text-sm text-gray-500 mt-1">
+                                                        {operation.description}
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <div className="text-right">
+                                                <div className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${
+                                                    operation.status === 'completed' ? 'bg-green-100 text-green-800' :
+                                                    operation.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                                                    operation.status === 'processing' ? 'bg-blue-100 text-blue-800' :
+                                                    operation.status === 'failed' ? 'bg-red-100 text-red-800' :
+                                                    'bg-gray-100 text-gray-800'
+                                                }`}>
+                                                    {operation.status === 'completed' && 'Завершено'}
+                                                    {operation.status === 'pending' && 'Ожидание'}
+                                                    {operation.status === 'processing' && 'Обработка'}
+                                                    {operation.status === 'failed' && 'Ошибка'}
+                                                    {operation.status === 'cancelled' && 'Отменено'}
+                                                </div>
+                                                <div className="text-xs text-gray-500 mt-1">
+                                                    {new Date(operation.created_at).toLocaleDateString('ru-RU')}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </Modal>
+
+            {/* Модальное окно создания операции */}
+            <Modal
+                isOpen={showCreateOperationModal}
+                onClose={() => setShowCreateOperationModal(false)}
+                title="Записать операцию PayPal"
+                size="lg"
+            >
+                <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="form-label">Тип операции *</label>
+                            <select
+                                value={newOperationForm.operation_type}
+                                onChange={(e) => setNewOperationForm({ 
+                                    ...newOperationForm, 
+                                    operation_type: e.target.value as PayPalOperation['operation_type']
+                                })}
+                                className="form-input"
+                                required
+                            >
+                                <option value="send_money">📤 Отправка денег</option>
+                                <option value="receive_money">📥 Получение денег</option>
+                                <option value="withdraw_to_card">💳 Вывод на карту</option>
+                                <option value="deposit_from_card">💳 Пополнение с карты</option>
+                                <option value="casino_deposit">🎰 Депозит в казино</option>
+                                <option value="casino_withdrawal">🎰 Вывод из казино</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className="form-label">Сумма и валюта *</label>
+                            <div className="flex gap-2">
+                                <input
+                                    type="number"
+                                    value={newOperationForm.amount}
+                                    onChange={(e) => setNewOperationForm({ 
+                                        ...newOperationForm, 
+                                        amount: parseFloat(e.target.value) || 0 
+                                    })}
+                                    className="form-input flex-1"
+                                    placeholder="0.00"
+                                    min="0"
+                                    step="0.01"
+                                    required
+                                />
+                                <select
+                                    value={newOperationForm.currency}
+                                    onChange={(e) => setNewOperationForm({ 
+                                        ...newOperationForm, 
+                                        currency: e.target.value 
+                                    })}
+                                    className="form-input w-24"
+                                >
+                                    <option value="GBP">GBP</option>
+                                    <option value="USD">USD</option>
+                                    <option value="EUR">EUR</option>
+                                    <option value="CAD">CAD</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Дополнительные поля в зависимости от типа операции */}
+                    {(newOperationForm.operation_type === 'send_money' || newOperationForm.operation_type === 'receive_money') && (
+                        <div>
+                            <label className="form-label">Email получателя/отправителя</label>
+                            <input
+                                type="email"
+                                value={newOperationForm.recipient_paypal_email}
+                                onChange={(e) => setNewOperationForm({ 
+                                    ...newOperationForm, 
+                                    recipient_paypal_email: e.target.value 
+                                })}
+                                className="form-input"
+                                placeholder="example@paypal.com"
+                            />
+                        </div>
+                    )}
+
+                    {(newOperationForm.operation_type === 'withdraw_to_card' || newOperationForm.operation_type === 'deposit_from_card') && (
+                        <div>
+                            <label className="form-label">Номер карты</label>
+                            <input
+                                type="text"
+                                value={newOperationForm.recipient_card_number}
+                                onChange={(e) => setNewOperationForm({ 
+                                    ...newOperationForm, 
+                                    recipient_card_number: e.target.value 
+                                })}
+                                className="form-input"
+                                placeholder="**** **** **** 1234"
+                            />
+                        </div>
+                    )}
+
+                    {(newOperationForm.operation_type === 'casino_deposit' || newOperationForm.operation_type === 'casino_withdrawal') && (
+                        <div>
+                            <label className="form-label">Название казино</label>
+                            <input
+                                type="text"
+                                value={newOperationForm.casino_name}
+                                onChange={(e) => setNewOperationForm({ 
+                                    ...newOperationForm, 
+                                    casino_name: e.target.value 
+                                })}
+                                className="form-input"
+                                placeholder="Название казино"
+                            />
+                        </div>
+                    )}
+
+                    <div>
+                        <label className="form-label">Описание операции</label>
+                        <textarea
+                            value={newOperationForm.description}
+                            onChange={(e) => setNewOperationForm({ 
+                                ...newOperationForm, 
+                                description: e.target.value 
+                            })}
+                            className="form-input"
+                            rows={3}
+                            placeholder="Дополнительная информация об операции..."
+                        />
+                    </div>
+
+                    <div className="flex justify-end space-x-3 pt-4">
+                        <button
+                            onClick={() => setShowCreateOperationModal(false)}
+                            className="btn-secondary"
+                        >
+                            Отмена
+                        </button>
+                        <button
+                            onClick={async () => {
+                                if (!selectedPayPalAccount || newOperationForm.amount <= 0) {
+                                    addToast({
+                                        type: 'error',
+                                        title: 'Ошибка',
+                                        description: 'Заполните все обязательные поля'
+                                    })
+                                    return
+                                }
+
+                                try {
+                                    const response = await fetch('/api/paypal/operations', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({
+                                            paypal_account_id: selectedPayPalAccount.id,
+                                            ...newOperationForm
+                                        })
+                                    })
+
+                                    const data = await response.json()
+
+                                    if (!response.ok) {
+                                        throw new Error(data.error)
+                                    }
+
+                                    addToast({
+                                        type: 'success',
+                                        title: 'Операция записана',
+                                        description: 'Информация о переводе успешно сохранена'
+                                    })
+
+                                    setShowCreateOperationModal(false)
+                                    setNewOperationForm({
+                                        operation_type: 'send_money',
+                                        amount: 0,
+                                        currency: 'USD',
+                                        recipient_paypal_email: '',
+                                        recipient_card_number: '',
+                                        casino_name: '',
+                                        description: ''
+                                    })
+
+                                    // Обновляем список операций
+                                    const operationsResponse = await fetch(`/api/paypal/operations?paypal_account_id=${selectedPayPalAccount.id}`)
+                                    if (operationsResponse.ok) {
+                                        const operationsData = await operationsResponse.json()
+                                        setPaypalOperations(operationsData.operations || [])
+                                    }
+
+                                } catch (error: any) {
+                                    addToast({
+                                        type: 'error',
+                                        title: 'Ошибка записи операции',
+                                        description: error.message
+                                    })
+                                }
+                            }}
+                            className="btn-primary"
+                        >
+                            Записать операцию
                         </button>
                     </div>
                 </div>
