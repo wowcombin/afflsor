@@ -31,10 +31,9 @@ export default function JuniorToolsPage() {
     const [generatedData, setGeneratedData] = useState<GeneratedAccount[]>([])
     const [generating, setGenerating] = useState(false)
     
-    // Форматирование таблиц
+    // Форматирование текста (только нижний регистр)
     const [inputText, setInputText] = useState('')
     const [outputText, setOutputText] = useState('')
-    const [formatType, setFormatType] = useState<'lowercase' | 'clean' | 'table' | 'cells'>('lowercase')
     const [formatting, setFormatting] = useState(false)
 
     // Британские мобильные префиксы операторов
@@ -236,8 +235,8 @@ export default function JuniorToolsPage() {
         })
     }
 
-    // Форматирование текста
-    const formatText = async () => {
+    // Форматирование в нижний регистр
+    const formatToLowercase = async () => {
         if (!inputText.trim()) {
             addToast({
                 type: 'warning',
@@ -249,53 +248,7 @@ export default function JuniorToolsPage() {
 
         setFormatting(true)
         try {
-            let result = inputText
-
-            switch (formatType) {
-                case 'lowercase':
-                    result = inputText.toLowerCase()
-                    break
-                    
-                case 'clean':
-                    // Убираем лишние пробелы, переносы строк и специальные символы
-                    result = inputText
-                        .replace(/\s+/g, ' ') // Множественные пробелы в один
-                        .replace(/\n+/g, '\n') // Множественные переносы в один
-                        .replace(/[^\w\s\n\t.,!?-]/g, '') // Убираем специальные символы
-                        .trim()
-                    break
-                    
-                case 'table':
-                    // Форматируем как таблицу (разделители табуляции)
-                    const lines = inputText.split('\n')
-                    const formattedLines = lines.map(line => {
-                        return line
-                            .split(/\s+/) // Разбиваем по пробелам
-                            .filter(cell => cell.length > 0) // Убираем пустые ячейки
-                            .join('\t') // Соединяем табуляцией
-                    })
-                    result = formattedLines.join('\n')
-                    break
-                    
-                case 'cells':
-                    // Преобразуем таблицу обратно в отдельные ячейки
-                    const tableLines = inputText.split('\n')
-                    const cellsArray: string[] = []
-                    
-                    tableLines.forEach((line, rowIndex) => {
-                        if (line.trim()) {
-                            // Разбиваем строку по табуляции или множественным пробелам
-                            const cells = line.split(/\t+|\s{2,}/).filter(cell => cell.trim().length > 0)
-                            cells.forEach((cell, colIndex) => {
-                                cellsArray.push(`Строка ${rowIndex + 1}, Колонка ${colIndex + 1}: ${cell.trim()}`)
-                            })
-                        }
-                    })
-                    
-                    result = cellsArray.join('\n')
-                    break
-            }
-
+            const result = inputText.toLowerCase()
             setOutputText(result)
             
             // Копируем в буфер обмена
@@ -526,25 +479,9 @@ export default function JuniorToolsPage() {
             {activeTab === 'formatter' && (
                 <div className="space-y-6">
                     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                        <h3 className="text-lg font-semibold text-gray-900 mb-4">Форматирование текста</h3>
+                        <h3 className="text-lg font-semibold text-gray-900 mb-4">Форматирование в нижний регистр</h3>
                         
                         <div className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Тип форматирования
-                                </label>
-                                <select
-                                    value={formatType}
-                                    onChange={(e) => setFormatType(e.target.value as any)}
-                                    className="form-input"
-                                >
-                                    <option value="lowercase">Нижний регистр</option>
-                                    <option value="clean">Очистка от стилей</option>
-                                    <option value="table">Форматирование таблицы</option>
-                                    <option value="cells">Разбор таблицы по ячейкам</option>
-                                </select>
-                            </div>
-
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
                                     Исходный текст
@@ -552,13 +489,13 @@ export default function JuniorToolsPage() {
                                 <textarea
                                     value={inputText}
                                     onChange={(e) => setInputText(e.target.value)}
-                                    placeholder="Вставьте текст для форматирования..."
+                                    placeholder="Вставьте текст для преобразования в нижний регистр..."
                                     className="form-input h-32"
                                 />
                             </div>
 
                             <button
-                                onClick={formatText}
+                                onClick={formatToLowercase}
                                 disabled={formatting || !inputText.trim()}
                                 className="btn-primary flex items-center"
                             >
@@ -567,7 +504,7 @@ export default function JuniorToolsPage() {
                                 ) : (
                                     <DocumentTextIcon className="h-4 w-4 mr-2" />
                                 )}
-                                Форматировать
+                                Преобразовать в нижний регистр
                             </button>
 
                             {outputText && (
@@ -585,62 +522,27 @@ export default function JuniorToolsPage() {
                                         </button>
                                     </div>
                                     
-                                    {formatType === 'cells' ? (
-                                        // Для типа "разбор таблицы по ячейкам" показываем как таблицу
-                                        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 max-h-96 overflow-y-auto">
-                                            <div className="grid gap-2">
-                                                {outputText.split('\n').map((line, index) => {
-                                                    if (!line.trim()) return null
-                                                    const [position, ...contentParts] = line.split(': ')
-                                                    const content = contentParts.join(': ')
-                                                    return (
-                                                        <div key={index} className="bg-white border border-gray-200 rounded p-3 hover:bg-blue-50 transition-colors">
-                                                            <div className="flex items-start justify-between">
-                                                                <div className="flex-1">
-                                                                    <div className="text-xs font-medium text-blue-600 mb-1">
-                                                                        {position}
-                                                                    </div>
-                                                                    <div className="text-sm text-gray-900 font-mono select-all">
-                                                                        {content}
-                                                                    </div>
-                                                                </div>
-                                                                <button
-                                                                    onClick={() => copyToClipboard(content)}
-                                                                    className="ml-2 p-1 text-gray-400 hover:text-gray-600 rounded"
-                                                                    title="Копировать содержимое ячейки"
-                                                                >
-                                                                    <ClipboardDocumentIcon className="h-4 w-4" />
-                                                                </button>
-                                                            </div>
-                                                        </div>
-                                                    )
-                                                })}
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        // Для остальных типов показываем как обычный текст
-                                        <div className="relative">
-                                            <textarea
-                                                value={outputText}
-                                                readOnly
-                                                className="form-input h-32 bg-gray-50"
-                                            />
-                                        </div>
-                                    )}
+                                    <div className="relative">
+                                        <textarea
+                                            value={outputText}
+                                            readOnly
+                                            className="form-input h-32 bg-gray-50"
+                                        />
+                                    </div>
                                 </div>
                             )}
                         </div>
                     </div>
 
-                    {/* Описание форматирования */}
-                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                        <h4 className="font-medium text-green-900 mb-2">📋 Типы форматирования:</h4>
-                        <ul className="text-sm text-green-800 space-y-1">
-                            <li>• <strong>Нижний регистр:</strong> преобразует весь текст в строчные буквы</li>
-                            <li>• <strong>Очистка от стилей:</strong> убирает лишние пробелы и специальные символы из Google Таблиц</li>
-                            <li>• <strong>Форматирование таблицы:</strong> преобразует данные в табличный формат с разделителями</li>
-                            <li>• <strong>Разбор таблицы по ячейкам:</strong> разбивает таблицу на отдельные ячейки с указанием позиции</li>
-                        </ul>
+                    {/* Описание */}
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <h4 className="font-medium text-blue-900 mb-2">📋 Как использовать:</h4>
+                        <div className="text-sm text-blue-800 space-y-1">
+                            <div>1. Вставьте текст в поле ввода</div>
+                            <div>2. Нажмите "Преобразовать в нижний регистр"</div>
+                            <div>3. Результат автоматически скопируется в буфер обмена</div>
+                            <div>4. При необходимости используйте кнопку "Копировать" для повторного копирования</div>
+                        </div>
                     </div>
                 </div>
             )}
