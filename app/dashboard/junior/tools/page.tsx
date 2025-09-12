@@ -572,22 +572,61 @@ export default function JuniorToolsPage() {
 
                             {outputText && (
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                                        Результат
-                                    </label>
-                                    <div className="relative">
-                                        <textarea
-                                            value={outputText}
-                                            readOnly
-                                            className="form-input h-32 bg-gray-50 pr-10"
-                                        />
+                                    <div className="flex items-center justify-between mb-2">
+                                        <label className="block text-sm font-medium text-gray-700">
+                                            Результат
+                                        </label>
                                         <button
                                             onClick={() => copyToClipboard(outputText)}
-                                            className="absolute top-2 right-2"
+                                            className="btn-secondary text-xs flex items-center"
                                         >
-                                            <ClipboardDocumentIcon className="h-5 w-5 text-gray-400 hover:text-gray-600" />
+                                            <ClipboardDocumentIcon className="h-4 w-4 mr-1" />
+                                            Копировать
                                         </button>
                                     </div>
+                                    
+                                    {formatType === 'cells' ? (
+                                        // Для типа "разбор таблицы по ячейкам" показываем как таблицу
+                                        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 max-h-96 overflow-y-auto">
+                                            <div className="grid gap-2">
+                                                {outputText.split('\n').map((line, index) => {
+                                                    if (!line.trim()) return null
+                                                    const [position, ...contentParts] = line.split(': ')
+                                                    const content = contentParts.join(': ')
+                                                    return (
+                                                        <div key={index} className="bg-white border border-gray-200 rounded p-3 hover:bg-blue-50 transition-colors">
+                                                            <div className="flex items-start justify-between">
+                                                                <div className="flex-1">
+                                                                    <div className="text-xs font-medium text-blue-600 mb-1">
+                                                                        {position}
+                                                                    </div>
+                                                                    <div className="text-sm text-gray-900 font-mono select-all">
+                                                                        {content}
+                                                                    </div>
+                                                                </div>
+                                                                <button
+                                                                    onClick={() => copyToClipboard(content)}
+                                                                    className="ml-2 p-1 text-gray-400 hover:text-gray-600 rounded"
+                                                                    title="Копировать содержимое ячейки"
+                                                                >
+                                                                    <ClipboardDocumentIcon className="h-4 w-4" />
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    )
+                                                })}
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        // Для остальных типов показываем как обычный текст
+                                        <div className="relative">
+                                            <textarea
+                                                value={outputText}
+                                                readOnly
+                                                className="form-input h-32 bg-gray-50"
+                                            />
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>
