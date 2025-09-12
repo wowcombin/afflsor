@@ -24,8 +24,8 @@ export async function POST(
       .eq('auth_id', user.id)
       .single()
 
-    if (!userData || !['manager', 'admin'].includes(userData.role)) {
-      return NextResponse.json({ error: 'Forbidden - только Manager и Admin могут проверять выводы' }, { status: 403 })
+    if (!userData || !['teamlead', 'manager', 'hr', 'cfo', 'admin'].includes(userData.role)) {
+      return NextResponse.json({ error: 'Forbidden - недостаточно прав для проверки выводов' }, { status: 403 })
     }
 
     const body = await request.json()
@@ -36,9 +36,9 @@ export async function POST(
       return NextResponse.json({ error: 'Некорректное действие' }, { status: 400 })
     }
 
-    // Используем безопасную функцию проверки
+    // Используем обновленную функцию проверки
     const { data: result, error } = await supabase
-      .rpc('check_withdrawal_safe', {
+      .rpc('check_withdrawal_safe_v3', {
         p_withdrawal_id: withdrawalId,
         p_checker_id: userData.id,
         p_new_status: action,

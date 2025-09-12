@@ -83,7 +83,7 @@ export default function NewWorkPageV2() {
   const [paypalAccounts, setPaypalAccounts] = useState<PayPalAccount[]>([])
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
-  
+
   // Форма создания работы
   const [workForm, setWorkForm] = useState({
     casino_id: '',
@@ -116,7 +116,7 @@ export default function NewWorkPageV2() {
       setShowCasinoDropdown(true)
     } else {
       setFilteredCasinos(casinos)
-      setShowCasinoDropdown(false)
+        setShowCasinoDropdown(false)
     }
   }, [casinoSearch, casinos])
 
@@ -263,16 +263,16 @@ export default function NewWorkPageV2() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <button
-            onClick={() => router.back()}
-            className="btn-secondary"
-          >
-            <ArrowLeftIcon className="h-5 w-5 mr-2" />
-            Назад
-          </button>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Создать новую работу</h1>
+      <div className="flex items-center space-x-4">
+        <button
+          onClick={() => router.back()}
+          className="btn-secondary"
+        >
+          <ArrowLeftIcon className="h-5 w-5 mr-2" />
+          Назад
+        </button>
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Создать новую работу</h1>
             <p className="text-gray-600">Выберите казино и способ оплаты для создания работы</p>
           </div>
         </div>
@@ -345,7 +345,7 @@ export default function NewWorkPageV2() {
                             PayPal
                           </span>
                         )}
-                      </div>
+                    </div>
                     </button>
                   ))}
                 </div>
@@ -398,9 +398,9 @@ export default function NewWorkPageV2() {
                   className="form-input"
                 >
                   <option value="">Выберите карту</option>
-                  {cards.map((card) => (
+                   {cards.map((card) => (
                     <option key={card.id} value={card.id}>
-                      {card.card_number_mask} - {card.bank_account.holder_name} ({card.account_currency} ${card.account_balance.toFixed(2)})
+                       {card.card_number_mask} - {card.bank_account.holder_name} ({card.bank_account.bank?.name || 'Неизвестный банк'})
                     </option>
                   ))}
                 </select>
@@ -448,7 +448,7 @@ export default function NewWorkPageV2() {
                   <div className="space-y-2">
                     <div className="text-sm font-medium text-orange-700">⚠️ Без баланса (требуется пополнение)</div>
                     {emptyPayPalAccounts.map((paypal) => (
-                      <button
+                  <button
                         key={paypal.id}
                         onClick={() => setWorkForm(prev => ({ ...prev, paypal_account_id: paypal.id }))}
                         className={`w-full p-3 border-2 rounded-lg text-left transition-colors ${
@@ -467,10 +467,10 @@ export default function NewWorkPageV2() {
                             <div className="text-xs text-orange-500">Требует пополнения</div>
                           </div>
                         </div>
-                      </button>
+                  </button>
                     ))}
-                  </div>
-                )}
+                </div>
+              )}
 
                 {paypalAccounts.length === 0 && (
                   <div className="text-center py-8 text-gray-500">
@@ -482,30 +482,30 @@ export default function NewWorkPageV2() {
                     >
                       Добавить PayPal аккаунт
                     </button>
-                  </div>
-                )}
-              </div>
+                </div>
+              )}
+            </div>
             )}
 
-            {/* Сумма депозита */}
+             {/* Сумма депозита */}
             <div>
-              <label className="form-label">Сумма депозита *</label>
-              <div className="relative">
-                <input
-                  type="number"
-                  value={workForm.deposit_amount || ''}
-                  onChange={(e) => setWorkForm(prev => ({ ...prev, deposit_amount: parseFloat(e.target.value) || 0 }))}
-                  className="form-input pl-8"
-                  placeholder="0.00"
-                  min="0"
-                  step="0.01"
-                />
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center">
-                  <span className="text-gray-500 text-sm">
-                    {selectedCasino?.currency || '$'}
-                  </span>
-                </div>
-              </div>
+               <label className="form-label">Сумма депозита *</label>
+               <div className="relative">
+              <input
+                type="number"
+                value={workForm.deposit_amount || ''}
+                   onChange={(e) => setWorkForm(prev => ({ ...prev, deposit_amount: parseFloat(e.target.value) || 0 }))}
+                   className="form-input pr-16"
+                   placeholder="0.00"
+                   min="0"
+                step="0.01"
+                 />
+                 <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+                   <span className="text-gray-500 text-sm font-medium bg-gray-100 px-2 py-1 rounded">
+                     {selectedCasino?.currency || 'USD'}
+                   </span>
+                 </div>
+               </div>
             </div>
 
             {/* Данные для входа в казино */}
@@ -542,27 +542,27 @@ export default function NewWorkPageV2() {
                 rows={3}
                 placeholder="Дополнительная информация о работе..."
               />
-            </div>
+      </div>
 
             {/* Кнопка создания */}
             <div className="flex space-x-3 pt-4">
-              <button
+        <button
                 onClick={() => router.back()}
                 className="btn-secondary flex-1"
                 disabled={creating}
-              >
-                Отмена
-              </button>
-              <button
-                onClick={handleCreateWork}
+        >
+          Отмена
+        </button>
+        <button
+          onClick={handleCreateWork}
                 className="btn-primary flex-1"
                 disabled={creating || !workForm.casino_id || !workForm.deposit_amount || 
                   (workForm.payment_method === 'card' && !workForm.card_id) ||
                   (workForm.payment_method === 'paypal' && !workForm.paypal_account_id)}
-              >
-                {creating ? 'Создание...' : 'Создать работу'}
-              </button>
-            </div>
+        >
+          {creating ? 'Создание...' : 'Создать работу'}
+        </button>
+      </div>
           </div>
         </div>
 
@@ -613,11 +613,11 @@ export default function NewWorkPageV2() {
                   <div>
                     <label className="text-sm font-medium text-gray-700">Выбранная карта</label>
                     <div className="mt-1 p-3 bg-gray-50 rounded-lg">
-                      <div className="font-medium text-gray-900">{selectedCard.card_number_mask}</div>
-                      <div className="text-sm text-gray-500">{selectedCard.bank_account.holder_name}</div>
-                      <div className="text-sm text-green-600">
-                        Баланс: {selectedCard.account_currency} ${selectedCard.account_balance.toFixed(2)}
-                      </div>
+                     <div className="font-medium text-gray-900">{selectedCard.card_number_mask}</div>
+                     <div className="text-sm text-gray-500">{selectedCard.bank_account.holder_name}</div>
+                     <div className="text-sm text-blue-600">
+                       Банк: {selectedCard.bank_account.bank?.name || 'Неизвестный банк'}
+                     </div>
                     </div>
                   </div>
                 )}

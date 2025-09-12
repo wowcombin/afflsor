@@ -23,7 +23,8 @@ import {
   TrophyIcon,
   FolderIcon,
   DocumentDuplicateIcon,
-  UserGroupIcon
+  UserGroupIcon,
+  WrenchScrewdriverIcon
 } from '@heroicons/react/24/outline'
 
 interface NavigationItem {
@@ -52,6 +53,8 @@ export default function Navigation({ userRole }: NavigationProps) {
           { name: 'Создать работу', href: `${baseHref}/work/new`, icon: BriefcaseIcon },
           { name: 'Мои работы', href: `${baseHref}/withdrawals`, icon: ClockIcon },
           { name: 'Платежные средства', href: `${baseHref}/payment-methods`, icon: CreditCardIcon },
+          { name: 'Рейтинг', href: `${baseHref}/leaderboard`, icon: TrophyIcon },
+          { name: 'Инструменты', href: `${baseHref}/tools`, icon: WrenchScrewdriverIcon },
           { name: 'Статистика', href: `${baseHref}/stats`, icon: ChartBarIcon },
           { name: 'Настройки', href: `${baseHref}/settings`, icon: CogIcon }
         ]
