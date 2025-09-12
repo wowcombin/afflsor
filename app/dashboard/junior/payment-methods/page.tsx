@@ -907,20 +907,21 @@ export default function PaymentMethodsPage() {
                         </div>
                         <div>
                             <label className="form-label">Баланс и валюта</label>
-                            <div className="flex gap-2">
+                            <div className="flex gap-3">
                                 <input
                                     type="number"
                                     value={newPayPalForm.balance}
                                     onChange={(e) => setNewPayPalForm({ ...newPayPalForm, balance: parseFloat(e.target.value) || 0 })}
-                                    className="form-input flex-1"
+                                    className="form-input w-full"
                                     placeholder="0.00"
                                     min="0"
                                     step="0.01"
+                                    style={{ minWidth: '200px' }}
                                 />
                                 <select
                                     value={newPayPalForm.currency}
                                     onChange={(e) => setNewPayPalForm({ ...newPayPalForm, currency: e.target.value })}
-                                    className="form-input w-20"
+                                    className="form-input w-24 flex-shrink-0"
                                 >
                                     <option value="GBP">GBP</option>
                                     <option value="USD">USD</option>
@@ -1036,20 +1037,21 @@ export default function PaymentMethodsPage() {
                         </div>
                         <div>
                             <label className="form-label">Баланс и валюта</label>
-                            <div className="flex gap-2">
+                            <div className="flex gap-3">
                                 <input
                                     type="number"
                                     value={editPayPalForm.balance}
                                     onChange={(e) => setEditPayPalForm({ ...editPayPalForm, balance: parseFloat(e.target.value) || 0 })}
-                                    className="form-input flex-1"
+                                    className="form-input w-full"
                                     placeholder="0.00"
                                     min="0"
                                     step="0.01"
+                                    style={{ minWidth: '200px' }}
                                 />
                                 <select
                                     value={editPayPalForm.currency}
                                     onChange={(e) => setEditPayPalForm({ ...editPayPalForm, currency: e.target.value })}
-                                    className="form-input w-20"
+                                    className="form-input w-24 flex-shrink-0"
                                 >
                                     <option value="GBP">GBP</option>
                                     <option value="USD">USD</option>
@@ -1202,7 +1204,7 @@ export default function PaymentMethodsPage() {
                         </div>
                         <div>
                             <label className="form-label">Сумма и валюта *</label>
-                            <div className="flex gap-2">
+                            <div className="flex gap-3">
                                 <input
                                     type="number"
                                     value={newOperationForm.amount}
@@ -1210,10 +1212,11 @@ export default function PaymentMethodsPage() {
                                         ...newOperationForm, 
                                         amount: parseFloat(e.target.value) || 0 
                                     })}
-                                    className="form-input flex-1"
+                                    className="form-input w-full"
                                     placeholder="0.00"
                                     min="0"
                                     step="0.01"
+                                    style={{ minWidth: '200px' }}
                                     required
                                 />
                                 <select
@@ -1222,7 +1225,7 @@ export default function PaymentMethodsPage() {
                                         ...newOperationForm, 
                                         currency: e.target.value 
                                     })}
-                                    className="form-input w-16"
+                                    className="form-input w-24 flex-shrink-0"
                                 >
                                     <option value="GBP">GBP</option>
                                     <option value="USD">USD</option>
