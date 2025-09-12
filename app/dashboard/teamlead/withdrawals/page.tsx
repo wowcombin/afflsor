@@ -112,7 +112,7 @@ export default function WithdrawalsQueue() {
 
   const fetchWithdrawals = async () => {
     try {
-      const response = await fetch('/api/universal/withdrawals')
+      const response = await fetch('/api/teamlead/withdrawals')
       const data = await response.json()
 
       if (data.success) {
@@ -333,10 +333,10 @@ export default function WithdrawalsQueue() {
   const handleWithdrawalAction = async (withdrawalId: string, action: 'approve' | 'reject', comment?: string) => {
     setActionLoading(true)
     try {
-      const response = await fetch(`/api/manager/withdrawals/${withdrawalId}`, {
-        method: 'PATCH',
+      const response = await fetch(`/api/teamlead/withdrawals/${withdrawalId}/${action}`, {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action, comment })
+        body: JSON.stringify({ comment })
       })
 
       const data = await response.json()

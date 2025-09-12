@@ -52,7 +52,7 @@ export default function TeamLeadTeamPage() {
     try {
       const response = await fetch('/api/teamlead/team')
       const data = await response.json()
-      
+
       if (data.success) {
         setTeam(data.data || [])
         setStats(data.stats || stats)
@@ -104,11 +104,10 @@ export default function TeamLeadTeamPage() {
         const rate = member.success_rate
         return (
           <div className="text-center">
-            <div className={`text-lg font-semibold ${
-              rate >= 80 ? 'text-success-600' : 
-              rate >= 60 ? 'text-warning-600' : 
-              'text-danger-600'
-            }`}>
+            <div className={`text-lg font-semibold ${rate >= 80 ? 'text-success-600' :
+                rate >= 60 ? 'text-warning-600' :
+                  'text-danger-600'
+              }`}>
               {rate}%
             </div>
             <div className="text-xs text-gray-500">получено</div>

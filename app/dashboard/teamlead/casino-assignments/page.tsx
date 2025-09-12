@@ -77,8 +77,8 @@ export default function TeamLeadCasinoAssignmentsPage() {
         }
     }
 
-    async function loadAssignModalData() {
-        try {
+        async function loadAssignModalData() {
+        try { {
             // Загружаем Junior'ов команды
             const teamResponse = await fetch('/api/teamlead/team')
             if (teamResponse.ok) {
