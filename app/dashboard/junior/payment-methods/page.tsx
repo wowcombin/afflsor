@@ -16,7 +16,13 @@ import {
     XCircleIcon,
     ExclamationTriangleIcon,
     ArrowPathIcon,
-    ClockIcon
+    ClockIcon,
+    PencilIcon,
+    BriefcaseIcon,
+    DocumentTextIcon,
+    NoSymbolIcon,
+    ArrowUturnLeftIcon,
+    FunnelIcon
 } from '@heroicons/react/24/outline'
 
 interface Card {
@@ -118,6 +124,9 @@ export default function PaymentMethodsPage() {
     const [activeTab, setActiveTab] = useState<'cards' | 'paypal' | 'history'>('cards')
     const [showSensitiveData, setShowSensitiveData] = useState<{ [key: string]: boolean }>({})
     const [showCreatePayPalModal, setShowCreatePayPalModal] = useState(false)
+    
+    // Состояние для фильтра по балансам
+    const [balanceFilter, setBalanceFilter] = useState<'all' | 'with_balance' | 'empty'>('all')
     const [showEditPayPalModal, setShowEditPayPalModal] = useState(false)
     const [editingPayPal, setEditingPayPal] = useState<PayPalAccount | null>(null)
     const [creating, setCreating] = useState(false)
@@ -495,21 +504,26 @@ export default function PaymentMethodsPage() {
             label: 'Баланс',
             sortable: true,
             align: 'right',
-            render: (paypal) => (
-                <div className="text-right">
-                    <div className={`font-bold ${paypal.balance > 0 ? 'text-green-600' : 'text-orange-600'}`}>
-                        ${paypal.balance.toFixed(2)}
-                    </div>
-                    {paypal.balance_send && paypal.balance_send > 0 && (
-                        <div className="text-xs text-blue-600">
-                            Отправка: ${paypal.balance_send.toFixed(2)}
+            render: (paypal) => {
+                const currencySymbol = paypal.currency === 'GBP' ? '£' : 
+                                     paypal.currency === 'EUR' ? '€' : 
+                                     paypal.currency === 'CAD' ? 'C$' : '$'
+                return (
+                    <div className="text-right">
+                        <div className={`font-bold ${paypal.balance > 0 ? 'text-green-600' : 'text-orange-600'}`}>
+                            {currencySymbol}{paypal.balance.toFixed(2)}
                         </div>
-                    )}
-                    {paypal.balance <= 0 && (
-                        <div className="text-xs text-orange-500">Требует пополнения</div>
-                    )}
-                </div>
-            )
+                        {paypal.balance_send && paypal.balance_send > 0 && (
+                            <div className="text-xs text-blue-600">
+                                Отправка: {currencySymbol}{paypal.balance_send.toFixed(2)}
+                            </div>
+                        )}
+                        {paypal.balance <= 0 && (
+                            <div className="text-xs text-orange-500">Требует пополнения</div>
+                        )}
+                    </div>
+                )
+            }
         },
         {
             key: 'credentials',
@@ -564,19 +578,22 @@ export default function PaymentMethodsPage() {
 
     const paypalActions: ActionButton<PayPalAccount>[] = [
         {
-            label: 'Редактировать',
+            label: <PencilIcon className="h-4 w-4" />,
+            title: 'Редактировать',
             action: (paypal) => openEditPayPal(paypal),
             variant: 'secondary',
             condition: (paypal) => paypal.status === 'active'
         },
         {
-            label: 'Создать работу',
+            label: <BriefcaseIcon className="h-4 w-4" />,
+            title: 'Создать работу',
             action: (paypal) => router.push(`/dashboard/junior/work/new?paypal_id=${paypal.id}`),
             variant: 'primary',
             condition: (paypal) => paypal.status === 'active'
         },
         {
-            label: 'Операции',
+            label: <DocumentTextIcon className="h-4 w-4" />,
+            title: 'Операции',
             action: async (paypal) => {
                 setSelectedPayPalAccount(paypal)
                 setShowOperationsModal(true)
@@ -596,7 +613,8 @@ export default function PaymentMethodsPage() {
             condition: (paypal) => paypal.status === 'active'
         },
         {
-            label: 'Заблокировать',
+            label: <NoSymbolIcon className="h-4 w-4" />,
+            title: 'Заблокировать',
             action: async (paypal) => {
                 if (confirm(`Вы уверены, что хотите заблокировать PayPal аккаунт "${paypal.name}"?`)) {
                     try {
@@ -628,6 +646,51 @@ export default function PaymentMethodsPage() {
             },
             variant: 'danger',
             condition: (paypal) => paypal.status === 'active'
+        }
+    ]
+
+    // Действия для заблокированных PayPal аккаунтов
+    const blockedPaypalActions: ActionButton<PayPalAccount>[] = [
+        {
+            label: <ArrowUturnLeftIcon className="h-4 w-4" />,
+            title: 'Вернуть',
+            action: async (paypal) => {
+                if (confirm(`Вы уверены, что хотите вернуть PayPal аккаунт "${paypal.name}"?`)) {
+                    try {
+                        const response = await fetch(`/api/junior/paypal/${paypal.id}`, {
+                            method: 'PUT',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                status: 'active'
+                            })
+                        })
+
+                        if (response.ok) {
+                            addToast({
+                                type: 'success',
+                                title: 'PayPal аккаунт восстановлен'
+                            })
+                            loadPaymentMethods()
+                        } else {
+                            const error = await response.json()
+                            addToast({
+                                type: 'error',
+                                title: error.error || 'Ошибка при восстановлении аккаунта'
+                            })
+                        }
+                    } catch (error) {
+                        console.error('Error restoring PayPal:', error)
+                        addToast({
+                            type: 'error',
+                            title: 'Ошибка при восстановлении аккаунта'
+                        })
+                    }
+                }
+            },
+            variant: 'success',
+            condition: (paypal) => paypal.status === 'blocked'
         }
     ]
 
@@ -756,48 +819,87 @@ export default function PaymentMethodsPage() {
 
             {activeTab === 'paypal' && (
                 <div className="space-y-6">
-                    {/* PayPal с балансом */}
-                    {activePayPalAccounts.length > 0 && (
-                        <div className="card">
-                            <div className="card-header">
-                                <h3 className="text-lg font-semibold text-green-900">
-                                    💰 PayPal с балансом ({activePayPalAccounts.length})
+                    {/* Фильтр по балансам */}
+                    <div className="card">
+                        <div className="card-header">
+                            <div className="flex items-center justify-between">
+                                <h3 className="text-lg font-semibold text-gray-900">
+                                    <FunnelIcon className="h-5 w-5 inline mr-2" />
+                                    Фильтр по балансам
                                 </h3>
-                                <p className="text-sm text-green-600">Готовы к работе, сортированы по убыванию баланса</p>
                             </div>
-
-                            <DataTable
-                                data={activePayPalAccounts}
-                                columns={paypalColumns}
-                                actions={paypalActions}
-                                loading={loading}
-                                pagination={{ pageSize: 10 }}
-                                filtering={true}
-                                exportable={true}
-                                emptyMessage="PayPal аккаунты с балансом не найдены"
-                            />
                         </div>
-                    )}
+                        <div className="card-content">
+                            <div className="flex space-x-4">
+                                <button
+                                    onClick={() => setBalanceFilter('all')}
+                                    className={`px-4 py-2 rounded-lg text-sm font-medium ${
+                                        balanceFilter === 'all'
+                                            ? 'bg-blue-100 text-blue-800 border border-blue-300'
+                                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                    }`}
+                                >
+                                    Все аккаунты ({paypalAccounts.filter(p => p.status === 'active').length})
+                                </button>
+                                <button
+                                    onClick={() => setBalanceFilter('with_balance')}
+                                    className={`px-4 py-2 rounded-lg text-sm font-medium ${
+                                        balanceFilter === 'with_balance'
+                                            ? 'bg-green-100 text-green-800 border border-green-300'
+                                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                    }`}
+                                >
+                                    С балансом ({activePayPalAccounts.length})
+                                </button>
+                                <button
+                                    onClick={() => setBalanceFilter('empty')}
+                                    className={`px-4 py-2 rounded-lg text-sm font-medium ${
+                                        balanceFilter === 'empty'
+                                            ? 'bg-orange-100 text-orange-800 border border-orange-300'
+                                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                    }`}
+                                >
+                                    Без баланса ({emptyPayPalAccounts.length})
+                                </button>
+                            </div>
+                        </div>
+                    </div>
 
-                    {/* PayPal без баланса */}
-                    {emptyPayPalAccounts.length > 0 && (
+                    {/* Отфильтрованные PayPal аккаунты */}
+                    {(balanceFilter === 'all' ? paypalAccounts.filter(p => p.status === 'active') : 
+                      balanceFilter === 'with_balance' ? activePayPalAccounts : emptyPayPalAccounts).length > 0 && (
                         <div className="card">
                             <div className="card-header">
-                                <h3 className="text-lg font-semibold text-orange-900">
-                                    ⚠️ PayPal без баланса ({emptyPayPalAccounts.length})
+                                <h3 className={`text-lg font-semibold ${
+                                    balanceFilter === 'with_balance' ? 'text-green-900' :
+                                    balanceFilter === 'empty' ? 'text-orange-900' : 'text-gray-900'
+                                }`}>
+                                    {balanceFilter === 'with_balance' && '💰 PayPal с балансом'}
+                                    {balanceFilter === 'empty' && '⚠️ PayPal без баланса'}
+                                    {balanceFilter === 'all' && '💳 Все активные PayPal'}
+                                    {' '}({(balanceFilter === 'all' ? paypalAccounts.filter(p => p.status === 'active') : 
+                                          balanceFilter === 'with_balance' ? activePayPalAccounts : emptyPayPalAccounts).length})
                                 </h3>
-                                <p className="text-sm text-orange-600">Требуют пополнения для использования</p>
+                                <p className={`text-sm ${
+                                    balanceFilter === 'with_balance' ? 'text-green-600' :
+                                    balanceFilter === 'empty' ? 'text-orange-600' : 'text-gray-600'
+                                }`}>
+                                    {balanceFilter === 'with_balance' && 'Готовы к работе, сортированы по убыванию баланса'}
+                                    {balanceFilter === 'empty' && 'Требуют пополнения для использования'}
+                                    {balanceFilter === 'all' && 'Все активные PayPal аккаунты'}
+                                </p>
                             </div>
 
                             <DataTable
-                                data={emptyPayPalAccounts}
+                                data={balanceFilter === 'all' ? paypalAccounts.filter(p => p.status === 'active').sort((a, b) => b.balance - a.balance) : 
+                                      balanceFilter === 'with_balance' ? activePayPalAccounts : emptyPayPalAccounts}
                                 columns={paypalColumns}
                                 actions={paypalActions}
                                 loading={loading}
                                 pagination={{ pageSize: 10 }}
                                 filtering={true}
                                 exportable={true}
-                                emptyMessage="PayPal аккаунты без баланса не найдены"
+                                emptyMessage="PayPal аккаунты не найдены"
                             />
                         </div>
                     )}
@@ -854,6 +956,7 @@ export default function PaymentMethodsPage() {
                             <DataTable
                                 data={blockedPayPalAccounts}
                                 columns={paypalColumns}
+                                actions={blockedPaypalActions}
                                 loading={loading}
                                 pagination={{ pageSize: 10 }}
                                 filtering={true}
