@@ -122,7 +122,7 @@ export default function PaymentMethodsPage() {
     const [editingPayPal, setEditingPayPal] = useState<PayPalAccount | null>(null)
     const [creating, setCreating] = useState(false)
     const [updating, setUpdating] = useState(false)
-    
+
     // Операции PayPal
     const [paypalOperations, setPaypalOperations] = useState<PayPalOperation[]>([])
     const [showOperationsModal, setShowOperationsModal] = useState(false)
@@ -238,10 +238,10 @@ export default function PaymentMethodsPage() {
     }, [cards, paypalAccounts])
 
     async function handleCreatePayPal() {
-        if (!newPayPalForm.name || !newPayPalForm.email || !newPayPalForm.password || 
+        if (!newPayPalForm.name || !newPayPalForm.email || !newPayPalForm.password ||
             !newPayPalForm.phone_number || !newPayPalForm.authenticator_url) {
-            addToast({ 
-                type: 'error', 
+            addToast({
+                type: 'error',
                 title: 'Заполните обязательные поля',
                 description: 'Имя, email, пароль, телефон и ссылка аутентификатора обязательны'
             })
@@ -576,7 +576,7 @@ export default function PaymentMethodsPage() {
             action: async (paypal) => {
                 setSelectedPayPalAccount(paypal)
                 setShowOperationsModal(true)
-                
+
                 // Загружаем операции для этого аккаунта
                 try {
                     const response = await fetch(`/api/paypal/operations?paypal_account_id=${paypal.id}`)
@@ -599,7 +599,7 @@ export default function PaymentMethodsPage() {
                         const response = await fetch(`/api/junior/paypal/${paypal.id}`, {
                             method: 'DELETE'
                         })
-                        
+
                         if (response.ok) {
                             addToast({
                                 type: 'success',
@@ -946,17 +946,17 @@ export default function PaymentMethodsPage() {
                                     type="number"
                                     value={newPayPalForm.balance}
                                     onChange={(e) => setNewPayPalForm({ ...newPayPalForm, balance: parseFloat(e.target.value) || 0 })}
-                                    className="form-input w-full"
+                                    className="form-input"
                                     placeholder="0.00"
                                     min="0"
                                     step="0.01"
-                                    style={{ minWidth: '200px' }}
+                                    style={{ width: '120px', minWidth: '120px', maxWidth: '120px' }}
                                 />
                                 <select
                                     value={newPayPalForm.currency}
                                     onChange={(e) => setNewPayPalForm({ ...newPayPalForm, currency: e.target.value })}
-                                    className="form-input flex-shrink-0"
-                                    style={{ width: '60px', minWidth: '60px', maxWidth: '60px' }}
+                                    className="form-input"
+                                    style={{ width: '120px', minWidth: '120px', maxWidth: '120px' }}
                                 >
                                     <option value="GBP">GBP</option>
                                     <option value="USD">USD</option>
@@ -1077,17 +1077,17 @@ export default function PaymentMethodsPage() {
                                     type="number"
                                     value={editPayPalForm.balance}
                                     onChange={(e) => setEditPayPalForm({ ...editPayPalForm, balance: parseFloat(e.target.value) || 0 })}
-                                    className="form-input w-full"
+                                    className="form-input"
                                     placeholder="0.00"
                                     min="0"
                                     step="0.01"
-                                    style={{ minWidth: '200px' }}
+                                    style={{ width: '120px', minWidth: '120px', maxWidth: '120px' }}
                                 />
                                 <select
                                     value={editPayPalForm.currency}
                                     onChange={(e) => setEditPayPalForm({ ...editPayPalForm, currency: e.target.value })}
-                                    className="form-input flex-shrink-0"
-                                    style={{ width: '60px', minWidth: '60px', maxWidth: '60px' }}
+                                    className="form-input"
+                                    style={{ width: '120px', minWidth: '120px', maxWidth: '120px' }}
                                 >
                                     <option value="GBP">GBP</option>
                                     <option value="USD">USD</option>
@@ -1184,13 +1184,12 @@ export default function PaymentMethodsPage() {
                                                 )}
                                             </div>
                                             <div className="text-right">
-                                                <div className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${
-                                                    operation.status === 'completed' ? 'bg-green-100 text-green-800' :
+                                                <div className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${operation.status === 'completed' ? 'bg-green-100 text-green-800' :
                                                     operation.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                                                    operation.status === 'processing' ? 'bg-blue-100 text-blue-800' :
-                                                    operation.status === 'failed' ? 'bg-red-100 text-red-800' :
-                                                    'bg-gray-100 text-gray-800'
-                                                }`}>
+                                                        operation.status === 'processing' ? 'bg-blue-100 text-blue-800' :
+                                                            operation.status === 'failed' ? 'bg-red-100 text-red-800' :
+                                                                'bg-gray-100 text-gray-800'
+                                                    }`}>
                                                     {operation.status === 'completed' && 'Завершено'}
                                                     {operation.status === 'pending' && 'Ожидание'}
                                                     {operation.status === 'processing' && 'Обработка'}
@@ -1223,8 +1222,8 @@ export default function PaymentMethodsPage() {
                             <label className="form-label">Тип операции *</label>
                             <select
                                 value={newOperationForm.operation_type}
-                                onChange={(e) => setNewOperationForm({ 
-                                    ...newOperationForm, 
+                                onChange={(e) => setNewOperationForm({
+                                    ...newOperationForm,
                                     operation_type: e.target.value as PayPalOperation['operation_type']
                                 })}
                                 className="form-input"
@@ -1248,11 +1247,11 @@ export default function PaymentMethodsPage() {
                                         ...newOperationForm, 
                                         amount: parseFloat(e.target.value) || 0 
                                     })}
-                                    className="form-input w-full"
+                                    className="form-input"
                                     placeholder="0.00"
                                     min="0"
                                     step="0.01"
-                                    style={{ minWidth: '200px' }}
+                                    style={{ width: '120px', minWidth: '120px', maxWidth: '120px' }}
                                     required
                                 />
                                 <select
@@ -1261,8 +1260,8 @@ export default function PaymentMethodsPage() {
                                         ...newOperationForm, 
                                         currency: e.target.value 
                                     })}
-                                    className="form-input flex-shrink-0"
-                                    style={{ width: '60px', minWidth: '60px', maxWidth: '60px' }}
+                                    className="form-input"
+                                    style={{ width: '120px', minWidth: '120px', maxWidth: '120px' }}
                                 >
                                     <option value="GBP">GBP</option>
                                     <option value="USD">USD</option>
@@ -1280,9 +1279,9 @@ export default function PaymentMethodsPage() {
                             <input
                                 type="email"
                                 value={newOperationForm.recipient_paypal_email}
-                                onChange={(e) => setNewOperationForm({ 
-                                    ...newOperationForm, 
-                                    recipient_paypal_email: e.target.value 
+                                onChange={(e) => setNewOperationForm({
+                                    ...newOperationForm,
+                                    recipient_paypal_email: e.target.value
                                 })}
                                 className="form-input"
                                 placeholder="example@paypal.com"
@@ -1296,9 +1295,9 @@ export default function PaymentMethodsPage() {
                             <input
                                 type="text"
                                 value={newOperationForm.recipient_card_number}
-                                onChange={(e) => setNewOperationForm({ 
-                                    ...newOperationForm, 
-                                    recipient_card_number: e.target.value 
+                                onChange={(e) => setNewOperationForm({
+                                    ...newOperationForm,
+                                    recipient_card_number: e.target.value
                                 })}
                                 className="form-input"
                                 placeholder="**** **** **** 1234"
@@ -1312,9 +1311,9 @@ export default function PaymentMethodsPage() {
                             <input
                                 type="text"
                                 value={newOperationForm.casino_name}
-                                onChange={(e) => setNewOperationForm({ 
-                                    ...newOperationForm, 
-                                    casino_name: e.target.value 
+                                onChange={(e) => setNewOperationForm({
+                                    ...newOperationForm,
+                                    casino_name: e.target.value
                                 })}
                                 className="form-input"
                                 placeholder="Название казино"
@@ -1326,9 +1325,9 @@ export default function PaymentMethodsPage() {
                         <label className="form-label">Описание операции</label>
                         <textarea
                             value={newOperationForm.description}
-                            onChange={(e) => setNewOperationForm({ 
-                                ...newOperationForm, 
-                                description: e.target.value 
+                            onChange={(e) => setNewOperationForm({
+                                ...newOperationForm,
+                                description: e.target.value
                             })}
                             className="form-input"
                             rows={3}
