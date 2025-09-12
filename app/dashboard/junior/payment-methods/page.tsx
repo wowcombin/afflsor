@@ -1243,9 +1243,9 @@ export default function PaymentMethodsPage() {
                                 <input
                                     type="number"
                                     value={newOperationForm.amount}
-                                    onChange={(e) => setNewOperationForm({ 
-                                        ...newOperationForm, 
-                                        amount: parseFloat(e.target.value) || 0 
+                                    onChange={(e) => setNewOperationForm({
+                                        ...newOperationForm,
+                                        amount: parseFloat(e.target.value) || 0
                                     })}
                                     className="form-input"
                                     placeholder="0.00"
@@ -1256,9 +1256,9 @@ export default function PaymentMethodsPage() {
                                 />
                                 <select
                                     value={newOperationForm.currency}
-                                    onChange={(e) => setNewOperationForm({ 
-                                        ...newOperationForm, 
-                                        currency: e.target.value 
+                                    onChange={(e) => setNewOperationForm({
+                                        ...newOperationForm,
+                                        currency: e.target.value
                                     })}
                                     className="form-input"
                                     style={{ width: '120px', minWidth: '120px', maxWidth: '120px' }}

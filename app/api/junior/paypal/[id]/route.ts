@@ -10,13 +10,13 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
         }
 
-        const userData = await supabase
+        const { data: userData, error: userError } = await supabase
             .from('users')
-            .select('role')
+            .select('id, role')
             .eq('auth_id', user.id)
             .single()
 
-        if (!userData.data || userData.data.role !== 'junior') {
+        if (userError || !userData || userData.role !== 'junior') {
             return NextResponse.json({ error: 'Access denied' }, { status: 403 })
         }
 
@@ -53,10 +53,15 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
             .single()
 
         if (checkError || !existingPayPal) {
+            console.error('PayPal account check error:', checkError)
             return NextResponse.json({ error: 'PayPal account not found' }, { status: 404 })
         }
 
-        if (existingPayPal.junior_id !== user.id) {
+        if (existingPayPal.junior_id !== userData.id) {
+            console.error('Access denied:', { 
+                paypal_junior_id: existingPayPal.junior_id, 
+                user_id: userData.id 
+            })
             return NextResponse.json({ error: 'Access denied - not your account' }, { status: 403 })
         }
 
@@ -122,13 +127,13 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
         }
 
-        const userData = await supabase
+        const { data: userData, error: userError } = await supabase
             .from('users')
-            .select('role')
+            .select('id, role')
             .eq('auth_id', user.id)
             .single()
 
-        if (!userData.data || userData.data.role !== 'junior') {
+        if (userError || !userData || userData.role !== 'junior') {
             return NextResponse.json({ error: 'Access denied' }, { status: 403 })
         }
 
@@ -142,10 +147,15 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
             .single()
 
         if (checkError || !existingPayPal) {
+            console.error('PayPal account check error:', checkError)
             return NextResponse.json({ error: 'PayPal account not found' }, { status: 404 })
         }
 
-        if (existingPayPal.junior_id !== user.id) {
+        if (existingPayPal.junior_id !== userData.id) {
+            console.error('Access denied:', { 
+                paypal_junior_id: existingPayPal.junior_id, 
+                user_id: userData.id 
+            })
             return NextResponse.json({ error: 'Access denied - not your account' }, { status: 403 })
         }
 
