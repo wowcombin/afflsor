@@ -17,7 +17,7 @@ export interface NotificationData {
 export async function sendNotification(data: NotificationData) {
     try {
         const supabase = await createClient()
-        
+
         // Создаем уведомления через API функцию
         const { data: result, error } = await supabase
             .rpc('create_bulk_notifications', {
@@ -107,7 +107,7 @@ export async function notifyWithdrawalPending(teamleadId: string, juniorName: st
         message: `${juniorName} создал вывод на ${amount} ${currency}. Требуется проверка.`,
         sender_id: senderId,
         priority: 'high',
-        metadata: { 
+        metadata: {
             junior_name: juniorName,
             amount,
             currency
@@ -143,10 +143,10 @@ export async function notifyWithdrawalBlocked(juniorId: string, amount: number, 
         message: `Ваш вывод на ${amount} ${currency} заблокирован. Причина: ${reason}`,
         sender_id: senderId,
         priority: 'urgent',
-        metadata: { 
-            amount, 
-            currency, 
-            reason 
+        metadata: {
+            amount,
+            currency,
+            reason
         },
         action_url: '/dashboard/junior/withdrawals'
     })
@@ -163,9 +163,9 @@ export async function notifyAccountBlocked(userIds: string[], accountType: strin
         message: `${accountType} аккаунт заблокирован. Причина: ${reason}`,
         sender_id: senderId,
         priority: 'urgent',
-        metadata: { 
+        metadata: {
             account_type: accountType,
-            reason 
+            reason
         }
     })
 }
@@ -213,7 +213,7 @@ export async function notifyTaskCompleted(teamleadId: string, taskTitle: string,
         message: `${juniorName} выполнил задачу: "${taskTitle}"`,
         sender_id: senderId,
         priority: 'normal',
-        metadata: { 
+        metadata: {
             task_title: taskTitle,
             junior_name: juniorName
         },
@@ -241,7 +241,7 @@ export async function notifySystemAlert(userIds: string[], title: string, messag
 export async function getUsersByRole(role: string): Promise<string[]> {
     try {
         const supabase = await createClient()
-        
+
         const { data: users, error } = await supabase
             .from('users')
             .select('id')
@@ -266,7 +266,7 @@ export async function getUsersByRole(role: string): Promise<string[]> {
 export async function getTeamLeadForJunior(juniorId: string): Promise<string | null> {
     try {
         const supabase = await createClient()
-        
+
         const { data: junior, error } = await supabase
             .from('users')
             .select('team_lead_id')

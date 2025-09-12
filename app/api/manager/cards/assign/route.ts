@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic'
 export async function POST(request: Request) {
   try {
     const supabase = await createClient()
-    
+
     // Проверка аутентификации и роли
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
@@ -30,7 +30,7 @@ export async function POST(request: Request) {
 
     // Поддерживаем как одиночное назначение (card_id), так и массовое (card_ids)
     const cardIds = card_ids || (body.card_id ? [body.card_id] : [])
-    
+
     console.log('🎯 Запрос на назначение карт:', {
       cardIds,
       user_id,
@@ -87,14 +87,14 @@ export async function POST(request: Request) {
         .eq('casino_id', casino_id)
         .eq('status', 'active')
         .in('card_id', cardIds)
-      
+
       existingAssignments = assignments || []
     }
 
     // Фильтруем доступные карты
     const availableCards = cards.filter(card => {
       const bankAccount = card.bank_account as any
-      
+
       // Отладочная информация
       if (card.card_number_mask.includes('1234')) {
         console.log('🔍 Проверка карты для назначения', card.card_number_mask, {
@@ -107,7 +107,7 @@ export async function POST(request: Request) {
           existingAssignments: existingAssignments.filter(a => a.card_id === card.id)
         })
       }
-      
+
       // Базовые проверки
       if (!(
         card.status === 'active' &&
@@ -116,7 +116,7 @@ export async function POST(request: Request) {
       )) {
         return false
       }
-      
+
       // Проверяем, не назначена ли карта уже на это конкретное казино
       if (casino_id) {
         // Проверяем только новую систему (card_casino_assignments)
@@ -124,12 +124,12 @@ export async function POST(request: Request) {
           return false
         }
       }
-      
+
       return true
     })
 
     if (availableCards.length === 0) {
-      return NextResponse.json({ 
+      return NextResponse.json({
         error: 'No cards available for assignment',
         details: 'All selected cards are either inactive, already assigned, or have insufficient balance'
       }, { status: 400 })
@@ -202,10 +202,10 @@ export async function POST(request: Request) {
             entity_name: `Card ${card.card_number_mask} assignment to ${targetUser.first_name} ${targetUser.last_name}`,
             change_description: `Manager assigned card to junior${notes ? `: ${notes}` : ''}`,
             performed_by: userData.id,
-            new_values: { 
-              assigned_to: user_id, 
+            new_values: {
+              assigned_to: user_id,
               assigned_casino_id: casino_id,
-              notes 
+              notes
             }
           })
 

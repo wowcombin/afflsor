@@ -12,7 +12,7 @@ export async function POST(
   try {
     const supabase = await createClient()
     const withdrawalId = params.id
-    
+
     // Проверка аутентификации
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
@@ -58,8 +58,7 @@ export async function POST(
         withdrawal_amount,
         works!inner(
           id,
-          junior_id,
-          users!inner(id, first_name, last_name, email)
+          junior_id
         )
       `)
       .eq('id', withdrawalId)
@@ -69,7 +68,7 @@ export async function POST(
     if (withdrawalInfo && withdrawalInfo.works) {
       const juniorId = withdrawalInfo.works.junior_id
       const amount = withdrawalInfo.withdrawal_amount
-      
+
       try {
         if (action === 'received') {
           await notifyWithdrawalApproved(
