@@ -8,7 +8,8 @@ import {
   CurrencyDollarIcon,
   ChatBubbleLeftRightIcon,
   EyeIcon,
-  EyeSlashIcon
+  EyeSlashIcon,
+  KeyIcon
 } from '@heroicons/react/24/outline'
 
 interface UserSettings {
@@ -29,12 +30,21 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [showWallet, setShowWallet] = useState(false)
+  const [changingPassword, setChangingPassword] = useState(false)
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false)
+  const [showNewPassword, setShowNewPassword] = useState(false)
   
   const [formData, setFormData] = useState({
     first_name: '',
     last_name: '',
     telegram_username: '',
     usdt_wallet: ''
+  })
+
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
   })
 
   // Загрузка настроек пользователя
@@ -130,6 +140,88 @@ export default function SettingsPage() {
       ...prev,
       [field]: value
     }))
+  }
+
+  // Обработка изменений в форме пароля
+  function handlePasswordChange(field: keyof typeof passwordData, value: string) {
+    setPasswordData(prev => ({
+      ...prev,
+      [field]: value
+    }))
+  }
+
+  // Смена пароля
+  async function changePassword() {
+    try {
+      setChangingPassword(true)
+
+      // Валидация
+      if (!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
+        addToast({
+          type: 'error',
+          title: 'Ошибка валидации',
+          description: 'Все поля обязательны для заполнения'
+        })
+        return
+      }
+
+      if (passwordData.newPassword !== passwordData.confirmPassword) {
+        addToast({
+          type: 'error',
+          title: 'Ошибка валидации',
+          description: 'Новый пароль и подтверждение не совпадают'
+        })
+        return
+      }
+
+      if (passwordData.newPassword.length < 6) {
+        addToast({
+          type: 'error',
+          title: 'Ошибка валидации',
+          description: 'Новый пароль должен содержать минимум 6 символов'
+        })
+        return
+      }
+
+      // Отправляем запрос на смену пароля
+      const response = await fetch('/api/users/change-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          currentPassword: passwordData.currentPassword,
+          newPassword: passwordData.newPassword
+        })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Ошибка смены пароля')
+      }
+
+      // Очищаем форму
+      setPasswordData({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: ''
+      })
+
+      addToast({
+        type: 'success',
+        title: 'Пароль изменен',
+        description: 'Ваш пароль успешно изменен'
+      })
+    } catch (error) {
+      console.error('Ошибка смены пароля:', error)
+      addToast({
+        type: 'error',
+        title: 'Ошибка смены пароля',
+        description: error instanceof Error ? error.message : 'Не удалось изменить пароль'
+      })
+    } finally {
+      setChangingPassword(false)
+    }
   }
 
   // Валидация Telegram username
@@ -318,6 +410,110 @@ export default function SettingsPage() {
             >
               {saving ? 'Сохранение...' : 'Сохранить настройки'}
             </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Смена пароля */}
+      <div className="card">
+        <div className="card-header">
+          <h3 className="card-title flex items-center">
+            <KeyIcon className="h-5 w-5 mr-2" />
+            Смена пароля
+          </h3>
+        </div>
+        <div className="card-content space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="form-label">Текущий пароль *</label>
+              <div className="relative">
+                <input
+                  type={showCurrentPassword ? "text" : "password"}
+                  value={passwordData.currentPassword}
+                  onChange={(e) => handlePasswordChange('currentPassword', e.target.value)}
+                  className="form-input pr-10"
+                  placeholder="Введите текущий пароль"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                >
+                  {showCurrentPassword ? (
+                    <EyeSlashIcon className="h-4 w-4 text-gray-400" />
+                  ) : (
+                    <EyeIcon className="h-4 w-4 text-gray-400" />
+                  )}
+                </button>
+              </div>
+            </div>
+            
+            <div>
+              <label className="form-label">Новый пароль *</label>
+              <div className="relative">
+                <input
+                  type={showNewPassword ? "text" : "password"}
+                  value={passwordData.newPassword}
+                  onChange={(e) => handlePasswordChange('newPassword', e.target.value)}
+                  className="form-input pr-10"
+                  placeholder="Введите новый пароль"
+                  minLength={6}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowNewPassword(!showNewPassword)}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                >
+                  {showNewPassword ? (
+                    <EyeSlashIcon className="h-4 w-4 text-gray-400" />
+                  ) : (
+                    <EyeIcon className="h-4 w-4 text-gray-400" />
+                  )}
+                </button>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                Минимум 6 символов
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="form-label">Подтверждение нового пароля *</label>
+              <input
+                type="password"
+                value={passwordData.confirmPassword}
+                onChange={(e) => handlePasswordChange('confirmPassword', e.target.value)}
+                className={`form-input ${
+                  passwordData.confirmPassword && passwordData.newPassword !== passwordData.confirmPassword
+                    ? 'border-red-300 focus:border-red-500'
+                    : ''
+                }`}
+                placeholder="Повторите новый пароль"
+              />
+              {passwordData.confirmPassword && passwordData.newPassword !== passwordData.confirmPassword && (
+                <p className="text-sm text-red-600 mt-1">
+                  Пароли не совпадают
+                </p>
+              )}
+            </div>
+            
+            <div className="flex items-end">
+              <button
+                onClick={changePassword}
+                disabled={
+                  changingPassword || 
+                  !passwordData.currentPassword || 
+                  !passwordData.newPassword || 
+                  !passwordData.confirmPassword ||
+                  passwordData.newPassword !== passwordData.confirmPassword ||
+                  passwordData.newPassword.length < 6
+                }
+                className="btn-primary w-full"
+              >
+                {changingPassword ? 'Изменение...' : 'Изменить пароль'}
+              </button>
+            </div>
           </div>
         </div>
       </div>
